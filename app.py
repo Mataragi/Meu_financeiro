@@ -51,8 +51,8 @@ conn.close()
 # --- CÁLCULOS COM "DETECTOR DE ERROS" ---
 if not df.empty:
     # Usamos .str.lower() para garantir que 'pago' ou 'PAGO' entrem na conta
-    pagos = df[(df['status'].str.lower() == 'pago') & (df['tipo'].str.lower() == 'saida')]['valor'].sum()
-    pendentes = df[(df['status'].str.lower() == 'pendente') & (df['tipo'].str.lower() == 'saida')]['valor'].sum()
+    pagos = df[(df['status'].str.lower() == 'pago') & (df['tipo'].str.lower().isin(['saida', 'saída']))]['valor'].sum()
+    pendentes = df[(df['status'].str.lower() == 'pendente') & (df['tipo'].str.lower().isin(['saida', 'saída']))]['valor'].sum()
     entradas = df[df['tipo'].str.lower() == 'entrada']['valor'].sum()
     
     saldo_real = entradas - pagos
@@ -66,6 +66,33 @@ if not df.empty:
     st.subheader(f"Histórico - {mes_selecionado}")
     st.dataframe(df.style.format({"valor": "R$ {:.2f}"}), use_container_width=True)
     
+    # --- PAGAMENTO RÁPIDO (Update de Status) ---
+    st.divider()
+    with st.expander("💸 Dar Baixa em Pendências"):
+        # Filtramos apenas o que ainda não foi pago
+        pendentes_df = df[df['status'].str.lower() == 'pendente']
+        
+        if not pendentes_df.empty:
+            opcoes_pagar = [f"{row['id']} - {row['descricao']} (R$ {row['valor']})" for _, row in pendentes_df.iterrows()]
+            selecionados_pagar = st.multiselect("Selecione o que você pagou:", options=opcoes_pagar)
+            
+            if st.button("✅ Confirmar Pagamento"):
+                if selecionados_pagar:
+                    ids_para_pagar = [int(item.split(' - ')[0]) for item in selecionados_pagar]
+                    
+                    conn = conectar()
+                    cursor = conn.cursor()
+                    # A mágica do UPDATE acontece aqui:
+                    query = f"UPDATE transacoes SET status = 'pago' WHERE id IN ({','.join(map(str, ids_para_pagar))})"
+                    cursor.execute(query)
+                    conn.commit()
+                    conn.close()
+                    
+                    st.success(f"Baixa confirmada para os itens: {ids_para_pagar}!")
+                    st.rerun()
+        else:
+            st.write("🎉 Nenhuma conta pendente para este mês!")
+
     # --- FAXINA MULTISELEÇÃO ---
     st.divider()
     with st.expander("🛠️ Faxina nos Dados (Excluir em Lote)"):
