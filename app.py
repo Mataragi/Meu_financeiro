@@ -64,6 +64,29 @@ with st.sidebar:
             st.success("Dados salvos!")
             st.rerun()
 
+# --- CLONAR MÊS (Nova Funcionalidade) ---
+    st.divider()
+    st.subheader("🚀 Replicar Mês")
+    with st.expander("Copiar dados p/ outro mês"):
+        origem = st.selectbox("Copiar de:", ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", 
+                                             "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"], key="origem")
+        destino = st.selectbox("Para o mês:", ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", 
+                                               "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"], key="destino")
+        
+        if st.button("Confirmar Clonagem"):
+            conn = conectar()
+            cursor = conn.cursor()
+            # A mágica do SQL: Seleciona de um mês e insere no outro, resetando o status para 'pendente'
+            cursor.execute('''
+                INSERT INTO transacoes (mes, descricao, valor, tipo, status)
+                SELECT ?, descricao, valor, tipo, 'pendente'
+                FROM transacoes WHERE mes = ?
+            ''', (destino, origem))
+            conn.commit()
+            conn.close()
+            st.success(f"Tudo de {origem} foi copiado para {destino}!")
+            st.rerun()
+
 # --- FILTRO E DASHBOARD ---
 mes_selecionado = st.selectbox("📅 Selecione o Mês:", 
                                ["TODOS", "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", 
