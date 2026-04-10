@@ -14,6 +14,35 @@ def conectar():
 
 st.title("💰 Controle Financeiro Simples")
 
+def inicializar_banco():
+    conn = conectar()
+    cursor = conn.cursor()
+    # Cria a tabela de transações
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS transacoes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            mes TEXT,
+            descricao TEXT,
+            valor REAL,
+            tipo TEXT,
+            status TEXT
+        )
+    ''')
+    # Cria a tabela de usuários
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT UNIQUE,
+            senha TEXT,
+            nivel TEXT DEFAULT 'usuario'
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# ESSA LINHA É OBRIGATÓRIA PARA O APP VOLTAR A VIDA:
+inicializar_banco()
+
 # --- FORMULÁRIO (Menu Lateral) ---
 with st.sidebar:
     st.header("Novo Registro")
