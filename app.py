@@ -46,15 +46,12 @@ inicializar_banco()
 # --- FORMULÁRIO (Menu Lateral) ---
 with st.sidebar:
     st.header("Novo Registro")
-    
-    # Usamos o parâmetro 'key' para o Streamlit saber quem é quem e permitir a limpeza
     mes_input = st.selectbox("Mês", ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", 
-                                     "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"], key="mes_reg")
-    
-    desc = st.text_input("Descrição", key="desc_reg")
-    valor = st.number_input("Valor (R$)", min_value=0.0, step=0.01, key="valor_reg")
-    tipo = st.radio("Tipo", ["Saída", "Entrada"], key="tipo_reg")
-    status = st.selectbox("Status", ["Pendente", "Pago"], key="status_reg")
+                                     "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"])
+    desc = st.text_input("Descrição")
+    valor = st.number_input("Valor (R$)", min_value=0.0, step=0.01)
+    tipo = st.radio("Tipo", ["Saída", "Entrada"])
+    status = st.selectbox("Status", ["Pendente", "Pago"])
 
     if st.button("Salvar no Banco"):
         if desc:
@@ -64,13 +61,8 @@ with st.sidebar:
                            (mes_input, desc, valor, tipo.lower(), status.lower()))
             conn.commit()
             conn.close()
-            
-            # MÁGICA DA LIMPEZA: Resetamos as chaves no session_state
-            st.session_state["desc_reg"] = ""
-            st.session_state["valor_reg"] = 0.0
-            
             st.success("Dados salvos!")
-            st.rerun()  # O rerun agora vai carregar os campos com os valores acima
+            st.rerun()
 
 # --- FILTRO E DASHBOARD ---
 mes_selecionado = st.selectbox("📅 Selecione o Mês:", 
