@@ -43,27 +43,6 @@ def inicializar_banco():
 # ESSA LINHA É OBRIGATÓRIA PARA O APP VOLTAR A VIDA:
 inicializar_banco()
 
-# --- SISTEMA DE LOGIN ---
-def login():
-    st.title("🔐 Acesso Restrito")
-    usuario = st.text_input("Usuário")
-    senha = st.text_input("Senha", type="password")
-    
-    if st.button("Entrar"):
-        conn = conectar()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM usuarios WHERE nome = ? AND senha = ?", (usuario, senha))
-        user_data = cursor.fetchone()
-        conn.close()
-        
-        if user_data:
-            st.session_state["logado"] = True
-            st.session_state["usuario_nome"] = usuario
-            st.success(f"Bem-vindo, {usuario}!")
-            st.rerun()
-        else:
-            st.error("Usuário ou senha incorretos!")
-
 # Controle de Sessão
 if "logado" not in st.session_state:
     st.session_state["logado"] = False
