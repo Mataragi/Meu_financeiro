@@ -43,20 +43,6 @@ def inicializar_banco():
 # ESSA LINHA É OBRIGATÓRIA PARA O APP VOLTAR A VIDA:
 inicializar_banco()
 
-# Controle de Sessão
-if "logado" not in st.session_state:
-    st.session_state["logado"] = False
-
-if not st.session_state["logado"]:
-    login()
-    st.stop() # Trava o resto do código aqui até logar
-
-# --- SE CHEGOU AQUI, ESTÁ LOGADO ---
-st.sidebar.write(f"Logado como: **{st.session_state['usuario_nome']}**")
-if st.sidebar.button("Sair"):
-    st.session_state["logado"] = False
-    st.rerun()
-
 # --- FORMULÁRIO (Menu Lateral) ---
 with st.sidebar:
     st.header("Novo Registro")
