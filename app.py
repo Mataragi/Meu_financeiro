@@ -43,6 +43,41 @@ def inicializar_banco():
 # ESSA LINHA É OBRIGATÓRIA PARA O APP VOLTAR A VIDA:
 inicializar_banco()
 
+# --- SISTEMA DE LOGIN ---
+def login():
+    st.title("🔐 Acesso Restrito")
+    usuario = st.text_input("Usuário")
+    senha = st.text_input("Senha", type="password")
+    
+    if st.button("Entrar"):
+        conn = conectar()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM usuarios WHERE nome = ? AND senha = ?", (usuario, senha))
+        user_data = cursor.fetchone()
+        conn.close()
+        
+        if user_data:
+            st.session_state["logado"] = True
+            st.session_state["usuario_nome"] = usuario
+            st.success(f"Bem-vindo, {usuario}!")
+            st.rerun()
+        else:
+            st.error("Usuário ou senha incorretos!")
+
+# Controle de Sessão
+if "logado" not in st.session_state:
+    st.session_state["logado"] = False
+
+if not st.session_state["logado"]:
+    login()
+    st.stop() # Trava o resto do código aqui até logar
+
+# --- SE CHEGOU AQUI, ESTÁ LOGADO ---
+st.sidebar.write(f"Logado como: **{st.session_state['usuario_nome']}**")
+if st.sidebar.button("Sair"):
+    st.session_state["logado"] = False
+    st.rerun()
+
 # --- FORMULÁRIO (Menu Lateral) ---
 with st.sidebar:
     st.header("Novo Registro")
@@ -86,6 +121,28 @@ with st.sidebar:
             conn.close()
             st.success(f"Tudo de {origem} foi copiado para {destino}!")
             st.rerun()
+
+# --- EXCLUIR MÊS INTEIRO ---
+    st.divider()
+    st.subheader("⚠️ Zona de Perigo")
+    with st.expander("Excluir mês completo"):
+        mes_excluir = st.selectbox("Selecione o mês para LIMPAR:", ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", 
+                                                                  "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"], key="excluir_mes")
+        
+        # Checkbox de segurança para não fazer besteira no celular
+        confirmar = st.checkbox(f"Eu tenho certeza que quero apagar tudo de {mes_excluir}")
+        
+        if st.button("🚨 EXCLUIR TUDO", type="secondary"):
+            if confirmar:
+                conn = conectar()
+                cursor = conn.cursor()
+                cursor.execute("DELETE FROM transacoes WHERE mes = ?", (mes_excluir,))
+                conn.commit()
+                conn.close()
+                st.warning(f"O mês de {mes_excluir} foi completamente apagado!")
+                st.rerun()
+            else:
+                st.error("Marque a caixa de confirmação primeiro!")
 
 # --- FILTRO E DASHBOARD ---
 mes_selecionado = st.selectbox("📅 Selecione o Mês:", 
