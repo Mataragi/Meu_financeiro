@@ -2,6 +2,13 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 
+def colorir_status(valor):
+    if valor == 'pendente':
+        return 'background-color: rgba(255, 75, 75, 0.2); color: #ff4b4b; font-weight: bold'
+    elif valor == 'pago':
+        return 'background-color: rgba(40, 167, 69, 0.2); color: #28a745; font-weight: bold'
+    return ''
+
 # Configuração da página
 st.set_page_config(page_title="Meu Financeiro Pro", layout="wide")
 
@@ -138,8 +145,8 @@ if not df.empty:
 
     st.divider()
     st.subheader(f"Histórico - {mes_selecionado}")
-    st.dataframe(df.style.format({"valor": "R$ {:.2f}"}), use_container_width=True)
-    
+    st.dataframe(df.style.map(colorir_status, subset=['status']).format({"valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
+
     # --- PAGAMENTO RÁPIDO (Update de Status) ---
     st.divider()
     with st.expander("💸 Dar Baixa em Pendências"):
