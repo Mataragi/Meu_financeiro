@@ -9,10 +9,11 @@ key = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 
 def colorir_status(valor):
-    if valor == 'pendente':
-        return 'background-color: rgba(255, 75, 75, 0.2); color: #ff4b4b; font-weight: bold'
-    elif valor == 'pago':
-        return 'background-color: rgba(40, 167, 69, 0.2); color: #28a745; font-weight: bold'
+    # O .lower() aqui garante que a comparação ignore se é maiúsculo ou minúsculo
+    if str(valor).lower() == 'pendente':
+        return 'background-color: #ff4b4b; color: white' # Vermelho
+    elif str(valor).lower() == 'pago':
+        return 'background-color: #28a745; color: white' # Verde
     return ''
 
 # Configuração da página
@@ -40,8 +41,8 @@ with st.sidebar:
                 "mes": mes_input,
                 "descricao": desc,
                 "valor": valor,
-                "tipo": tipo.lower(),
-                "status": status.lower()
+                "tipo": tipo,
+                "status": status
             }
             supabase.table("transacoes").insert(dados).execute()
             st.success("Dados salvos no Supabase! 🚀")
@@ -104,6 +105,11 @@ if not df.empty:
     col3.metric("Saldo Real", f"R$ {entradas - pagos:,.2f}")
 
     st.divider()
+    # 1. Converte o texto do banco para uma data real do Python
+    df['criado_em'] = pd.to_datetime(df['criado_em'])
+
+    # 2. Formata para o padrão brasileiro (Dia/Mês/Ano Hora:Minuto)
+    df['criado_em'] = df['criado_em'].dt.strftime('%d/%m/%Y %H:%M')
     st.dataframe(df.style.map(colorir_status, subset=['status']).format({"valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
 
     # --- PAGAMENTO RÁPIDO ---
