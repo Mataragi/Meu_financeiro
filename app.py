@@ -1,6 +1,12 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
+from supabase import create_client, Client
+
+# --- CONFIGURAÇÃO SUPABASE ---
+# Carrega as credenciais que você já configurou no secrets.toml
+url = st.secrets["SUPABASE_URL"]
+key = st.secrets["SUPABASE_KEY"]
+supabase: Client = create_client(url, key)
 
 def colorir_status(valor):
     if valor == 'pendente':
@@ -16,39 +22,7 @@ st.set_page_config(page_title="Meu Financeiro Pro", layout="wide")
 st.markdown('<html lang="pt-br">', unsafe_allow_html=True)
 st.markdown('<meta name="google" content="notranslate">', unsafe_allow_html=True)
 
-def conectar():
-    return sqlite3.connect('financeiro.db')
-
 st.title("💰 Controle Financeiro Simples")
-
-def inicializar_banco():
-    conn = conectar()
-    cursor = conn.cursor()
-    # Cria a tabela de transações
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS transacoes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            mes TEXT,
-            descricao TEXT,
-            valor REAL,
-            tipo TEXT,
-            status TEXT
-        )
-    ''')
-    # Cria a tabela de usuários
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT UNIQUE,
-            senha TEXT,
-            nivel TEXT DEFAULT 'usuario'
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-# ESSA LINHA É OBRIGATÓRIA PARA O APP VOLTAR A VIDA:
-inicializar_banco()
 
 # --- FORMULÁRIO (Menu Lateral) ---
 with st.sidebar:
@@ -62,16 +36,18 @@ with st.sidebar:
 
     if st.button("Salvar no Banco"):
         if desc:
-            conn = conectar()
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO transacoes (mes, descricao, valor, tipo, status) VALUES (?, ?, ?, ?, ?)",
-                           (mes_input, desc, valor, tipo.lower(), status.lower()))
-            conn.commit()
-            conn.close()
-            st.success("Dados salvos!")
+            dados = {
+                "mes": mes_input,
+                "descricao": desc,
+                "valor": valor,
+                "tipo": tipo.lower(),
+                "status": status.lower()
+            }
+            supabase.table("transacoes").insert(dados).execute()
+            st.success("Dados salvos no Supabase! 🚀")
             st.rerun()
 
-# --- CLONAR MÊS (Nova Funcionalidade) ---
+# --- CLONAR MÊS ---
     st.divider()
     st.subheader("🚀 Replicar Mês")
     with st.expander("Copiar dados p/ outro mês"):
@@ -81,40 +57,26 @@ with st.sidebar:
                                                "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"], key="destino")
         
         if st.button("Confirmar Clonagem"):
-            conn = conectar()
-            cursor = conn.cursor()
-            # A mágica do SQL: Seleciona de um mês e insere no outro, resetando o status para 'pendente'
-            cursor.execute('''
-                INSERT INTO transacoes (mes, descricao, valor, tipo, status)
-                SELECT ?, descricao, valor, tipo, 'pendente'
-                FROM transacoes WHERE mes = ?
-            ''', (destino, origem))
-            conn.commit()
-            conn.close()
-            st.success(f"Tudo de {origem} foi copiado para {destino}!")
-            st.rerun()
+            res = supabase.table("transacoes").select("*").eq("mes", origem).execute()
+            if res.data:
+                novos_dados = [{"mes": destino, "descricao": i['descricao'], "valor": i['valor'], 
+                                "tipo": i['tipo'], "status": "pendente"} for i in res.data]
+                supabase.table("transacoes").insert(novos_dados).execute()
+                st.success(f"Dados de {origem} copiados para {destino}!")
+                st.rerun()
 
 # --- EXCLUIR MÊS INTEIRO ---
     st.divider()
     st.subheader("⚠️ Zona de Perigo")
     with st.expander("Excluir mês completo"):
-        mes_excluir = st.selectbox("Selecione o mês para LIMPAR:", ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", 
-                                                                  "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"], key="excluir_mes")
-        
-        # Checkbox de segurança para não fazer besteira no celular
-        confirmar = st.checkbox(f"Eu tenho certeza que quero apagar tudo de {mes_excluir}")
-        
-        if st.button("🚨 EXCLUIR TUDO", type="secondary"):
+        mes_excluir = st.selectbox("Mês para LIMPAR:", ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", 
+                                                        "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"], key="excluir_mes")
+        confirmar = st.checkbox(f"Apagar tudo de {mes_excluir}?")
+        if st.button("🚨 EXCLUIR TUDO"):
             if confirmar:
-                conn = conectar()
-                cursor = conn.cursor()
-                cursor.execute("DELETE FROM transacoes WHERE mes = ?", (mes_excluir,))
-                conn.commit()
-                conn.close()
-                st.warning(f"O mês de {mes_excluir} foi completamente apagado!")
+                supabase.table("transacoes").delete().eq("mes", mes_excluir).execute()
+                st.warning(f"{mes_excluir} foi limpo!")
                 st.rerun()
-            else:
-                st.error("Marque a caixa de confirmação primeiro!")
 
 # --- FILTRO E DASHBOARD ---
 mes_selecionado = st.selectbox("📅 Selecione o Mês:", 
@@ -122,77 +84,45 @@ mes_selecionado = st.selectbox("📅 Selecione o Mês:",
                                 "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"], 
                                index=4)
 
-conn = conectar()
 if mes_selecionado == "TODOS":
-    df = pd.read_sql_query("SELECT * FROM transacoes", conn)
+    response = supabase.table("transacoes").select("*").execute()
 else:
-    df = pd.read_sql_query(f"SELECT * FROM transacoes WHERE mes = '{mes_selecionado}'", conn)
-conn.close()
+    response = supabase.table("transacoes").select("*").eq("mes", mes_selecionado).execute()
 
-# --- CÁLCULOS COM "DETECTOR DE ERROS" ---
+df = pd.DataFrame(response.data)
+
+# --- EXIBIÇÃO E CÁLCULOS ---
 if not df.empty:
-    # Usamos .str.lower() para garantir que 'pago' ou 'PAGO' entrem na conta
+    df['valor'] = pd.to_numeric(df['valor'])
     pagos = df[(df['status'].str.lower() == 'pago') & (df['tipo'].str.lower().isin(['saida', 'saída']))]['valor'].sum()
     pendentes = df[(df['status'].str.lower() == 'pendente') & (df['tipo'].str.lower().isin(['saida', 'saída']))]['valor'].sum()
     entradas = df[df['tipo'].str.lower() == 'entrada']['valor'].sum()
     
-    saldo_real = entradas - pagos
-    
     col1, col2, col3 = st.columns(3)
-    col1.metric("Já Pago (Saídas)", f"R$ {pagos:,.2f}")
-    col2.metric("A Pagar (Saídas)", f"R$ {pendentes:,.2f}")
-    col3.metric("Saldo Real", f"R$ {saldo_real:,.2f}")
+    col1.metric("Já Pago", f"R$ {pagos:,.2f}")
+    col2.metric("A Pagar", f"R$ {pendentes:,.2f}")
+    col3.metric("Saldo Real", f"R$ {entradas - pagos:,.2f}")
 
     st.divider()
-    st.subheader(f"Histórico - {mes_selecionado}")
     st.dataframe(df.style.map(colorir_status, subset=['status']).format({"valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
 
-    # --- PAGAMENTO RÁPIDO (Update de Status) ---
-    st.divider()
-    with st.expander("💸 Dar Baixa em Pendências"):
-        # Filtramos apenas o que ainda não foi pago
-        pendentes_df = df[df['status'].str.lower() == 'pendente']
-        
-        if not pendentes_df.empty:
-            opcoes_pagar = [f"{row['id']} - {row['descricao']} (R$ {row['valor']})" for _, row in pendentes_df.iterrows()]
-            selecionados_pagar = st.multiselect("Selecione o que você pagou:", options=opcoes_pagar)
-            
-            if st.button("✅ Confirmar Pagamento"):
-                if selecionados_pagar:
-                    ids_para_pagar = [int(item.split(' - ')[0]) for item in selecionados_pagar]
-                    
-                    conn = conectar()
-                    cursor = conn.cursor()
-                    # A mágica do UPDATE acontece aqui:
-                    query = f"UPDATE transacoes SET status = 'pago' WHERE id IN ({','.join(map(str, ids_para_pagar))})"
-                    cursor.execute(query)
-                    conn.commit()
-                    conn.close()
-                    
-                    st.success(f"Baixa confirmada para os itens: {ids_para_pagar}!")
-                    st.rerun()
-        else:
-            st.write("🎉 Nenhuma conta pendente para este mês!")
-
-    # --- FAXINA MULTISELEÇÃO ---
-    st.divider()
-    with st.expander("🛠️ Faxina nos Dados (Excluir em Lote)"):
-        # Criamos uma lista formatada para facilitar a escolha
-        opcoes = [f"{row['id']} - {row['descricao']} (R$ {row['valor']})" for _, row in df.iterrows()]
-        selecionados_formatados = st.multiselect("Selecione os itens para deletar:", options=opcoes)
-        
-        if st.button("🗑️ Apagar Selecionados"):
-            if selecionados_formatados:
-                # Extraímos apenas o ID de volta da string formatada
-                ids_para_deletar = [int(item.split(' - ')[0]) for item in selecionados_formatados]
-                
-                conn = conectar()
-                cursor = conn.cursor()
-                query = f"DELETE FROM transacoes WHERE id IN ({','.join(map(str, ids_para_deletar))})"
-                cursor.execute(query)
-                conn.commit()
-                conn.close()
-                st.warning(f"Registros {ids_para_deletar} removidos com sucesso!")
+    # --- PAGAMENTO RÁPIDO ---
+    with st.expander("💸 Dar Baixa"):
+        p_df = df[df['status'].str.lower() == 'pendente']
+        if not p_df.empty:
+            sel = st.multiselect("Pagar:", [f"{r['id']} - {r['descricao']}" for _, r in p_df.iterrows()])
+            if st.button("✅ Confirmar"):
+                ids = [int(s.split(' - ')[0]) for s in sel]
+                supabase.table("transacoes").update({"status": "pago"}).in_("id", ids).execute()
                 st.rerun()
+
+    # --- FAXINA ---
+    with st.expander("🛠️ Excluir em Lote"):
+        opc = [f"{r['id']} - {r['descricao']}" for _, r in df.iterrows()]
+        sel_del = st.multiselect("Deletar:", opc)
+        if st.button("🗑️ Apagar"):
+            ids_del = [int(s.split(' - ')[0]) for s in sel_del]
+            supabase.table("transacoes").delete().in_("id", ids_del).execute()
+            st.rerun()
 else:
     st.info("Nada por aqui ainda.")
