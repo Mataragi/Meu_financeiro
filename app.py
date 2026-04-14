@@ -23,7 +23,85 @@ st.set_page_config(page_title="Meu Financeiro Pro", layout="wide")
 st.markdown('<html lang="pt-br">', unsafe_allow_html=True)
 st.markdown('<meta name="google" content="notranslate">', unsafe_allow_html=True)
 
-st.title("💰 Controle Financeiro Simples")
+st.title("💰 Controle Financeiro Pro")
+
+# Implementar upload de extrato via CSV
+
+st.divider()
+st.subheader("📤 Importar Extrato Bradesco")
+
+arquivo_csv = st.file_uploader("Arraste seu CSV aqui", type="csv")
+
+if arquivo_csv:
+    # Lendo o arquivo sem pular linhas primeiro para checar onde está o cabeçalho
+    df_import = pd.read_csv(
+        arquivo_csv, 
+        sep=';', 
+        encoding='latin1',
+        on_bad_lines='skip'
+    )
+    
+    # Se o Pandas não achou 'Data', pode ser que ele leu as linhas de cima como dados.
+    # Vamos forçar a renomeação das colunas baseada na linha que contém "Data"
+    if 'Data' not in df_import.columns:
+        # Tenta achar a linha que tem a palavra 'Data' e transforma ela no cabeçalho
+        for i, row in df_import.iterrows():
+            if 'Data' in str(row.values):
+                df_import.columns = df_import.iloc[i]
+                df_import = df_import.iloc[i+1:].reset_index(drop=True)
+                break
+
+    # Agora limpamos as colunas (remove espaços em branco que o banco as vezes coloca)
+    df_import.columns = df_import.columns.str.strip()
+
+    # Limpando linhas vazias na coluna Data
+    if 'Data' in df_import.columns:
+        df_import = df_import.dropna(subset=['Data'])
+        df_import = df_import[df_import['Data'].astype(str).str.contains('/')]
+    
+    st.write("Prévia dos dados encontrados:", df_import.head()) # Isso ajuda a gente a ver se deu certo
+
+    if st.button("Processar Extrato"):
+        registros_para_subir = []
+        
+        for index, row in df_import.iterrows():
+            try:
+                historico = str(row.iloc[1]) # Histórico
+                # Inverti aqui baseado no seu print da prévia:
+                coluna_A = str(row.iloc[3]) # Testar se é Crédito ou Débito
+                coluna_B = str(row.iloc[4]) # Testar se é Crédito ou Débito
+
+                # Lógica ajustada: 
+                # Se a coluna de DÉBITO (geralmente a 4) tiver valor, é SAÍDA.
+                if coluna_B != 'nan' and coluna_B != '0,00' and coluna_B != '0' and coluna_B != '':
+                    valor_limpo = coluna_B.replace('.', '').replace(',', '.')
+                    valor_final = abs(float(valor_limpo))
+                    tipo_final = "saída"
+                
+                # Se a coluna de CRÉDITO (geralmente a 3) tiver valor, é ENTRADA.
+                elif coluna_A != 'nan' and coluna_A != '0,00' and coluna_A != '0' and coluna_A != '':
+                    valor_limpo = coluna_A.replace('.', '').replace(',', '.')
+                    valor_final = float(valor_limpo)
+                    tipo_final = "entrada"
+                
+                else:
+                    continue 
+
+                dados = {
+                    "mes": "ABRIL",
+                    "descricao": historico,
+                    "valor": valor_final,
+                    "tipo": tipo_final,
+                    "status": "pago"
+                }
+                registros_para_subir.append(dados)
+            except Exception as e:
+                continue
+
+        if registros_para_subir:
+            supabase.table("transacoes").insert(registros_para_subir).execute()
+            st.success(f"Dito e feito! {len(registros_para_subir)} lançamentos importados. 🚀")
+            st.rerun()
 
 # --- FORMULÁRIO (Menu Lateral) ---
 with st.sidebar:
