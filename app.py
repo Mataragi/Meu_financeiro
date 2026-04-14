@@ -103,6 +103,32 @@ if arquivo_csv:
             st.success(f"Dito e feito! {len(registros_para_subir)} lançamentos importados. 🚀")
             st.rerun()
 
+st.divider()
+st.subheader("⚠️ Restaurar Backup do App")
+arquivo_backup = st.file_uploader("Subir arquivo de backup (export.csv)", type="csv", key="backup_upload")
+
+if arquivo_backup:
+    df_backup = pd.read_csv(arquivo_backup)
+    st.write("Dados encontrados no backup:", df_backup.head())
+
+    if st.button("🚀 Restaurar Tudo Agora"):
+        # Removemos a coluna 'id' ou 'criado_em' se existirem, para o Supabase gerar novos
+        if 'id' in df_backup.columns:
+            df_backup = df_backup.drop(columns=['id'])
+        if 'criado_em' in df_backup.columns:
+            df_backup = df_backup.drop(columns=['criado_em'])
+        
+        # Converte para lista de dicionários
+        dados_backup = df_backup.to_dict(orient='records')
+        
+        # Manda pro Supabase
+        try:
+            supabase.table("transacoes").insert(dados_backup).execute()
+            st.success("Tudo de volta ao normal! App restaurado. 💎")
+            st.rerun()
+        except Exception as e:
+            st.error(f"Erro ao restaurar: {e}")
+
 # --- FORMULÁRIO (Menu Lateral) ---
 with st.sidebar:
     st.header("Novo Registro")
