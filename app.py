@@ -109,9 +109,17 @@ if not df.empty:
     df['criado_em'] = pd.to_datetime(df['criado_em'])
 
     # 2. Formata para o padrão brasileiro (Dia/Mês/Ano Hora:Minuto)
-    df['criado_em'] = df['criado_em'].dt.strftime('%d/%m/%Y %H:%M')
-    st.dataframe(df.style.map(colorir_status, subset=['status']).format({"valor": "R$ {:.2f}"}), use_container_width=True, hide_index=True)
+    df['criado_em'] = df['criado_em'].dt.strftime('%d/%m/%y %H:%M')
+    
+    # Logo abaixo de onde você formatou a data:
+    df_visualizacao = df.drop(columns=['id'])
 
+    # E aí usa esse df_visualizacao no st.dataframe
+    st.dataframe(
+    df_visualizacao.style.map(colorir_status, subset=['status']).format({"valor": "R$ {:.2f}"}), 
+    use_container_width=True, 
+    hide_index=True
+    )
     # --- PAGAMENTO RÁPIDO ---
     with st.expander("💸 Dar Baixa"):
         p_df = df[df['status'].str.lower() == 'pendente']
