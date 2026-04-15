@@ -2,245 +2,268 @@ import streamlit as st
 import pandas as pd
 from supabase import create_client, Client
 
-# --- CONFIGURAÇÃO SUPABASE ---
-# Carrega as credenciais que você já configurou no secrets.toml
-url = st.secrets["SUPABASE_URL"]
-key = st.secrets["SUPABASE_KEY"]
-supabase: Client = create_client(url, key)
+# --- CONFIG SUPABASE ---
+@st.cache_resource
+def init_supabase():
+    return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
+supabase: Client = init_supabase()
+
+# --- CONSTANTES ---
+MESES = [
+    "JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO",
+    "JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"
+]
+
+# --- UTIL ---
 def colorir_status(valor):
-    # O .lower() aqui garante que a comparação ignore se é maiúsculo ou minúsculo
     if str(valor).lower() == 'pendente':
-        return 'background-color: #ff4b4b; color: white' # Vermelho
+        return 'background-color: #ff4b4b; color: white'
     elif str(valor).lower() == 'pago':
-        return 'background-color: #28a745; color: white' # Verde
+        return 'background-color: #28a745; color: white'
     return ''
 
-# Configuração da página
-st.set_page_config(page_title="Meu Financeiro Pro", layout="wide")
+def formatar_real(valor):
+    try:
+        return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except:
+        return valor
 
-# Mata a tradução automática
-st.markdown('<html lang="pt-br">', unsafe_allow_html=True)
-st.markdown('<meta name="google" content="notranslate">', unsafe_allow_html=True)
+def tratar_valor(v):
+    return float(v.replace('.', '').replace(',', '.'))
 
-st.title("💰 Controle Financeiro Pro")
+# --- BANCO ---
+def inserir_dados(dados):
+    if dados:
+        supabase.table("transacoes").insert(dados).execute()
+        st.success(f"{len(dados)} registros enviados 🚀")
+        st.rerun()
 
-# Implementar upload de extrato via CSV
+# --- CSV ---
+def ler_extrato(arq):
+    df = pd.read_csv(arq, sep=';', encoding='latin1', on_bad_lines='skip')
 
-st.divider()
-st.subheader("📤 Importar Extrato Bradesco")
-
-arquivo_csv = st.file_uploader("Arraste seu CSV aqui", type="csv")
-
-if arquivo_csv:
-    # Lendo o arquivo sem pular linhas primeiro para checar onde está o cabeçalho
-    df_import = pd.read_csv(
-        arquivo_csv, 
-        sep=';', 
-        encoding='latin1',
-        on_bad_lines='skip'
-    )
-    
-    # Se o Pandas não achou 'Data', pode ser que ele leu as linhas de cima como dados.
-    # Vamos forçar a renomeação das colunas baseada na linha que contém "Data"
-    if 'Data' not in df_import.columns:
-        # Tenta achar a linha que tem a palavra 'Data' e transforma ela no cabeçalho
-        for i, row in df_import.iterrows():
+    if 'Data' not in df.columns:
+        for i, row in df.iterrows():
             if 'Data' in str(row.values):
-                df_import.columns = df_import.iloc[i]
-                df_import = df_import.iloc[i+1:].reset_index(drop=True)
+                df.columns = df.iloc[i]
+                df = df.iloc[i+1:].reset_index(drop=True)
                 break
 
-    # Agora limpamos as colunas (remove espaços em branco que o banco as vezes coloca)
-    df_import.columns = df_import.columns.str.strip()
+    df.columns = df.columns.str.strip()
 
-    # Limpando linhas vazias na coluna Data
-    if 'Data' in df_import.columns:
-        df_import = df_import.dropna(subset=['Data'])
-        df_import = df_import[df_import['Data'].astype(str).str.contains('/')]
-    
-    st.write("Prévia dos dados encontrados:", df_import.head()) # Isso ajuda a gente a ver se deu certo
+    if 'Data' in df.columns:
+        df = df.dropna(subset=['Data'])
+        df = df[df['Data'].astype(str).str.contains('/')]
 
-    if st.button("Processar Extrato"):
-        registros_para_subir = []
-        
-        for index, row in df_import.iterrows():
-            try:
-                historico = str(row.iloc[1]) # Histórico
-                # Inverti aqui baseado no seu print da prévia:
-                coluna_A = str(row.iloc[3]) # Testar se é Crédito ou Débito
-                coluna_B = str(row.iloc[4]) # Testar se é Crédito ou Débito
+    return df
 
-                # Lógica ajustada: 
-                # Se a coluna de DÉBITO (geralmente a 4) tiver valor, é SAÍDA.
-                if coluna_B != 'nan' and coluna_B != '0,00' and coluna_B != '0' and coluna_B != '':
-                    valor_limpo = coluna_B.replace('.', '').replace(',', '.')
-                    valor_final = abs(float(valor_limpo))
-                    tipo_final = "saída"
-                
-                # Se a coluna de CRÉDITO (geralmente a 3) tiver valor, é ENTRADA.
-                elif coluna_A != 'nan' and coluna_A != '0,00' and coluna_A != '0' and coluna_A != '':
-                    valor_limpo = coluna_A.replace('.', '').replace(',', '.')
-                    valor_final = float(valor_limpo)
-                    tipo_final = "entrada"
-                
-                else:
-                    continue 
+def processar_extrato(df):
+    registros = []
 
-                dados = {
-                    "mes": "ABRIL",
-                    "descricao": historico,
-                    "valor": valor_final,
-                    "tipo": tipo_final,
-                    "status": "pago"
-                }
-                registros_para_subir.append(dados)
-            except Exception as e:
+    for _, row in df.iterrows():
+        try:
+            hist = str(row.iloc[1])
+            A = str(row.iloc[3])
+            B = str(row.iloc[4])
+
+            if B not in ['nan','0,00','0','']:
+                valor = abs(tratar_valor(B))
+                tipo = "saída"
+            elif A not in ['nan','0,00','0','']:
+                valor = tratar_valor(A)
+                tipo = "entrada"
+            else:
                 continue
 
-        if registros_para_subir:
-            supabase.table("transacoes").insert(registros_para_subir).execute()
-            st.success(f"Dito e feito! {len(registros_para_subir)} lançamentos importados. 🚀")
-            st.rerun()
+            registros.append({
+                "mes":"ABRIL",
+                "descricao":hist,
+                "valor":valor,
+                "tipo":tipo,
+                "status":"pago"
+            })
+        except:
+            continue
 
-st.divider()
-st.subheader("⚠️ Restaurar Backup do App")
-arquivo_backup = st.file_uploader("Subir arquivo de backup (export.csv)", type="csv", key="backup_upload")
+    return registros
 
-if arquivo_backup:
-    df_backup = pd.read_csv(arquivo_backup)
-    st.write("Dados encontrados no backup:", df_backup.head())
+# --- BACKUP ---
+def gerar_backup():
+    res = supabase.table("transacoes").select("*").execute()
+    if not res.data:
+        return None
+    return pd.DataFrame(res.data).to_csv(index=False).encode('utf-8')
 
-    if st.button("🚀 Restaurar Tudo Agora"):
-        # Removemos a coluna 'id' ou 'criado_em' se existirem, para o Supabase gerar novos
-        if 'id' in df_backup.columns:
-            df_backup = df_backup.drop(columns=['id'])
-        if 'criado_em' in df_backup.columns:
-            df_backup = df_backup.drop(columns=['criado_em'])
-        
-        # Converte para lista de dicionários
-        dados_backup = df_backup.to_dict(orient='records')
-        
-        # Manda pro Supabase
-        try:
-            supabase.table("transacoes").insert(dados_backup).execute()
-            st.success("Tudo de volta ao normal! App restaurado. 💎")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Erro ao restaurar: {e}")
+def tratar_backup(df):
+    for c in ['id','criado_em']:
+        if c in df.columns:
+            df = df.drop(columns=[c])
+    return df.to_dict(orient='records')
 
-# --- FORMULÁRIO (Menu Lateral) ---
-with st.sidebar:
-    st.header("Novo Registro")
-    mes_input = st.selectbox("Mês", ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", 
-                                     "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"])
-    desc = st.text_input("Descrição")
-    valor = st.number_input("Valor (R$)", min_value=0.0, step=0.01)
-    tipo = st.radio("Tipo", ["Saída", "Entrada"])
-    status = st.selectbox("Status", ["Pendente", "Pago"])
+# --- CLONAR / EXCLUIR MÊS ---
+def clonar_mes(origem, destino):
+    res = supabase.table("transacoes").select("*").eq("mes", origem).execute()
 
-    if st.button("Salvar no Banco"):
-        if desc:
-            dados = {
-                "mes": mes_input,
-                "descricao": desc,
-                "valor": valor,
-                "tipo": tipo,
-                "status": status
-            }
-            supabase.table("transacoes").insert(dados).execute()
-            st.success("Dados salvos no Supabase! 🚀")
-            st.rerun()
+    if not res.data:
+        st.warning("Nada pra copiar")
+        return
 
-# --- CLONAR MÊS ---
-    st.divider()
-    st.subheader("🚀 Replicar Mês")
-    with st.expander("Copiar dados p/ outro mês"):
-        origem = st.selectbox("Copiar de:", ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", 
-                                             "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"], key="origem")
-        destino = st.selectbox("Para o mês:", ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", 
-                                               "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"], key="destino")
-        
-        if st.button("Confirmar Clonagem"):
-            res = supabase.table("transacoes").select("*").eq("mes", origem).execute()
-            if res.data:
-                novos_dados = [{"mes": destino, "descricao": i['descricao'], "valor": i['valor'], 
-                                "tipo": i['tipo'], "status": "pendente"} for i in res.data]
-                supabase.table("transacoes").insert(novos_dados).execute()
-                st.success(f"Dados de {origem} copiados para {destino}!")
-                st.rerun()
+    novos = [{
+        "mes": destino,
+        "descricao": i['descricao'],
+        "valor": i['valor'],
+        "tipo": i['tipo'],
+        "status": "pendente"
+    } for i in res.data]
 
-# --- EXCLUIR MÊS INTEIRO ---
-    st.divider()
-    st.subheader("⚠️ Zona de Perigo")
-    with st.expander("Excluir mês completo"):
-        mes_excluir = st.selectbox("Mês para LIMPAR:", ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", 
-                                                        "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"], key="excluir_mes")
-        confirmar = st.checkbox(f"Apagar tudo de {mes_excluir}?")
-        if st.button("🚨 EXCLUIR TUDO"):
-            if confirmar:
-                supabase.table("transacoes").delete().eq("mes", mes_excluir).execute()
-                st.warning(f"{mes_excluir} foi limpo!")
-                st.rerun()
+    inserir_dados(novos)
 
-# --- FILTRO E DASHBOARD ---
-mes_selecionado = st.selectbox("📅 Selecione o Mês:", 
-                               ["TODOS", "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", 
-                                "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"], 
-                               index=4)
+def excluir_mes(mes):
+    supabase.table("transacoes").delete().eq("mes", mes).execute()
+    st.warning(f"{mes} foi limpo")
+    st.rerun()
 
-if mes_selecionado == "TODOS":
-    response = supabase.table("transacoes").select("*").execute()
-else:
-    response = supabase.table("transacoes").select("*").eq("mes", mes_selecionado).execute()
+# --- DADOS ---
+def carregar_dados(mes):
+    if mes == "TODOS":
+        res = supabase.table("transacoes").select("*").execute()
+    else:
+        res = supabase.table("transacoes").select("*").eq("mes", mes).execute()
+    return pd.DataFrame(res.data)
 
-df = pd.DataFrame(response.data)
-
-# --- EXIBIÇÃO E CÁLCULOS ---
-if not df.empty:
+def calcular_metricas(df):
     df['valor'] = pd.to_numeric(df['valor'])
-    pagos = df[(df['status'].str.lower() == 'pago') & (df['tipo'].str.lower().isin(['saida', 'saída']))]['valor'].sum()
-    pendentes = df[(df['status'].str.lower() == 'pendente') & (df['tipo'].str.lower().isin(['saida', 'saída']))]['valor'].sum()
-    entradas = df[df['tipo'].str.lower() == 'entrada']['valor'].sum()
-    
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Já Pago", f"R$ {pagos:,.2f}")
-    col2.metric("A Pagar", f"R$ {pendentes:,.2f}")
-    col3.metric("Saldo Real", f"R$ {entradas - pagos:,.2f}")
+
+    pagos = df[(df['status'].str.lower()=='pago') & (df['tipo'].str.lower().isin(['saida','saída']))]['valor'].sum()
+    pend = df[(df['status'].str.lower()=='pendente') & (df['tipo'].str.lower().isin(['saida','saída']))]['valor'].sum()
+    ent = df[df['tipo'].str.lower()=='entrada']['valor'].sum()
+
+    return pagos, pend, ent
+
+# --- SIDEBAR ---
+def sidebar():
+    with st.sidebar:
+        st.header("💼 Controle")
+
+        # NOVO
+        mes = st.selectbox("Mês", MESES)
+        desc = st.text_input("Descrição")
+        valor = st.number_input("Valor", min_value=0.0)
+        tipo = st.radio("Tipo", ["Saída","Entrada"])
+        status = st.selectbox("Status", ["Pendente","Pago"])
+
+        if st.button("Salvar"):
+            if desc:
+                inserir_dados([{
+                    "mes":mes,"descricao":desc,
+                    "valor":valor,"tipo":tipo,"status":status
+                }])
+
+        st.divider()
+
+        # IMPORTAR CSV
+        arq = st.file_uploader("Importar CSV", type="csv")
+        if arq:
+            df = ler_extrato(arq)
+            st.write(df.head())
+
+            if st.button("Processar CSV"):
+                inserir_dados(processar_extrato(df))
+
+        st.divider()
+
+        # RESTAURAR BACKUP
+        backup = st.file_uploader("Restaurar Backup", type="csv", key="bkp")
+        if backup:
+            df = pd.read_csv(backup)
+            st.write(df.head())
+
+            if st.button("Restaurar"):
+                inserir_dados(tratar_backup(df))
+
+        st.divider()
+
+        # CLONAR
+        o = st.selectbox("De:", MESES)
+        d = st.selectbox("Para:", MESES)
+        if st.button("Clonar Mês"):
+            if o != d:
+                clonar_mes(o,d)
+
+        st.divider()
+
+        # EXCLUIR MÊS
+        m = st.selectbox("Excluir mês", MESES)
+        if st.checkbox("Confirmar exclusão"):
+            if st.button("Excluir"):
+                excluir_mes(m)
+
+        st.divider()
+
+        # BACKUP DOWNLOAD
+        csv = gerar_backup()
+        if csv:
+            st.download_button("📥 Backup", csv, "backup.csv")
+
+# --- DASHBOARD ---
+def mostrar_dashboard():
+    mes = st.selectbox("📅 Mês", ["TODOS"]+MESES, index=4)
+    df = carregar_dados(mes)
+
+    if df.empty:
+        st.info("Nada ainda")
+        return
+
+    pagos, pend, ent = calcular_metricas(df)
+
+    c1,c2,c3 = st.columns(3)
+    c1.metric("Pago", f"R$ {pagos:,.2f}")
+    c2.metric("Pendente", f"R$ {pend:,.2f}")
+    c3.metric("Saldo", f"R$ {ent-pagos:,.2f}")
+
+    df['criado_em'] = pd.to_datetime(df['criado_em']).dt.strftime('%d/%m/%y %H:%M')
+
+    st.dataframe(
+        df.drop(columns=['id'])
+        .style.map(colorir_status, subset=['status'])
+        .format({"valor": formatar_real}),
+        use_container_width=True
+    )
 
     st.divider()
-    # 1. Converte o texto do banco para uma data real do Python
-    df['criado_em'] = pd.to_datetime(df['criado_em'])
 
-    # 2. Formata para o padrão brasileiro (Dia/Mês/Ano Hora:Minuto)
-    df['criado_em'] = df['criado_em'].dt.strftime('%d/%m/%y %H:%M')
-    
-    # Logo abaixo de onde você formatou a data:
-    df_visualizacao = df.drop(columns=['id'])
-
-    # E aí usa esse df_visualizacao no st.dataframe
-    st.dataframe(
-    df_visualizacao.style.map(colorir_status, subset=['status']).format({"valor": "R$ {:.2f}"}), 
-    use_container_width=True, 
-    hide_index=True
-    )
-    # --- PAGAMENTO RÁPIDO ---
+    # DAR BAIXA
     with st.expander("💸 Dar Baixa"):
-        p_df = df[df['status'].str.lower() == 'pendente']
-        if not p_df.empty:
-            sel = st.multiselect("Pagar:", [f"{r['id']} - {r['descricao']}" for _, r in p_df.iterrows()])
-            if st.button("✅ Confirmar"):
-                ids = [int(s.split(' - ')[0]) for s in sel]
-                supabase.table("transacoes").update({"status": "pago"}).in_("id", ids).execute()
+        pend_df = df[df['status'].str.lower()=='pendente']
+
+        sel = st.multiselect(
+            "Selecionar:",
+            [f"{r['id']} - {r['descricao']}" for _,r in pend_df.iterrows()]
+        )
+
+        if st.button("Pagar"):
+            ids = [int(s.split(" - ")[0]) for s in sel]
+            if ids:
+                supabase.table("transacoes").update({"status":"pago"}).in_("id",ids).execute()
                 st.rerun()
 
-    # --- FAXINA ---
-    with st.expander("🛠️ Excluir em Lote"):
-        opc = [f"{r['id']} - {r['descricao']}" for _, r in df.iterrows()]
-        sel_del = st.multiselect("Deletar:", opc)
-        if st.button("🗑️ Apagar"):
-            ids_del = [int(s.split(' - ')[0]) for s in sel_del]
-            supabase.table("transacoes").delete().in_("id", ids_del).execute()
-            st.rerun()
-else:
-    st.info("Nada por aqui ainda.")
+    # EXCLUIR
+    with st.expander("🗑️ Excluir Registros"):
+        sel = st.multiselect(
+            "Selecionar:",
+            [f"{r['id']} - {r['descricao']}" for _,r in df.iterrows()]
+        )
+
+        if st.button("Apagar"):
+            ids = [int(s.split(" - ")[0]) for s in sel]
+            if ids:
+                supabase.table("transacoes").delete().in_("id",ids).execute()
+                st.rerun()
+
+# --- APP ---
+st.set_page_config(page_title="Financeiro Pro", layout="wide")
+st.title("💰 Financeiro Pro")
+
+sidebar()
+mostrar_dashboard()
