@@ -243,7 +243,8 @@ def mostrar_dashboard():
 
             sel = st.multiselect(
                 "Selecionar:",
-                [f"{r['id']} - {r['descricao']}" for _,r in pend_df.iterrows()]
+                [f"{r['id']} - {r['descricao']}" for _,r in pend_df.iterrows()],
+                key="multi_dar_baixa"
             )
 
             if st.button("Pagar", key="btn_pagar"):
@@ -257,7 +258,8 @@ def mostrar_dashboard():
         with st.expander("🗑️ Excluir Registros"):
             sel = st.multiselect(
                 "Selecionar:",
-                [f"{r['id']} - {r['descricao']}" for _,r in df.iterrows()]
+                [f"{r['id']} - {r['descricao']}" for _,r in df.iterrows()],
+                key="multi_excluir_reg"
             )
 
             if st.button("Apagar", key="btn_apagar"):
