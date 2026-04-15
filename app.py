@@ -228,7 +228,8 @@ def mostrar_dashboard():
         df.drop(columns=['id'])
         .style.map(colorir_status, subset=['status'])
         .format({"valor": formatar_real}),
-        use_container_width=True
+        use_container_width=True,
+        hide_index=True
     )
 
     st.divider()
