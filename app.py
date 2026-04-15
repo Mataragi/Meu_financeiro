@@ -233,33 +233,37 @@ def mostrar_dashboard():
 
     st.divider()
 
+    col1, col2 = st.columns(2)
+
     # DAR BAIXA
-    with st.expander("💸 Dar Baixa"):
-        pend_df = df[df['status'].str.lower()=='pendente']
+    with col1:
+        with st.expander("💸 Dar Baixa"):
+            pend_df = df[df['status'].str.lower()=='pendente']
 
-        sel = st.multiselect(
-            "Selecionar:",
-            [f"{r['id']} - {r['descricao']}" for _,r in pend_df.iterrows()]
-        )
+            sel = st.multiselect(
+                "Selecionar:",
+                [f"{r['id']} - {r['descricao']}" for _,r in pend_df.iterrows()]
+            )
 
-        if st.button("Pagar"):
-            ids = [int(s.split(" - ")[0]) for s in sel]
-            if ids:
-                supabase.table("transacoes").update({"status":"pago"}).in_("id",ids).execute()
-                st.rerun()
+            if st.button("Pagar", key="btn_pagar"):
+                ids = [int(s.split(" - ")[0]) for s in sel]
+                if ids:
+                    supabase.table("transacoes").update({"status":"pago"}).in_("id",ids).execute()
+                    st.rerun()
 
     # EXCLUIR
-    with st.expander("🗑️ Excluir Registros"):
-        sel = st.multiselect(
-            "Selecionar:",
-            [f"{r['id']} - {r['descricao']}" for _,r in df.iterrows()]
-        )
+    with col2:
+        with st.expander("🗑️ Excluir Registros"):
+            sel = st.multiselect(
+                "Selecionar:",
+                [f"{r['id']} - {r['descricao']}" for _,r in df.iterrows()]
+            )
 
-        if st.button("Apagar"):
-            ids = [int(s.split(" - ")[0]) for s in sel]
-            if ids:
-                supabase.table("transacoes").delete().in_("id",ids).execute()
-                st.rerun()
+            if st.button("Apagar", key="btn_apagar"):
+                ids = [int(s.split(" - ")[0]) for s in sel]
+                if ids:
+                    supabase.table("transacoes").delete().in_("id",ids).execute()
+                    st.rerun()
 
 # --- APP ---
 st.set_page_config(page_title="Financeiro Pro", layout="wide")
