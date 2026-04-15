@@ -37,7 +37,7 @@ def inserir_dados(dados):
     if dados:
         supabase.table("transacoes").insert(dados).execute()
         st.success(f"{len(dados)} registros enviados 🚀")
-        st.rerun()
+
 
 # --- CSV ---
 def ler_extrato(arq):
@@ -141,24 +141,48 @@ def calcular_metricas(df):
 
     return pagos, pend, ent
 
-# --- SIDEBAR ---
+        # --- SIDEBAR ---
+
+if "limpar_form" not in st.session_state:
+    st.session_state.limpar_form = False
+
 def sidebar():
     with st.sidebar:
         st.header("💼 Controle")
 
-        # NOVO
-        mes = st.selectbox("Mês", MESES)
-        desc = st.text_input("Descrição")
-        valor = st.number_input("Valor", min_value=0.0)
-        tipo = st.radio("Tipo", ["Saída","Entrada"])
-        status = st.selectbox("Status", ["Pendente","Pago"])
+        # 🔥 LIMPA ANTES DE RENDERIZAR OS INPUTS
+        if st.session_state.limpar_form:
+            st.session_state.desc_input = ""
+            st.session_state.valor_input = 0.0
+            st.session_state.tipo_input = "Saída"
+            st.session_state.status_input = "Pendente"
+            st.session_state.limpar_form = False
 
+        # INPUTS
+        mes = st.selectbox("Mês", MESES, key="mes_input")
+        desc = st.text_input("Descrição", key="desc_input")
+        valor = st.number_input("Valor", min_value=0.0, key="valor_input")
+        tipo = st.radio("Tipo", ["Saída","Entrada"], key="tipo_input")
+        status = st.selectbox("Status", ["Pendente","Pago"], key="status_input")
+
+        # BOTÃO SALVAR
         if st.button("Salvar"):
-            if desc:
+            if st.session_state.desc_input:
                 inserir_dados([{
-                    "mes":mes,"descricao":desc,
-                    "valor":valor,"tipo":tipo,"status":status
+                    "mes": st.session_state.mes_filtro,
+                    "descricao": st.session_state.desc_input,
+                    "valor": st.session_state.valor_input,
+                    "tipo": st.session_state.tipo_input,
+                    "status": st.session_state.status_input
                 }])
+
+                # 🔥 sincroniza filtro
+                st.session_state.mes_filtro = st.session_state.mes_input
+
+                # 🔥 ativa limpeza
+                st.session_state.limpar_form = True
+
+                st.rerun()
 
         st.divider()
 
@@ -207,8 +231,13 @@ def sidebar():
             st.download_button("📥 Backup", csv, "backup.csv")
 
 # --- DASHBOARD ---
+
 def mostrar_dashboard():
-    mes = st.selectbox("📅 Mês", ["TODOS"]+MESES, index=4)
+    mes = st.selectbox(
+    "📅 Mês",
+    ["TODOS"] + MESES,
+    key="mes_filtro"
+)
     df = carregar_dados(mes)
 
     if df.empty:
