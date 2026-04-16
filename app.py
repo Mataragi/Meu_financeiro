@@ -217,14 +217,6 @@ def sidebar():
 
         st.divider()
 
-        # EXCLUIR MÊS
-        m = st.selectbox("Excluir mês", MESES)
-        if st.checkbox("Confirmar exclusão"):
-            if st.button("Excluir"):
-                excluir_mes(m)
-
-        st.divider()
-
         # BACKUP DOWNLOAD
         csv = gerar_backup()
         if csv:
@@ -294,23 +286,33 @@ def mostrar_dashboard():
     with col2:
         with st.expander("🗑️ Excluir Registros"):
 
-            opcoes = {
-                f"{r['descricao']} | {formatar_real(r['valor'])} | {r['criado_em']}": r['id']
-                for _, r in df.iterrows()
-            }
+            if st.session_state.mes_filtro == "TODOS":
+                st.warning("⚠️ Selecione um mês específico para excluir registros")
+            else:
+                sel = st.multiselect(
+                    "Selecionar:",
+                    [
+                        f"{r['descricao']} | R$ {r['valor']:.2f} | {r['criado_em']}"
+                        for _, r in df.iterrows()
+                    ],
+                    key="multi_excluir_reg"
+                )
 
-            sel = st.multiselect(
-                "Selecionar:",
-                list(opcoes.keys()),
-                key="multi_excluir_reg"
-            )
+                if st.button("Apagar", key="btn_apagar"):
+                    ids = [
+                        df.iloc[i]['id']
+                        for i in range(len(df))
+                        if sel and sel[i]
+                    ]
 
-            if st.button("Apagar", key="btn_apagar"):
-                ids = [opcoes[s] for s in sel]
-                if ids:
-                    supabase.table("transacoes").delete().in_("id",ids).execute()
-                    st.rerun()
+                    if ids:
+                        supabase.table("transacoes")\
+                            .delete()\
+                            .eq("mes", st.session_state.mes_filtro)\
+                            .in_("id", ids)\
+                            .execute()
 
+                        st.rerun()
 # --- APP ---
 st.set_page_config(page_title="Financeiro Pro", layout="wide")
 st.title("💰 Financeiro Pro")
