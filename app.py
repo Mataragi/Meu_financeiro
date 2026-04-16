@@ -169,7 +169,7 @@ def sidebar():
         if st.button("Salvar"):
             if st.session_state.desc_input:
                 inserir_dados([{
-                    "mes": st.session_state.mes_filtro,
+                    "mes": st.session_state.mes_input,
                     "descricao": st.session_state.desc_input,
                     "valor": st.session_state.valor_input,
                     "tipo": st.session_state.tipo_input,
