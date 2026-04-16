@@ -270,14 +270,22 @@ def mostrar_dashboard():
         with st.expander("💸 Dar Baixa"):
             pend_df = df[df['status'].str.lower()=='pendente']
 
+            # 🔥 ORDENA DO MAIS RECENTE PRO MAIS ANTIGO
+            pend_df = pend_df.sort_values(by="criado_em", ascending=False)
+            
+            opcoes = {
+                f"{r['descricao']} | {formatar_real(r['valor'])} | {r['criado_em']}": r['id']
+                for _, r in pend_df.iterrows()
+            }
+
             sel = st.multiselect(
                 "Selecionar:",
-                [f"{r['id']} - {r['descricao']}" for _,r in pend_df.iterrows()],
+                list(opcoes.keys()),
                 key="multi_dar_baixa"
             )
 
             if st.button("Pagar", key="btn_pagar"):
-                ids = [int(s.split(" - ")[0]) for s in sel]
+                ids = [opcoes[s] for s in sel]
                 if ids:
                     supabase.table("transacoes").update({"status":"pago"}).in_("id",ids).execute()
                     st.rerun()
@@ -285,14 +293,20 @@ def mostrar_dashboard():
     # EXCLUIR
     with col2:
         with st.expander("🗑️ Excluir Registros"):
+
+            opcoes = {
+                f"{r['descricao']} | {formatar_real(r['valor'])} | {r['criado_em']}": r['id']
+                for _, r in df.iterrows()
+            }
+
             sel = st.multiselect(
                 "Selecionar:",
-                [f"{r['id']} - {r['descricao']}" for _,r in df.iterrows()],
+                list(opcoes.keys()),
                 key="multi_excluir_reg"
             )
 
             if st.button("Apagar", key="btn_apagar"):
-                ids = [int(s.split(" - ")[0]) for s in sel]
+                ids = [opcoes[s] for s in sel]
                 if ids:
                     supabase.table("transacoes").delete().in_("id",ids).execute()
                     st.rerun()
