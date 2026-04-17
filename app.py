@@ -285,34 +285,32 @@ def mostrar_dashboard():
     # EXCLUIR
     with col2:
         with st.expander("🗑️ Excluir Registros"):
-
+                
             if st.session_state.mes_filtro == "TODOS":
                 st.warning("⚠️ Selecione um mês específico para excluir registros")
+           
             else:
+                opcoes = {
+                f"{r['descricao']} | R$ {r['valor']:.2f} | {r['criado_em']}": r['id']
+                for _, r in df.iterrows()
+                }
                 sel = st.multiselect(
                     "Selecionar:",
-                    [
-                        f"{r['descricao']} | R$ {r['valor']:.2f} | {r['criado_em']}"
-                        for _, r in df.iterrows()
-                    ],
+                    list(opcoes.keys()),
                     key="multi_excluir_reg"
                 )
 
                 if st.button("Apagar", key="btn_apagar"):
-                    ids = [
-                        df.iloc[i]['id']
-                        for i in range(len(df))
-                        if sel and sel[i]
-                    ]
+                        ids = [opcoes[s] for s in sel]
 
-                    if ids:
-                        supabase.table("transacoes")\
-                            .delete()\
-                            .eq("mes", st.session_state.mes_filtro)\
-                            .in_("id", ids)\
-                            .execute()
+                        if ids:
+                            supabase.table("transacoes")\
+                                .delete()\
+                                .eq("mes", st.session_state.mes_filtro)\
+                                .in_("id", ids)\
+                                .execute()
 
-                        st.rerun()
+                            st.rerun()
 # --- APP ---
 st.set_page_config(page_title="Financeiro Pro", layout="wide")
 st.title("💰 Financeiro Pro")
