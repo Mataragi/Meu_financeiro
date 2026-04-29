@@ -71,18 +71,23 @@ def render_mobile():
 
             salvar = st.form_submit_button("💾 Salvar", use_container_width=True)
 
-            if salvar and desc:
-                inserir_dados([{
-                    "mes": mes,
-                    "descricao": desc,
-                    "valor": valor,
-                    "tipo": tipo,
-                    "status": status
-                }])
+            if salvar:
+                if not desc.strip():
+                    st.error("Informe uma descrição.")
+                elif valor <= 0:
+                    st.error("")
+                else:
+                    inserir_dados([{
+                        "mes": mes,
+                        "descricao": desc,
+                        "valor": valor,
+                        "tipo": tipo,
+                        "status": status
+                    }])
 
-                st.success("Salvo!")
-                st.session_state.show_form = False
-                st.rerun()
+                    st.success("Salvo!")
+                    st.session_state.show_form = False
+                    st.rerun()
 
     st.divider()
 
