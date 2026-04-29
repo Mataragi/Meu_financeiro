@@ -1,4 +1,6 @@
 import streamlit as st
+import pandas as pd
+from utils.formatacao import colorir_status, formatar_real
 from datetime import datetime
 from services.database import (
     inserir_dados,
@@ -162,29 +164,24 @@ def render_mobile():
         df_lista = carregar_dados(mes)
 
         if not df_lista.empty:
-            if status_view == "Pendentes":
-                df_lista = df_lista[df_lista["status"].str.lower() == "pendente"]
-            elif status_view == "Pagos":
-                df_lista = df_lista[df_lista["status"].str.lower() == "pago"]
 
-            if not df_lista.empty:
-                for _, row in df_lista.iterrows():
-                    status = str(row.get("status", "")).lower()
-                    cor = "🟢" if status == "pago" else "🔴"
+            df_mobile = df_lista.copy()
 
-                    valor = float(row.get("valor", 0))
-                    valor_fmt = f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+            # Mantém só o essencial pro mobile
+            df_mobile = df_mobile[["descricao", "valor", "status", "criado_em"]]
 
-                    tipo = row.get("tipo", "")
-                    data = formatar_data(str(row.get("criado_em", "")))
+            # Ajustes
+            df_mobile["valor"] = df_mobile["valor"].astype(float)
+            df_mobile["criado_em"] = pd.to_datetime(df_mobile["criado_em"]).dt.strftime('%d/%m')
 
-                    st.markdown(f"""
-{cor} **{row.get("descricao", "")}**
+            st.dataframe(
+                df_mobile
+                .style.map(colorir_status, subset=["status"])
+                .format({"valor": formatar_real}),
+                use_container_width=True,
+                hide_index=True,
+                height=500
+            )
 
-{valor_fmt} · {tipo} · {data}
-""")
-                    st.divider()
-            else:
-                st.info("Nenhum registro encontrado para esse filtro.")
         else:
-            st.info("Nenhum registro encontrado.")
+            st.info("Nenhum registro encontrado para esse filtro.")
