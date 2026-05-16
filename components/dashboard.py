@@ -18,8 +18,12 @@ def render_dashboard():
     if "mes_filtro" not in st.session_state:
         st.session_state.mes_filtro = "TODOS"
 
+    ANOS = [2026, 2027, 2028]
+
+    ano = st.selectbox("Ano", ANOS, key="ano_filtro")
     mes = st.selectbox("📅 Mês", MESES, key="mes_filtro")
-    df = carregar_dados(mes)
+
+    df = carregar_dados(mes, ano)
 
     if df.empty:
         st.info("Nada ainda")

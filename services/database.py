@@ -7,35 +7,50 @@ def inserir_dados(dados):
         supabase.table("transacoes").insert(dados).execute()
         st.success(f"{len(dados)} registros enviados 🚀")
 
-def carregar_dados(mes):
-    if mes == "TODOS":
-        res = supabase.table("transacoes").select("*").execute()
-    else:
-        res = supabase.table("transacoes").select("*").eq("mes", mes).execute()
+def carregar_dados(mes, ano=None):
+    query = supabase.table("transacoes").select("*")
+
+    if ano is not None:
+        query = query.eq("ano", ano)
+
+    if mes != "TODOS":
+        query = query.eq("mes", mes)
+
+    res = query.execute()
     return pd.DataFrame(res.data)
 
-def excluir_mes(mes):
-    supabase.table("transacoes").delete().eq("mes", mes).execute()
-    st.warning(f"{mes} foi limpo")
+def excluir_mes(mes, ano):
+    supabase.table("transacoes").delete().eq("mes", mes).eq("ano", ano).execute()
+    st.warning(f"{mes}/{ano} foi limpo")
     st.rerun()
 
-def clonar_mes(origem, destino):
-    res = supabase.table("transacoes").select("*").eq("mes", origem).execute()
+def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):
+    res = (
+        supabase
+        .table("transacoes")
+        .select("*")
+        .eq("mes", origem_mes)
+        .eq("ano", origem_ano)
+        .execute()
+    )
 
     if not res.data:
         st.warning("Nada pra copiar")
         return
 
-    novos = [{
-        "mes": destino,
-        "descricao": i['descricao'],
-        "valor": i['valor'],
-        "tipo": i['tipo'],
-        "status": "pendente"
-    } for i in res.data]
+    novos = []
+
+    for i in res.data:
+        novos.append({
+            "ano": destino_ano,
+            "mes": destino_mes,
+            "descricao": i["descricao"],
+            "valor": i["valor"],
+            "tipo": i["tipo"],
+            "status": "pendente"
+        })
 
     inserir_dados(novos)
-
 def dar_baixa_registro(id_registro):
     supabase.table("transacoes").update({
         "status": "Pago"

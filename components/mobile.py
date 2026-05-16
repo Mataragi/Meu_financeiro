@@ -65,11 +65,31 @@ def filtrar_status(df, status_view):
 
 def render_mobile():
 
-    mes = st.selectbox(
-        "📅 Mês",
-        MESES,
-        key="mes_mobile"
-    )
+    st.markdown("""
+    <style>
+
+    /* Remove campo de digitação do selectbox mobile */
+    div[data-baseweb="select"] input {
+        caret-color: transparent;
+    }
+
+    div[data-baseweb="select"] input:focus {
+        outline: none !important;
+    }
+
+    /* Esconde cursor piscando */
+    div[data-baseweb="select"] input {
+        color: transparent !important;
+        text-shadow: 0 0 0 white;
+    }
+
+    </style>
+    """, unsafe_allow_html=True)
+
+    ANOS = [2026, 2027, 2028]
+
+    ano = st.selectbox("Ano", ANOS, key="ano_mobile")
+    mes = st.selectbox("📅 Mês", MESES, key="mes_mobile")
 
     status_view = st.selectbox(
         "Status",
@@ -80,7 +100,7 @@ def render_mobile():
     if mes == "Selecione":
         df_base = pd.DataFrame()
     else:
-        df_base = carregar_dados(mes)
+        df_base = carregar_dados(mes, ano)
 
     pagos, pendentes, saldo = calcular_metricas(df_base)
 
@@ -115,6 +135,7 @@ def render_mobile():
                     st.error("Informe um valor maior que zero.")
                 else:
                     inserir_dados([{
+                        "ano": ano,
                         "mes": mes,
                         "descricao": desc.strip(),
                         "valor": valor,
