@@ -143,18 +143,15 @@ def render_mobile():
             tipo = st.selectbox("Tipo", ["Saída", "Entrada"])
             status = st.selectbox("Status", ["Pendente", "Pago"])
             
-            parcelado = st.checkbox("Compra parcelada?")
+            total_parcelas = st.number_input(
+                "Quantidade de parcelas",
+                min_value=1,
+                max_value=60,
+                value=1,
+                step=1
+            )
 
-            if parcelado:
-                total_parcelas = st.number_input(
-                    "Quantidade de parcelas",
-                    min_value=1,
-                    max_value=60,
-                    value=1,
-                    step=1
-                )
-
-                st.caption("Use 1 para compra à vista. Use 2 ou mais para parcelar.")
+            st.caption("Use 1 para compra à vista. Use 2 ou mais para parcelar.")
 
             salvar = st.form_submit_button("💾 Salvar", use_container_width=True)
 
