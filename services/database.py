@@ -30,7 +30,8 @@ def inserir_parcelado(
     tipo,
     status,
     categoria,
-    total_parcelas
+    total_parcelas,
+    vencimento=None
 ):
     if total_parcelas <= 1:
         inserir_dados([{
@@ -43,7 +44,8 @@ def inserir_parcelado(
             "categoria": categoria,
             "parcela_atual": 1,
             "total_parcelas": 1,
-            "grupo_parcelamento": None
+            "grupo_parcelamento": None,
+            "vencimento": vencimento,
         }])
         return
 
@@ -65,7 +67,8 @@ def inserir_parcelado(
             "categoria": categoria,
             "parcela_atual": i + 1,
             "total_parcelas": total_parcelas,
-            "grupo_parcelamento": grupo
+            "grupo_parcelamento": grupo,
+            "vencimento": vencimento,
         })
 
     inserir_dados(registros)

@@ -110,7 +110,7 @@ def render_mobile():
         "Educação",
         "Lazer",
         "Família",
-        "Cartão",
+        "Cartão Crédito",
         "Dívida",
         "Outros"
     ]
@@ -142,6 +142,15 @@ def render_mobile():
             categoria = st.selectbox("Categoria", CATEGORIAS)
             tipo = st.selectbox("Tipo", ["Saída", "Entrada"])
             status = st.selectbox("Status", ["Pendente", "Pago"])
+
+            vencimento = st.number_input(
+                "Dia do vencimento",
+                min_value=1,
+                max_value=31,
+                value=10,
+                step=1
+            )
+
             
             total_parcelas = st.number_input(
                 "Quantidade de parcelas",
@@ -160,8 +169,8 @@ def render_mobile():
                     st.error("Selecione um mês específico para salvar.")
                 elif not desc.strip():
                     st.error("Informe uma descrição.")
-                elif valor <= 0:
-                    st.error("Informe um valor maior que zero.")
+                elif valor <= 0 and status == "Pago":
+                    st.error("Registro pago precisa ter valor maior que zero.")
                 elif categoria == "Selecione":
                     st.error("Selecione uma categoria.")
                 else:
@@ -173,7 +182,8 @@ def render_mobile():
                         tipo=tipo,
                         status=status,
                         categoria=categoria,
-                        total_parcelas=int(total_parcelas)
+                        total_parcelas=int(total_parcelas),
+                        vencimento=vencimento
                     )
 
                     st.session_state.show_form = False
@@ -265,7 +275,10 @@ def render_mobile():
     if "categoria" not in df_lista.columns:
         df_lista["categoria"] = "Sem categoria"
 
-    df_mobile = df_lista[["descricao", "categoria", "valor", "status", "criado_em"]].copy()
+    if "vencimento" not in df_lista.columns:
+        df_lista["vencimento"] = ""
+
+    df_mobile = df_lista[["descricao", "categoria", "valor", "status", "vencimento", "criado_em"]].copy()
     df_mobile["valor"] = df_mobile["valor"].astype(float)
     df_mobile["criado_em"] = pd.to_datetime(df_mobile["criado_em"]).dt.strftime("%d/%m")
 
