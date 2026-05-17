@@ -1,11 +1,74 @@
 import pandas as pd
 import streamlit as st
 from services.supabase_client import supabase
+from uuid import uuid4
+
+MESES_ORDEM = [
+    "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
+    "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"
+]
 
 def inserir_dados(dados):
     if dados:
         supabase.table("transacoes").insert(dados).execute()
         st.success(f"{len(dados)} registros enviados 🚀")
+
+def calcular_mes_ano_parcela(mes_inicial, ano_inicial, incremento):
+    indice_mes = MESES_ORDEM.index(mes_inicial)
+    novo_indice_total = indice_mes + incremento
+
+    novo_ano = ano_inicial + (novo_indice_total // 12)
+    novo_mes = MESES_ORDEM[novo_indice_total % 12]
+
+    return novo_mes, novo_ano
+
+def inserir_parcelado(
+    ano,
+    mes,
+    descricao,
+    valor_total,
+    tipo,
+    status,
+    categoria,
+    total_parcelas
+):
+    if total_parcelas <= 1:
+        inserir_dados([{
+            "ano": ano,
+            "mes": mes,
+            "descricao": descricao,
+            "valor": valor_total,
+            "tipo": tipo,
+            "status": status,
+            "categoria": categoria,
+            "parcela_atual": 1,
+            "total_parcelas": 1,
+            "grupo_parcelamento": None
+        }])
+        return
+
+    grupo = str(uuid4())
+    valor_parcela = round(valor_total / total_parcelas, 2)
+
+    registros = []
+
+    for i in range(total_parcelas):
+        mes_parcela, ano_parcela = calcular_mes_ano_parcela(mes, ano, i)
+
+        registros.append({
+            "ano": ano_parcela,
+            "mes": mes_parcela,
+            "descricao": f"{descricao} {i + 1}/{total_parcelas}",
+            "valor": valor_parcela,
+            "tipo": tipo,
+            "status": "Pendente",
+            "categoria": categoria,
+            "parcela_atual": i + 1,
+            "total_parcelas": total_parcelas,
+            "grupo_parcelamento": grupo
+        })
+
+    inserir_dados(registros)
 
 def carregar_dados(mes, ano=None):
     query = supabase.table("transacoes").select("*")

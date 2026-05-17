@@ -5,6 +5,7 @@ from datetime import datetime
 from utils.formatacao import colorir_status, formatar_real
 from services.database import (
     inserir_dados,
+    inserir_parcelado,
     carregar_dados,
     dar_baixa_multiplos,
     excluir_multiplos
@@ -12,7 +13,7 @@ from services.database import (
 
 
 MESES = [
-    "Selecione", "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL",
+    "Selecione", "TODOS", "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL",
     "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO",
     "OUTUBRO", "NOVEMBRO", "DEZEMBRO"
 ]
@@ -97,6 +98,23 @@ def render_mobile():
         key="status_view_mobile"
     )
 
+    CATEGORIAS = [
+        "Selecione", 
+        "Sem categoria",
+        "Mercado",
+        "Casa",
+        "Contas",
+        "Transporte",
+        "Alimentação",
+        "Saúde",
+        "Educação",
+        "Lazer",
+        "Família",
+        "Cartão",
+        "Dívida",
+        "Outros"
+    ]
+
     if mes == "Selecione":
         df_base = pd.DataFrame()
     else:
@@ -121,8 +139,22 @@ def render_mobile():
         with st.form("nova_transacao"):
             desc = st.text_input("Descrição")
             valor = st.number_input("Valor", min_value=0.0)
+            categoria = st.selectbox("Categoria", CATEGORIAS)
             tipo = st.selectbox("Tipo", ["Saída", "Entrada"])
             status = st.selectbox("Status", ["Pendente", "Pago"])
+            
+            parcelado = st.checkbox("Compra parcelada?")
+
+            if parcelado:
+                total_parcelas = st.number_input(
+                    "Quantidade de parcelas",
+                    min_value=1,
+                    max_value=60,
+                    value=1,
+                    step=1
+                )
+
+                st.caption("Use 1 para compra à vista. Use 2 ou mais para parcelar.")
 
             salvar = st.form_submit_button("💾 Salvar", use_container_width=True)
 
@@ -133,17 +165,20 @@ def render_mobile():
                     st.error("Informe uma descrição.")
                 elif valor <= 0:
                     st.error("Informe um valor maior que zero.")
+                elif categoria == "Selecione":
+                    st.error("Selecione uma categoria.")
                 else:
-                    inserir_dados([{
-                        "ano": ano,
-                        "mes": mes,
-                        "descricao": desc.strip(),
-                        "valor": valor,
-                        "tipo": tipo,
-                        "status": status
-                    }])
+                    inserir_parcelado(
+                        ano=ano,
+                        mes=mes,
+                        descricao=desc.strip(),
+                        valor_total=valor,
+                        tipo=tipo,
+                        status=status,
+                        categoria=categoria,
+                        total_parcelas=int(total_parcelas)
+                    )
 
-                    st.success("Salvo!")
                     st.session_state.show_form = False
                     st.rerun()
 
@@ -189,7 +224,7 @@ def render_mobile():
 
     with st.expander("🗑️ Excluir registros"):
         if mes == "Selecione":
-            st.warning("Selecione um mês específico para excluir registros.")
+            st.warning("Selecione um mês para excluir registros.")
         elif df_base.empty:
             st.info("Nenhum registro encontrado.")
         else:
@@ -229,8 +264,11 @@ def render_mobile():
     if df_lista.empty:
         st.info("Nenhum registro encontrado para esse filtro.")
         return
+    
+    if "categoria" not in df_lista.columns:
+        df_lista["categoria"] = "Sem categoria"
 
-    df_mobile = df_lista[["descricao", "valor", "status", "criado_em"]].copy()
+    df_mobile = df_lista[["descricao", "categoria", "valor", "status", "criado_em"]].copy()
     df_mobile["valor"] = df_mobile["valor"].astype(float)
     df_mobile["criado_em"] = pd.to_datetime(df_mobile["criado_em"]).dt.strftime("%d/%m")
 
