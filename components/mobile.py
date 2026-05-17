@@ -29,6 +29,14 @@ def formatar_data(valor):
     except:
         return ""
 
+def vencimento_seguro(valor):
+    try:
+        if pd.isna(valor):
+            return 10
+        return int(float(valor))
+    except:
+        return 10
+
 
 def calcular_metricas(df_base):
     if df_base.empty:
@@ -360,7 +368,10 @@ def render_mobile():
     df_mobile = df_lista[["descricao", "categoria", "valor", "status", "vencimento", "criado_em"]].copy()
     df_mobile["valor"] = df_mobile["valor"].astype(float)
     df_mobile["criado_em"] = pd.to_datetime(df_mobile["criado_em"]).dt.strftime("%d/%m")
-
+    df_mobile["vencimento"] = df_mobile["vencimento"].apply(
+    lambda x: "" if pd.isna(x) else str(int(float(x)))
+    )
+    
     st.dataframe(
         df_mobile
         .style.map(colorir_status, subset=["status"])
