@@ -144,3 +144,9 @@ def excluir_multiplos(ids):
         supabase.table("transacoes").delete().in_("id", ids).execute()
         st.warning(f"{len(ids)} registros excluídos 🗑️")
         st.rerun()
+
+def atualizar_registro(id_registro, dados):
+    if id_registro and dados:
+        supabase.table("transacoes").update(dados).eq("id", id_registro).execute()
+        st.success("Registro atualizado ✅")
+        st.rerun()

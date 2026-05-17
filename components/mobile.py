@@ -8,7 +8,8 @@ from services.database import (
     inserir_parcelado,
     carregar_dados,
     dar_baixa_multiplos,
-    excluir_multiplos
+    excluir_multiplos,
+    atualizar_registro
 )
 
 
@@ -257,6 +258,84 @@ def render_mobile():
                     excluir_multiplos(ids_excluir)
                 else:
                     st.warning("Selecione pelo menos um registro.")
+
+    with st.expander("✏️ Editar registro"):
+        if mes == "Selecione":
+            st.info("Selecione um mês para editar registros.")
+        elif df_base.empty:
+            st.info("Nenhum registro encontrado.")
+        else:
+            opcoes_editar = {}
+
+            for _, row in df_base.iterrows():
+                valor = float(row.get("valor", 0))
+                valor_fmt = formatar_real(valor)
+                data = formatar_data(row.get("criado_em", ""))
+                label = f"{row.get('descricao', '')} — {valor_fmt} · {row.get('status', '')} · {data}"
+                opcoes_editar[label] = row.to_dict()
+
+            registro_label = st.selectbox(
+                "🔍 Buscar registro",
+                ["Selecione"] + list(opcoes_editar.keys()),
+                key="registro_editar_mobile"
+            )
+
+            if registro_label != "Selecione":
+                registro = opcoes_editar[registro_label]
+
+                nova_descricao = st.text_input(
+                    "Descrição",
+                    value=str(registro.get("descricao", "")),
+                    key="edit_desc_mobile"
+                )
+
+                novo_valor = st.number_input(
+                    "Valor",
+                    min_value=0.0,
+                    value=float(registro.get("valor", 0)),
+                    key="edit_valor_mobile"
+                )
+
+                nova_categoria = st.selectbox(
+                    "Categoria",
+                    CATEGORIAS,
+                    index=CATEGORIAS.index(registro.get("categoria", "Sem categoria"))
+                    if registro.get("categoria", "Sem categoria") in CATEGORIAS else 1,
+                    key="edit_categoria_mobile"
+                )
+
+                novo_status = st.selectbox(
+                    "Status",
+                    ["Pendente", "Pago"],
+                    index=0 if str(registro.get("status", "")).lower() == "pendente" else 1,
+                    key="edit_status_mobile"
+                )
+
+                novo_vencimento = st.number_input(
+                    "Dia do vencimento",
+                    min_value=1,
+                    max_value=31,
+                    value=int(registro.get("vencimento") or 10),
+                    step=1,
+                    key="edit_vencimento_mobile"
+                )
+
+                if st.button("💾 Salvar edição", use_container_width=True):
+                    if not nova_descricao.strip():
+                        st.error("Informe uma descrição.")
+                    elif novo_valor <= 0 and novo_status == "Pago":
+                        st.error("Registro pago precisa ter valor maior que zero.")
+                    else:
+                        atualizar_registro(
+                            registro.get("id"),
+                            {
+                                "descricao": nova_descricao.strip(),
+                                "valor": novo_valor,
+                                "categoria": nova_categoria,
+                                "status": novo_status,
+                                "vencimento": novo_vencimento
+                            }
+                        )
 
     st.divider()
 
