@@ -96,7 +96,7 @@ def render_mobile():
     </style>
     """, unsafe_allow_html=True)
 
-    ANOS = [2026, 2027, 2028]
+    ANOS = [2026, 2027, 2028, 2029, 2030]
 
     ano = st.selectbox("Ano", ANOS, key="ano_mobile")
     mes = st.selectbox("📅 Mês", MESES, key="mes_mobile")
@@ -119,7 +119,7 @@ def render_mobile():
         "Educação",
         "Lazer",
         "Família",
-        "Cartão Crédito",
+        "Cartão Crédito Luiz",
         "Dívida",
         "Outros"
     ]
