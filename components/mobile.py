@@ -9,7 +9,8 @@ from services.database import (
     carregar_dados,
     dar_baixa_multiplos,
     excluir_multiplos,
-    atualizar_registro
+    atualizar_registro,
+    excluir_grupo_parcelamento
 )
 
 
@@ -241,9 +242,45 @@ def render_mobile():
     with st.expander("🗑️ Excluir registros"):
         if mes == "Selecione":
             st.warning("Selecione um mês para excluir registros.")
+
         elif df_base.empty:
             st.info("Nenhum registro encontrado.")
+
         else:
+            st.markdown("### 💳 Excluir parcelamento inteiro")
+
+            if "grupo_parcelamento" not in df_base.columns:
+                df_parcelados = pd.DataFrame()
+            else:
+                df_parcelados = df_base[df_base["grupo_parcelamento"].notna()]
+
+            if df_parcelados.empty:
+                st.info("Nenhum parcelamento encontrado neste filtro.")
+            else:
+                grupos = {}
+
+                for _, row in df_parcelados.iterrows():
+                    grupo = row.get("grupo_parcelamento")
+                    descricao_base = str(row.get("descricao", "")).rsplit(" ", 1)[0]
+                    total = row.get("total_parcelas", "")
+
+                    label = f"{descricao_base} — {total}x"
+                    grupos[label] = grupo
+
+                grupo_escolhido = st.selectbox(
+                    "Selecionar parcelamento",
+                    ["Selecione"] + list(grupos.keys()),
+                    key="grupo_delete_mobile"
+                )
+
+                if grupo_escolhido != "Selecione":
+                    if st.button("🗑️ Excluir parcelamento inteiro", use_container_width=True):
+                        excluir_grupo_parcelamento(grupos[grupo_escolhido])
+
+            st.divider()
+
+            st.markdown("### 🧾 Excluir registros selecionados")
+
             opcoes_excluir = {}
 
             for _, row in df_base.iterrows():
@@ -323,7 +360,7 @@ def render_mobile():
                     "Dia do vencimento",
                     min_value=1,
                     max_value=31,
-                    value=int(registro.get("vencimento") or 10),
+                    value=vencimento_seguro(registro.get("vencimento")),
                     step=1,
                     key="edit_vencimento_mobile"
                 )

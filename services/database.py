@@ -73,6 +73,15 @@ def inserir_parcelado(
 
     inserir_dados(registros)
 
+def excluir_grupo_parcelamento(grupo_id):
+    supabase.table("transacoes") \
+        .delete() \
+        .eq("grupo_parcelamento", grupo_id) \
+        .execute()
+
+    st.warning("Parcelamento excluído 🗑️")
+    st.rerun()
+
 def carregar_dados(mes, ano=None):
     query = supabase.table("transacoes").select("*")
 
