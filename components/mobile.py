@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-
+from components.mobile_debts import render_mobile_debts
 from utils.formatacao import colorir_status, formatar_real
 from services.database import (
     inserir_dados,
@@ -382,6 +382,8 @@ def render_mobile():
                             }
                         )
 
+    render_mobile_debts()
+    
     st.divider()
 
     st.subheader("Transações")

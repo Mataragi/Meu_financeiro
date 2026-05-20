@@ -8,6 +8,37 @@ MESES_ORDEM = [
     "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"
 ]
 
+def inserir_divida_informal(dados):
+    if dados:
+        supabase.table("dividas_informais").insert(dados).execute()
+        st.success("Dívida informal registrada ✅")
+        st.rerun()
+
+
+def carregar_dividas_informais():
+    res = (
+        supabase
+        .table("dividas_informais")
+        .select("*")
+        .order("criado_em", desc=True)
+        .execute()
+    )
+    return pd.DataFrame(res.data)
+
+
+def atualizar_divida_informal(id_divida, dados):
+    if id_divida and dados:
+        supabase.table("dividas_informais").update(dados).eq("id", id_divida).execute()
+        st.success("Dívida informal atualizada ✅")
+        st.rerun()
+
+
+def excluir_divida_informal(id_divida):
+    if id_divida:
+        supabase.table("dividas_informais").delete().eq("id", id_divida).execute()
+        st.warning("Dívida informal excluída 🗑️")
+        st.rerun()
+
 def inserir_dados(dados):
     if dados:
         supabase.table("transacoes").insert(dados).execute()
