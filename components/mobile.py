@@ -390,7 +390,22 @@ def render_mobile():
         st.info("Selecione um MÊS e um STATUS para visualizar os registros.")
         return
 
+    busca = st.text_input(
+        "🔍 Buscar transação",
+        placeholder="Ex: carro, mercado, claro..."
+    )
+
     df_lista = filtrar_status(df_base.copy(), status_view)
+
+    if busca:
+        busca_lower = busca.lower()
+
+        df_lista = df_lista[
+            df_lista["descricao"]
+            .astype(str)
+            .str.lower()
+            .str.contains(busca_lower)
+        ]
 
     if df_lista.empty:
         st.info("Nenhum registro encontrado para esse filtro.")
