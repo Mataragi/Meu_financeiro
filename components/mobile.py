@@ -175,7 +175,7 @@ def render_mobile():
             salvar = st.form_submit_button("💾 Salvar", use_container_width=True)
 
             if salvar:
-                if mes == "Selecione":
+                if mes in ["Selecione", "TODOS"]:
                     st.error("Selecione um mês específico para salvar.")
                 elif not desc.strip():
                     st.error("Informe uma descrição.")

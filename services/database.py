@@ -14,10 +14,13 @@ def inserir_dados(dados):
         st.success(f"{len(dados)} registros enviados 🚀")
 
 def calcular_mes_ano_parcela(mes_inicial, ano_inicial, incremento):
+    if mes_inicial not in MESES_ORDEM:
+        raise ValueError(f"Mês inválido para parcelamento: {mes_inicial}")
+
     indice_mes = MESES_ORDEM.index(mes_inicial)
     novo_indice_total = indice_mes + incremento
 
-    novo_ano = ano_inicial + (novo_indice_total // 12)
+    novo_ano = int(ano_inicial) + (novo_indice_total // 12)
     novo_mes = MESES_ORDEM[novo_indice_total % 12]
 
     return novo_mes, novo_ano
