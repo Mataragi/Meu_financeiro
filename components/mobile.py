@@ -378,18 +378,19 @@ def render_mobile():
 
             if registro_label != "Selecione":
                 registro = opcoes_editar[registro_label]
+                registro_id = registro.get("id")
 
                 nova_descricao = st.text_input(
-                    "Descrição",
-                    value=str(registro.get("descricao", "")),
-                    key="edit_desc_mobile"
+                "Descrição",
+                value=str(registro.get("descricao", "")),
+                key=f"edit_desc_mobile_{registro_id}"
                 )
 
                 novo_valor = st.number_input(
                     "Valor",
                     min_value=0.0,
                     value=float(registro.get("valor", 0)),
-                    key="edit_valor_mobile"
+                    key=f"edit_valor_mobile_{registro_id}"
                 )
 
                 nova_categoria = st.selectbox(
@@ -397,14 +398,14 @@ def render_mobile():
                     CATEGORIAS,
                     index=CATEGORIAS.index(registro.get("categoria", "Sem categoria"))
                     if registro.get("categoria", "Sem categoria") in CATEGORIAS else 1,
-                    key="edit_categoria_mobile"
+                    key=f"edit_categoria_mobile_{registro_id}"
                 )
 
                 novo_status = st.selectbox(
                     "Status",
                     ["Pendente", "Pago"],
                     index=0 if str(registro.get("status", "")).lower() == "pendente" else 1,
-                    key="edit_status_mobile"
+                    key=f"edit_status_mobile_{registro_id}"
                 )
 
                 novo_vencimento = st.number_input(
@@ -413,10 +414,10 @@ def render_mobile():
                     max_value=31,
                     value=vencimento_seguro(registro.get("vencimento")),
                     step=1,
-                    key="edit_vencimento_mobile"
+                    key=f"edit_vencimento_mobile_{registro_id}"
                 )
 
-                if st.button("💾 Salvar edição", use_container_width=True):
+                if st.button("💾 Salvar edição", use_container_width=True, key=f"salvar_edit_mobile_{registro_id}"):
                     if not nova_descricao.strip():
                         st.error("Informe uma descrição.")
                     elif novo_valor <= 0 and novo_status == "Pago":
@@ -436,4 +437,4 @@ def render_mobile():
     st.divider()
 
     with st.expander("🤝 Dívidas informais"):
-        render_mobile_debts()
+         render_mobile_debts()
