@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+
 from components.mobile_debts import render_mobile_debts
 from utils.formatacao import colorir_status, formatar_real
 from services.database import (
@@ -22,6 +23,23 @@ MESES = [
 
 STATUS_VIEW = ["Selecione", "Todos", "Pendentes", "Pagos"]
 
+CATEGORIAS = [
+    "Selecione",
+    "Sem categoria",
+    "Mercado",
+    "Casa",
+    "Contas",
+    "Transporte",
+    "Alimentação",
+    "Saúde",
+    "Educação",
+    "Lazer",
+    "Família",
+    "Cartão Crédito Luiz",
+    "Dívida",
+    "Outros"
+]
+
 
 def formatar_data(valor):
     try:
@@ -29,6 +47,7 @@ def formatar_data(valor):
         return dt.strftime("%d/%m")
     except:
         return ""
+
 
 def vencimento_seguro(valor):
     try:
@@ -78,8 +97,6 @@ def render_mobile():
 
     st.markdown("""
     <style>
-
-    /* Remove campo de digitação do selectbox mobile */
     div[data-baseweb="select"] input {
         caret-color: transparent;
     }
@@ -88,12 +105,10 @@ def render_mobile():
         outline: none !important;
     }
 
-    /* Esconde cursor piscando */
     div[data-baseweb="select"] input {
         color: transparent !important;
         text-shadow: 0 0 0 white;
     }
-
     </style>
     """, unsafe_allow_html=True)
 
@@ -107,23 +122,6 @@ def render_mobile():
         STATUS_VIEW,
         key="status_view_mobile"
     )
-
-    CATEGORIAS = [
-        "Selecione", 
-        "Sem categoria",
-        "Mercado",
-        "Casa",
-        "Contas",
-        "Transporte",
-        "Alimentação",
-        "Saúde",
-        "Educação",
-        "Lazer",
-        "Família",
-        "Cartão Crédito Luiz",
-        "Dívida",
-        "Outros"
-    ]
 
     if mes == "Selecione":
         df_base = pd.DataFrame()
@@ -161,7 +159,6 @@ def render_mobile():
                 step=1
             )
 
-            
             total_parcelas = st.number_input(
                 "Quantidade de parcelas",
                 min_value=1,
@@ -198,6 +195,60 @@ def render_mobile():
 
                     st.session_state.show_form = False
                     st.rerun()
+
+    st.divider()
+
+    st.subheader("Transações")
+
+    if mes == "Selecione" or status_view == "Selecione":
+        st.info("Selecione um MÊS e um STATUS para visualizar os registros.")
+
+    else:
+        busca = st.text_input(
+            "🔍 Buscar transação",
+            placeholder="Ex: carro, mercado, claro..."
+        )
+
+        df_lista = filtrar_status(df_base.copy(), status_view)
+
+        if busca:
+            busca_lower = busca.lower()
+
+            df_lista = df_lista[
+                df_lista["descricao"]
+                .astype(str)
+                .str.lower()
+                .str.contains(busca_lower)
+            ]
+
+        if df_lista.empty:
+            st.info("Nenhum registro encontrado para esse filtro.")
+
+        else:
+            if "categoria" not in df_lista.columns:
+                df_lista["categoria"] = "Sem categoria"
+
+            if "vencimento" not in df_lista.columns:
+                df_lista["vencimento"] = ""
+
+            df_mobile = df_lista[
+                ["descricao", "categoria", "valor", "status", "vencimento", "criado_em"]
+            ].copy()
+
+            df_mobile["valor"] = df_mobile["valor"].astype(float)
+            df_mobile["criado_em"] = pd.to_datetime(df_mobile["criado_em"]).dt.strftime("%d/%m")
+            df_mobile["vencimento"] = df_mobile["vencimento"].apply(
+                lambda x: "" if pd.isna(x) else str(int(float(x)))
+            )
+
+            st.dataframe(
+                df_mobile
+                .style.map(colorir_status, subset=["status"])
+                .format({"valor": formatar_real}),
+                use_container_width=True,
+                hide_index=True,
+                height=500
+            )
 
     st.divider()
 
@@ -383,54 +434,3 @@ def render_mobile():
                         )
 
     render_mobile_debts()
-    
-    st.divider()
-
-    st.subheader("Transações")
-
-    if mes == "Selecione" or status_view == "Selecione":
-        st.info("Selecione um MÊS e um STATUS para visualizar os registros.")
-        return
-
-    busca = st.text_input(
-        "🔍 Buscar transação",
-        placeholder="Ex: carro, mercado, claro..."
-    )
-
-    df_lista = filtrar_status(df_base.copy(), status_view)
-
-    if busca:
-        busca_lower = busca.lower()
-
-        df_lista = df_lista[
-            df_lista["descricao"]
-            .astype(str)
-            .str.lower()
-            .str.contains(busca_lower)
-        ]
-
-    if df_lista.empty:
-        st.info("Nenhum registro encontrado para esse filtro.")
-        return
-    
-    if "categoria" not in df_lista.columns:
-        df_lista["categoria"] = "Sem categoria"
-
-    if "vencimento" not in df_lista.columns:
-        df_lista["vencimento"] = ""
-
-    df_mobile = df_lista[["descricao", "categoria", "valor", "status", "vencimento", "criado_em"]].copy()
-    df_mobile["valor"] = df_mobile["valor"].astype(float)
-    df_mobile["criado_em"] = pd.to_datetime(df_mobile["criado_em"]).dt.strftime("%d/%m")
-    df_mobile["vencimento"] = df_mobile["vencimento"].apply(
-    lambda x: "" if pd.isna(x) else str(int(float(x)))
-    )
-    
-    st.dataframe(
-        df_mobile
-        .style.map(colorir_status, subset=["status"])
-        .format({"valor": formatar_real}),
-        use_container_width=True,
-        hide_index=True,
-        height=500
-    )
