@@ -433,4 +433,7 @@ def render_mobile():
                             }
                         )
 
-    render_mobile_debts()
+    st.divider()
+
+    with st.expander("🤝 Dívidas informais"):
+        render_mobile_debts()
