@@ -1,20 +1,29 @@
 import pandas as pd
 import streamlit as st
-from services.supabase_client import supabase
 from uuid import uuid4
+
+from services.supabase_client import supabase
+
 
 MESES_ORDEM = [
     "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
     "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"
 ]
 
+
+# =========================
+# DÍVIDAS INFORMAIS
+# =========================
+
 def inserir_divida_informal(dados):
     if dados:
         supabase.table("dividas_informais").insert(dados).execute()
+        st.cache_data.clear()
         st.success("Dívida informal registrada ✅")
         st.rerun()
 
 
+@st.cache_data(ttl=30)
 def carregar_dividas_informais():
     res = (
         supabase
@@ -29,6 +38,7 @@ def carregar_dividas_informais():
 def atualizar_divida_informal(id_divida, dados):
     if id_divida and dados:
         supabase.table("dividas_informais").update(dados).eq("id", id_divida).execute()
+        st.cache_data.clear()
         st.success("Dívida informal atualizada ✅")
         st.rerun()
 
@@ -36,13 +46,35 @@ def atualizar_divida_informal(id_divida, dados):
 def excluir_divida_informal(id_divida):
     if id_divida:
         supabase.table("dividas_informais").delete().eq("id", id_divida).execute()
+        st.cache_data.clear()
         st.warning("Dívida informal excluída 🗑️")
         st.rerun()
+
+
+# =========================
+# TRANSAÇÕES
+# =========================
 
 def inserir_dados(dados):
     if dados:
         supabase.table("transacoes").insert(dados).execute()
+        st.cache_data.clear()
         st.success(f"{len(dados)} registros enviados 🚀")
+
+
+@st.cache_data(ttl=30)
+def carregar_dados(mes, ano=None):
+    query = supabase.table("transacoes").select("*")
+
+    if ano is not None:
+        query = query.eq("ano", ano)
+
+    if mes != "TODOS":
+        query = query.eq("mes", mes)
+
+    res = query.execute()
+    return pd.DataFrame(res.data)
+
 
 def calcular_mes_ano_parcela(mes_inicial, ano_inicial, incremento):
     if mes_inicial not in MESES_ORDEM:
@@ -55,6 +87,7 @@ def calcular_mes_ano_parcela(mes_inicial, ano_inicial, incremento):
     novo_mes = MESES_ORDEM[novo_indice_total % 12]
 
     return novo_mes, novo_ano
+
 
 def inserir_parcelado(
     ano,
@@ -107,31 +140,75 @@ def inserir_parcelado(
 
     inserir_dados(registros)
 
+
+def atualizar_registro(id_registro, dados):
+    if id_registro and dados:
+        supabase.table("transacoes").update(dados).eq("id", id_registro).execute()
+        st.cache_data.clear()
+        st.success("Registro atualizado ✅")
+        st.rerun()
+
+
+def dar_baixa_registro(id_registro):
+    if id_registro:
+        supabase.table("transacoes").update({
+            "status": "Pago"
+        }).eq("id", id_registro).execute()
+
+        st.cache_data.clear()
+        st.success("Registro marcado como pago ✅")
+        st.rerun()
+
+
+def dar_baixa_multiplos(ids):
+    if ids:
+        supabase.table("transacoes").update({
+            "status": "Pago"
+        }).in_("id", ids).execute()
+
+        st.cache_data.clear()
+        st.success(f"{len(ids)} registros marcados como pagos ✅")
+        st.rerun()
+
+
+def excluir_registro(id_registro):
+    if id_registro:
+        supabase.table("transacoes").delete().eq("id", id_registro).execute()
+        st.cache_data.clear()
+        st.warning("Registro excluído 🗑️")
+        st.rerun()
+
+
+def excluir_multiplos(ids):
+    if ids:
+        supabase.table("transacoes").delete().in_("id", ids).execute()
+        st.cache_data.clear()
+        st.warning(f"{len(ids)} registros excluídos 🗑️")
+        st.rerun()
+
+
 def excluir_grupo_parcelamento(grupo_id):
-    supabase.table("transacoes") \
-        .delete() \
-        .eq("grupo_parcelamento", grupo_id) \
-        .execute()
+    if grupo_id:
+        supabase.table("transacoes") \
+            .delete() \
+            .eq("grupo_parcelamento", grupo_id) \
+            .execute()
 
-    st.warning("Parcelamento excluído 🗑️")
-    st.rerun()
+        st.cache_data.clear()
+        st.warning("Parcelamento excluído 🗑️")
+        st.rerun()
 
-def carregar_dados(mes, ano=None):
-    query = supabase.table("transacoes").select("*")
 
-    if ano is not None:
-        query = query.eq("ano", ano)
-
-    if mes != "TODOS":
-        query = query.eq("mes", mes)
-
-    res = query.execute()
-    return pd.DataFrame(res.data)
+# =========================
+# UTILIDADES DE MÊS
+# =========================
 
 def excluir_mes(mes, ano):
     supabase.table("transacoes").delete().eq("mes", mes).eq("ano", ano).execute()
+    st.cache_data.clear()
     st.warning(f"{mes}/{ano} foi limpo")
     st.rerun()
+
 
 def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):
     res = (
@@ -156,40 +233,10 @@ def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):
             "descricao": i["descricao"],
             "valor": i["valor"],
             "tipo": i["tipo"],
-            "status": "pendente"
+            "status": "pendente",
+            "categoria": i.get("categoria", "Sem categoria"),
+            "vencimento": i.get("vencimento"),
         })
 
     inserir_dados(novos)
-def dar_baixa_registro(id_registro):
-    supabase.table("transacoes").update({
-        "status": "Pago"
-    }).eq("id", id_registro).execute()
-    st.success("Registro marcado como pago ✅")
-    st.rerun()
-
-
-def excluir_registro(id_registro):
-    supabase.table("transacoes").delete().eq("id", id_registro).execute()
-    st.warning("Registro excluído 🗑️")
-    st.rerun()
-
-def dar_baixa_multiplos(ids):
-    if ids:
-        supabase.table("transacoes").update({
-            "status": "Pago"
-        }).in_("id", ids).execute()
-        st.success(f"{len(ids)} registros marcados como pagos ✅")
-        st.rerun()
-
-
-def excluir_multiplos(ids):
-    if ids:
-        supabase.table("transacoes").delete().in_("id", ids).execute()
-        st.warning(f"{len(ids)} registros excluídos 🗑️")
-        st.rerun()
-
-def atualizar_registro(id_registro, dados):
-    if id_registro and dados:
-        supabase.table("transacoes").update(dados).eq("id", id_registro).execute()
-        st.success("Registro atualizado ✅")
-        st.rerun()
+    
