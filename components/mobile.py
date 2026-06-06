@@ -218,7 +218,7 @@ def render_mobile():
                 df_lista["descricao"]
                 .astype(str)
                 .str.lower()
-                .str.contains(busca_lower)
+                .str.contains(busca_lower, na=False)
             ]
 
         if df_lista.empty:
