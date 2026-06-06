@@ -207,7 +207,7 @@ def render_mobile():
         busca = st.text_input(
             "🔍 Buscar transação",
             placeholder="Ex: carro, mercado, claro..."
-        )
+        ).strip()
 
         df_lista = filtrar_status(df_base.copy(), status_view)
 
