@@ -226,17 +226,21 @@ def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):
 
     novos = []
 
-    for i in res.data:
+    for registro in res.data:
+        # A resposta do Supabase é tipada como JSON, que também pode conter
+        # valores escalares ou nulos. Aqui só copiamos registros (objetos).
+        if not isinstance(registro, dict):
+            continue
+
         novos.append({
             "ano": destino_ano,
             "mes": destino_mes,
-            "descricao": i["descricao"],
-            "valor": i["valor"],
-            "tipo": i["tipo"],
+            "descricao": registro["descricao"],
+            "valor": registro["valor"],
+            "tipo": registro["tipo"],
             "status": "pendente",
-            "categoria": i.get("categoria", "Sem categoria"),
-            "vencimento": i.get("vencimento"),
+            "categoria": registro.get("categoria", "Sem categoria"),
+            "vencimento": registro.get("vencimento"),
         })
 
     inserir_dados(novos)
-    

@@ -1,19 +1,18 @@
-import streamlit as st
-import pandas as pd
 from datetime import datetime
 
+import pandas as pd
+import streamlit as st
+
 from components.mobile_debts import render_mobile_debts
-from utils.formatacao import colorir_status, formatar_real
 from services.database import (
-    inserir_dados,
-    inserir_parcelado,
+    atualizar_registro,
     carregar_dados,
     dar_baixa_multiplos,
+    excluir_grupo_parcelamento,
     excluir_multiplos,
-    atualizar_registro,
-    excluir_grupo_parcelamento
+    inserir_parcelado,
 )
-
+from utils.formatacao import colorir_status, formatar_real
 
 MESES = [
     "Selecione", "TODOS", "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL",
@@ -45,7 +44,7 @@ def formatar_data(valor):
     try:
         dt = datetime.fromisoformat(str(valor).replace("Z", ""))
         return dt.strftime("%d/%m")
-    except:
+    except ValueError:
         return ""
 
 
@@ -54,7 +53,7 @@ def vencimento_seguro(valor):
         if pd.isna(valor):
             return 10
         return int(float(valor))
-    except:
+    except (TypeError, ValueError):
         return 10
 
 
