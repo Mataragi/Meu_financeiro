@@ -1,12 +1,11 @@
 | Item | Tarefa                          | Prioridade | Status |
 | ---- | ------------------------------- | ---------- | ------ |
-| 1    | Padronizar Status               | 🔴         | ⏳     |
-| 2    | Corrigir Parcelamentos          | 🔴         | ⏳     |
+| 1    | Remover Supabase dos Components | 🔴         | ✅    |
+| 2    | Corrigir Parcelamentos          | 🔴         | ✅    |
 | 3    | Centralizar Cache               | 🔴         | ⏳     |
-| 4    | Remover Supabase dos Components | 🔴         | ⏳     |
+| 4    | Padronizar Status               | 🔴         | ⏳     |
 | 5    | Refatorar `database.py`         | 🔴         | ⏳     |
 | 6    | Criar Testes Essenciais         | 🔴         | ⏳     |
-
 
 # Sprint 01 — Consolidação da Arquitetura
 
@@ -41,8 +40,78 @@ alguns pontos onde a implementação ainda não segue os padrões definidos na d
 # Escopo
 
 ## P1 — Crítico
+### ☐ 1. Remover acesso direto ao Supabase dos Components
 
-### ☐ 1. Padronizar Status
+Prioridade:
+🔴 Alta
+
+Objetivo:
+
+Components nunca devem acessar o banco.
+
+Fluxo esperado:
+
+Component
+
+↓
+
+Services
+
+↓
+
+Supabase
+
+Critério:
+
+☐ Dashboard
+
+☐ Sidebar
+
+☐ Backup
+
+---
+
+
+### ✅ 2. Corrigir Parcelamentos
+
+Prioridade:
+🔴 Alta
+
+Objetivo:
+
+Garantir que o status escolhido pelo usuário seja respeitado
+ou documentar oficialmente uma regra diferente.
+
+Critério de conclusão:
+
+☑ Parcelamento respeita a regra definida
+
+☑ Documentação atualizada
+
+---
+
+### ☐ 3. Centralizar Invalidação de Cache
+
+Prioridade:
+🔴 Alta
+
+Objetivo:
+
+Toda operação de escrita deve invalidar o cache automaticamente.
+
+Critério:
+
+☐ Inserção
+
+☐ Exclusão
+
+☐ Baixa
+
+☐ Edição
+
+---
+
+### ☐ 4. Padronizar Status
 
 Prioridade:
 🔴 Alta
@@ -71,76 +140,6 @@ Critério de conclusão:
 ☐ Banco consistente
 
 ☐ Filtros funcionando
-
----
-
-### ☐ 2. Corrigir Parcelamentos
-
-Prioridade:
-🔴 Alta
-
-Objetivo:
-
-Garantir que o status escolhido pelo usuário seja respeitado
-ou documentar oficialmente uma regra diferente.
-
-Critério de conclusão:
-
-☐ Parcelamento respeita a regra definida
-
-☐ Documentação atualizada
-
----
-
-### ☐ 3. Centralizar Invalidação de Cache
-
-Prioridade:
-🔴 Alta
-
-Objetivo:
-
-Toda operação de escrita deve invalidar o cache automaticamente.
-
-Critério:
-
-☐ Inserção
-
-☐ Exclusão
-
-☐ Baixa
-
-☐ Edição
-
----
-
-### ☐ 4. Remover acesso direto ao Supabase dos Components
-
-Prioridade:
-🔴 Alta
-
-Objetivo:
-
-Components nunca devem acessar o banco.
-
-Fluxo esperado:
-
-Component
-
-↓
-
-Services
-
-↓
-
-Supabase
-
-Critério:
-
-☐ Dashboard
-
-☐ Sidebar
-
-☐ Backup
 
 ---
 

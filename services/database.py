@@ -139,7 +139,7 @@ def inserir_parcelado(
             "descricao": f"{descricao} {i + 1}/{total_parcelas}",
             "valor": valor_parcela,
             "tipo": tipo,
-            "status": "Pendente",
+            "status": status,
             "categoria": categoria,
             "parcela_atual": i + 1,
             "total_parcelas": total_parcelas,
