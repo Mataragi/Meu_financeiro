@@ -172,6 +172,20 @@ Transformar a listagem em uma experiência semelhante a um extrato financeiro.
 
 ---
 
+## importador inteligente
+
+Status
+
+🟡 Planejada
+
+Prioridade
+
+★★★★★
+
+Objetivo
+
+Permitir importar movimentações bancárias de forma segura, rápida e seletiva.
+
 ## Próximos Vencimentos
 
 Prioridade

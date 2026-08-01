@@ -1,9 +1,8 @@
 import streamlit as st
 import pandas as pd
 
-from services.database import inserir_dados, clonar_mes
+from services.database import clonar_mes, gerar_backup_transacoes, inserir_dados
 from utils.processamento import ler_extrato, processar_extrato
-from services.supabase_client import supabase
 
 
 MESES = [
@@ -15,10 +14,7 @@ ANOS = [2026, 2027, 2028]
 
 
 def gerar_backup():
-    res = supabase.table("transacoes").select("*").execute()
-    if not res.data:
-        return None
-    return pd.DataFrame(res.data).to_csv(index=False).encode("utf-8")
+    return gerar_backup_transacoes()
 
 
 def tratar_backup(df):

@@ -1,17 +1,18 @@
 import streamlit as st
 import pandas as pd
-from services.database import carregar_dados
+from services.database import (
+    atualizar_status_multiplos,
+    carregar_dados,
+    excluir_multiplos_do_mes,
+    gerar_backup_transacoes,
+)
 from utils.formatacao import colorir_status, formatar_real
-from services.supabase_client import supabase
 
 MESES = ["TODOS","JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO",
          "JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"]
 
 def gerar_backup():
-    res = supabase.table("transacoes").select("*").execute()
-    if not res.data:
-        return None
-    return pd.DataFrame(res.data).to_csv(index=False).encode('utf-8')
+    return gerar_backup_transacoes()
 
 def render_dashboard():
 
@@ -75,7 +76,7 @@ def render_dashboard():
             if st.button("Pagar"):
                 ids = [opcoes[s] for s in sel]
                 if ids:
-                    supabase.table("transacoes").update({"status":"pago"}).in_("id",ids).execute()
+                    atualizar_status_multiplos(ids, "pago")
                     st.rerun()
 
     # EXCLUIR
@@ -100,11 +101,7 @@ def render_dashboard():
                     ids = [opcoes[s] for s in sel]
 
                     if ids:
-                        supabase.table("transacoes")\
-                            .delete()\
-                            .eq("mes", mes)\
-                            .in_("id", ids)\
-                            .execute()
+                        excluir_multiplos_do_mes(ids, mes)
 
                         st.rerun()
 

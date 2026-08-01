@@ -62,6 +62,15 @@ def inserir_dados(dados):
         st.success(f"{len(dados)} registros enviados 🚀")
 
 
+def gerar_backup_transacoes():
+    res = supabase.table("transacoes").select("*").execute()
+
+    if not res.data:
+        return None
+
+    return pd.DataFrame(res.data).to_csv(index=False).encode("utf-8")
+
+
 @st.cache_data(ttl=30)
 def carregar_dados(mes, ano=None):
     query = supabase.table("transacoes").select("*")
@@ -171,6 +180,13 @@ def dar_baixa_multiplos(ids):
         st.rerun()
 
 
+def atualizar_status_multiplos(ids, status):
+    if ids:
+        supabase.table("transacoes").update({
+            "status": status
+        }).in_("id", ids).execute()
+
+
 def excluir_registro(id_registro):
     if id_registro:
         supabase.table("transacoes").delete().eq("id", id_registro).execute()
@@ -185,6 +201,15 @@ def excluir_multiplos(ids):
         st.cache_data.clear()
         st.warning(f"{len(ids)} registros excluídos 🗑️")
         st.rerun()
+
+
+def excluir_multiplos_do_mes(ids, mes):
+    if ids:
+        supabase.table("transacoes") \
+            .delete() \
+            .eq("mes", mes) \
+            .in_("id", ids) \
+            .execute()
 
 
 def excluir_grupo_parcelamento(grupo_id):
