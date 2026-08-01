@@ -57,6 +57,7 @@ def render_mobile_transaction_form(ano, mes):
                 total_parcelas=int(total_parcelas),
                 vencimento=vencimento,
             )
+            st.success(f"{int(total_parcelas)} registros enviados 🚀")
             st.session_state.show_form = False
             st.rerun()
 

@@ -40,6 +40,8 @@ def render_mobile_debts():
                         "status": status,
                         "observacao": observacao.strip()
                     }])
+                    st.success("Dívida informal registrada ✅")
+                    st.rerun()
 
     df = carregar_dividas_informais()
 
@@ -129,6 +131,8 @@ def render_mobile_debts():
                         "observacao": nova_observacao.strip()
                     }
                 )
+                st.success("Dívida informal atualizada ✅")
+                st.rerun()
 
     with st.expander("🗑️ Excluir dívida informal"):
         opcoes_excluir = {}
@@ -147,3 +151,5 @@ def render_mobile_debts():
         if escolhido_excluir != "Selecione":
             if st.button("🗑️ Confirmar exclusão da dívida", use_container_width=True):
                 excluir_divida_informal(opcoes_excluir[escolhido_excluir])
+                st.warning("Dívida informal excluída 🗑️")
+                st.rerun()

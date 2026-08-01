@@ -52,6 +52,8 @@ def _render_baixa(df_base, mes):
             if st.button("✅ Confirmar baixa", use_container_width=True):
                 if ids:
                     dar_baixa_multiplos(ids)
+                    st.success(f"{len(ids)} registros marcados como pagos ✅")
+                    st.rerun()
                 else:
                     st.warning("Selecione pelo menos um registro.")
 
@@ -89,6 +91,8 @@ def _render_exclusao(df_base, mes):
                     "🗑️ Excluir parcelamento inteiro", use_container_width=True
                 ):
                     excluir_grupo_parcelamento(grupos[escolhido])
+                    st.warning("Parcelamento excluído 🗑️")
+                    st.rerun()
 
             st.divider()
             st.markdown("### 🧾 Excluir registros selecionados")
@@ -103,6 +107,8 @@ def _render_exclusao(df_base, mes):
             if st.button("🗑️ Confirmar exclusão", use_container_width=True):
                 if ids:
                     excluir_multiplos(ids)
+                    st.warning(f"{len(ids)} registros excluídos 🗑️")
+                    st.rerun()
                 else:
                     st.warning("Selecione pelo menos um registro.")
 
@@ -180,6 +186,8 @@ def _render_edicao(df_base, mes):
                             "vencimento": novo_vencimento,
                         },
                     )
+                    st.success("Registro atualizado ✅")
+                    st.rerun()
 
 
 def render_mobile_transaction_actions(df_base, mes):

@@ -47,8 +47,6 @@ def inserir_divida_informal(dados):
         dados_normalizados = [_normalizar_status_dados(dado) for dado in dados]
         supabase.table("dividas_informais").insert(dados_normalizados).execute()
         _invalidar_cache_consultas()
-        st.success("Dívida informal registrada ✅")
-        st.rerun()
 
 
 @st.cache_data(ttl=30)
@@ -68,16 +66,12 @@ def atualizar_divida_informal(id_divida, dados):
         dados_normalizados = _normalizar_status_dados(dados)
         supabase.table("dividas_informais").update(dados_normalizados).eq("id", id_divida).execute()
         _invalidar_cache_consultas()
-        st.success("Dívida informal atualizada ✅")
-        st.rerun()
 
 
 def excluir_divida_informal(id_divida):
     if id_divida:
         supabase.table("dividas_informais").delete().eq("id", id_divida).execute()
         _invalidar_cache_consultas()
-        st.warning("Dívida informal excluída 🗑️")
-        st.rerun()
 
 
 # =========================
@@ -89,7 +83,6 @@ def inserir_dados(dados):
         dados_normalizados = [_normalizar_status_dados(dado) for dado in dados]
         supabase.table("transacoes").insert(dados_normalizados).execute()
         _invalidar_cache_consultas()
-        st.success(f"{len(dados)} registros enviados 🚀")
 
 
 def gerar_backup_transacoes():
@@ -185,8 +178,6 @@ def atualizar_registro(id_registro, dados):
         dados_normalizados = _normalizar_status_dados(dados)
         supabase.table("transacoes").update(dados_normalizados).eq("id", id_registro).execute()
         _invalidar_cache_consultas()
-        st.success("Registro atualizado ✅")
-        st.rerun()
 
 
 def dar_baixa_registro(id_registro):
@@ -196,8 +187,6 @@ def dar_baixa_registro(id_registro):
         }).eq("id", id_registro).execute()
 
         _invalidar_cache_consultas()
-        st.success("Registro marcado como pago ✅")
-        st.rerun()
 
 
 def dar_baixa_multiplos(ids):
@@ -207,8 +196,6 @@ def dar_baixa_multiplos(ids):
         }).in_("id", ids).execute()
 
         _invalidar_cache_consultas()
-        st.success(f"{len(ids)} registros marcados como pagos ✅")
-        st.rerun()
 
 
 def atualizar_status_multiplos(ids, status):
@@ -224,16 +211,12 @@ def excluir_registro(id_registro):
     if id_registro:
         supabase.table("transacoes").delete().eq("id", id_registro).execute()
         _invalidar_cache_consultas()
-        st.warning("Registro excluído 🗑️")
-        st.rerun()
 
 
 def excluir_multiplos(ids):
     if ids:
         supabase.table("transacoes").delete().in_("id", ids).execute()
         _invalidar_cache_consultas()
-        st.warning(f"{len(ids)} registros excluídos 🗑️")
-        st.rerun()
 
 
 def excluir_multiplos_do_mes(ids, mes):
@@ -255,8 +238,6 @@ def excluir_grupo_parcelamento(grupo_id):
             .execute()
 
         _invalidar_cache_consultas()
-        st.warning("Parcelamento excluído 🗑️")
-        st.rerun()
 
 
 # =========================
@@ -266,8 +247,6 @@ def excluir_grupo_parcelamento(grupo_id):
 def excluir_mes(mes, ano):
     supabase.table("transacoes").delete().eq("mes", mes).eq("ano", ano).execute()
     _invalidar_cache_consultas()
-    st.warning(f"{mes}/{ano} foi limpo")
-    st.rerun()
 
 
 def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):
@@ -281,8 +260,7 @@ def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):
     )
 
     if not res.data:
-        st.warning("Nada pra copiar")
-        return
+        return 0
 
     novos = []
 
@@ -304,3 +282,4 @@ def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):
         })
 
     inserir_dados(novos)
+    return len(novos)

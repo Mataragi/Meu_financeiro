@@ -60,6 +60,7 @@ def render_sidebar():
                     "tipo": tipo,
                     "status": status
                 }])
+                st.success("1 registros enviados 🚀")
 
                 st.session_state.ano_filtro = ano
                 st.session_state.mes_filtro = mes
@@ -82,6 +83,7 @@ def render_sidebar():
                     item["mes"] = mes
 
                 inserir_dados(dados)
+                st.success(f"{len(dados)} registros enviados 🚀")
 
         st.divider()
 
@@ -96,6 +98,7 @@ def render_sidebar():
             if st.button("Restaurar Backup"):
                 dados = tratar_backup(df)
                 inserir_dados(dados)
+                st.success(f"{len(dados)} registros enviados 🚀")
                 st.success("Backup restaurado com sucesso 🚀")
                 st.rerun()
 
@@ -113,7 +116,11 @@ def render_sidebar():
             if o_ano == d_ano and o_mes == d_mes:
                 st.warning("Origem e destino não podem ser iguais.")
             else:
-                clonar_mes(o_mes, o_ano, d_mes, d_ano)
+                quantidade_clonada = clonar_mes(o_mes, o_ano, d_mes, d_ano)
+                if quantidade_clonada:
+                    st.success(f"{quantidade_clonada} registros enviados 🚀")
+                else:
+                    st.warning("Nada pra copiar")
 
         st.divider()
 

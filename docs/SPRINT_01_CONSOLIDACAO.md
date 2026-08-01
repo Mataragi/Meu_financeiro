@@ -145,6 +145,14 @@ Critério de conclusão:
 
 ### ☐ 5. Refatorar database.py
 
+✅ 5.1 Transformar database.py em Repository
+
+☐ 5.2 Criar transaction_service.py
+
+☐ 5.3 Migrar regras financeiras
+
+☐ 5.4 Remover Streamlit do Repository
+
 Prioridade:
 🔴 Alta
 
@@ -168,6 +176,7 @@ Critério:
 ☐ Apenas lógica de persistência
 
 ---
+
 
 ### ☐ 6. Criar Testes Essenciais
 
