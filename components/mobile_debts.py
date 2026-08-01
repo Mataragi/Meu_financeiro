@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 
 from utils.formatacao import formatar_real
+from utils.status import STATUS_PENDENTE
 from services.database import (
     inserir_divida_informal,
     carregar_dividas_informais,
@@ -106,7 +107,7 @@ def render_mobile_debts():
             novo_status = st.selectbox(
                 "Status",
                 ["Pendente", "Pago"],
-                index=0 if registro.get("status") == "Pendente" else 1,
+                index=0 if registro.get("status") == STATUS_PENDENTE else 1,
                 key="edit_divida_status"
             )
 

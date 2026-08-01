@@ -7,6 +7,7 @@ from services.database import (
     gerar_backup_transacoes,
 )
 from utils.formatacao import colorir_status, formatar_real
+from utils.status import STATUS_PAGO, STATUS_PENDENTE
 
 MESES = ["TODOS","JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO",
          "JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"]
@@ -32,8 +33,8 @@ def render_dashboard():
 
     df['valor'] = pd.to_numeric(df['valor'])
 
-    pagos = df[(df['status'].str.lower()=='pago') & (df['tipo'].str.lower().isin(['saida','saída']))]['valor'].sum()
-    pend = df[(df['status'].str.lower()=='pendente') & (df['tipo'].str.lower().isin(['saida','saída']))]['valor'].sum()
+    pagos = df[(df['status'] == STATUS_PAGO) & (df['tipo'].str.lower().isin(['saida','saída']))]['valor'].sum()
+    pend = df[(df['status'] == STATUS_PENDENTE) & (df['tipo'].str.lower().isin(['saida','saída']))]['valor'].sum()
     ent = df[df['tipo'].str.lower()=='entrada']['valor'].sum()
 
     c1,c2,c3 = st.columns(3)
@@ -59,7 +60,7 @@ def render_dashboard():
     with col1:
         with st.expander("💸 Dar Baixa"):
 
-            pend_df = df[df['status'].str.lower()=='pendente']
+            pend_df = df[df['status'] == STATUS_PENDENTE]
             pend_df = pend_df.sort_values(by="criado_em", ascending=False)
 
             opcoes = {
@@ -76,7 +77,7 @@ def render_dashboard():
             if st.button("Pagar"):
                 ids = [opcoes[s] for s in sel]
                 if ids:
-                    atualizar_status_multiplos(ids, "pago")
+                    atualizar_status_multiplos(ids, STATUS_PAGO)
                     st.rerun()
 
     # EXCLUIR

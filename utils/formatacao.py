@@ -1,7 +1,10 @@
+from utils.status import STATUS_PAGO, STATUS_PENDENTE
+
+
 def colorir_status(valor):
-    if str(valor).lower() == 'pendente':
+    if valor == STATUS_PENDENTE:
         return 'background-color: #ff4b4b; color: white'
-    elif str(valor).lower() == 'pago':
+    elif valor == STATUS_PAGO:
         return 'background-color: #28a745; color: white'
     return ''
 

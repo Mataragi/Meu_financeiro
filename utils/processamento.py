@@ -1,5 +1,7 @@
 import pandas as pd
 
+from utils.status import STATUS_PAGO
+
 def tratar_valor(v):
     return float(v.replace('.', '').replace(',', '.'))
 
@@ -44,7 +46,7 @@ def processar_extrato(df):
                 "descricao":hist,
                 "valor":valor,
                 "tipo":tipo,
-                "status":"pago"
+                "status": STATUS_PAGO,
             })
         except:
             continue

@@ -3,6 +3,12 @@ import streamlit as st
 from uuid import uuid4
 
 from services.supabase_client import supabase
+from utils.status import (
+    STATUS_PAGO,
+    STATUS_PENDENTE,
+    normalizar_status,
+    normalizar_status_para_persistencia,
+)
 
 
 MESES_ORDEM = [
@@ -15,13 +21,31 @@ def _invalidar_cache_consultas():
     st.cache_data.clear()
 
 
+def _normalizar_status_dados(dados):
+    if "status" not in dados:
+        return dados
+
+    return {
+        **dados,
+        "status": normalizar_status_para_persistencia(dados["status"]),
+    }
+
+
+def _normalizar_status_dataframe(df):
+    if "status" in df.columns:
+        df["status"] = df["status"].map(normalizar_status)
+
+    return df
+
+
 # =========================
 # DÍVIDAS INFORMAIS
 # =========================
 
 def inserir_divida_informal(dados):
     if dados:
-        supabase.table("dividas_informais").insert(dados).execute()
+        dados_normalizados = [_normalizar_status_dados(dado) for dado in dados]
+        supabase.table("dividas_informais").insert(dados_normalizados).execute()
         _invalidar_cache_consultas()
         st.success("Dívida informal registrada ✅")
         st.rerun()
@@ -36,12 +60,13 @@ def carregar_dividas_informais():
         .order("criado_em", desc=True)
         .execute()
     )
-    return pd.DataFrame(res.data)
+    return _normalizar_status_dataframe(pd.DataFrame(res.data))
 
 
 def atualizar_divida_informal(id_divida, dados):
     if id_divida and dados:
-        supabase.table("dividas_informais").update(dados).eq("id", id_divida).execute()
+        dados_normalizados = _normalizar_status_dados(dados)
+        supabase.table("dividas_informais").update(dados_normalizados).eq("id", id_divida).execute()
         _invalidar_cache_consultas()
         st.success("Dívida informal atualizada ✅")
         st.rerun()
@@ -61,7 +86,8 @@ def excluir_divida_informal(id_divida):
 
 def inserir_dados(dados):
     if dados:
-        supabase.table("transacoes").insert(dados).execute()
+        dados_normalizados = [_normalizar_status_dados(dado) for dado in dados]
+        supabase.table("transacoes").insert(dados_normalizados).execute()
         _invalidar_cache_consultas()
         st.success(f"{len(dados)} registros enviados 🚀")
 
@@ -86,7 +112,7 @@ def carregar_dados(mes, ano=None):
         query = query.eq("mes", mes)
 
     res = query.execute()
-    return pd.DataFrame(res.data)
+    return _normalizar_status_dataframe(pd.DataFrame(res.data))
 
 
 def calcular_mes_ano_parcela(mes_inicial, ano_inicial, incremento):
@@ -156,7 +182,8 @@ def inserir_parcelado(
 
 def atualizar_registro(id_registro, dados):
     if id_registro and dados:
-        supabase.table("transacoes").update(dados).eq("id", id_registro).execute()
+        dados_normalizados = _normalizar_status_dados(dados)
+        supabase.table("transacoes").update(dados_normalizados).eq("id", id_registro).execute()
         _invalidar_cache_consultas()
         st.success("Registro atualizado ✅")
         st.rerun()
@@ -165,7 +192,7 @@ def atualizar_registro(id_registro, dados):
 def dar_baixa_registro(id_registro):
     if id_registro:
         supabase.table("transacoes").update({
-            "status": "Pago"
+            "status": STATUS_PAGO
         }).eq("id", id_registro).execute()
 
         _invalidar_cache_consultas()
@@ -176,7 +203,7 @@ def dar_baixa_registro(id_registro):
 def dar_baixa_multiplos(ids):
     if ids:
         supabase.table("transacoes").update({
-            "status": "Pago"
+            "status": STATUS_PAGO
         }).in_("id", ids).execute()
 
         _invalidar_cache_consultas()
@@ -187,7 +214,7 @@ def dar_baixa_multiplos(ids):
 def atualizar_status_multiplos(ids, status):
     if ids:
         supabase.table("transacoes").update({
-            "status": status
+            "status": normalizar_status_para_persistencia(status)
         }).in_("id", ids).execute()
 
         _invalidar_cache_consultas()
@@ -271,7 +298,7 @@ def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):
             "descricao": registro["descricao"],
             "valor": registro["valor"],
             "tipo": registro["tipo"],
-            "status": "pendente",
+            "status": STATUS_PENDENTE,
             "categoria": registro.get("categoria", "Sem categoria"),
             "vencimento": registro.get("vencimento"),
         })

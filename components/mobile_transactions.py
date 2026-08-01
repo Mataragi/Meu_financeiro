@@ -5,6 +5,7 @@ from components.mobile_constants import CATEGORIAS
 from components.mobile_helpers import filtrar_status
 from services.database import inserir_parcelado
 from utils.formatacao import colorir_status, formatar_real
+from utils.status import STATUS_PAGO
 
 
 def render_mobile_transaction_form(ano, mes):
@@ -40,7 +41,7 @@ def render_mobile_transaction_form(ano, mes):
             st.error("Selecione um mês específico para salvar.")
         elif not desc.strip():
             st.error("Informe uma descrição.")
-        elif valor <= 0 and status == "Pago":
+        elif valor <= 0 and status == STATUS_PAGO:
             st.error("Registro pago precisa ter valor maior que zero.")
         elif categoria == "Selecione":
             st.error("Selecione uma categoria.")

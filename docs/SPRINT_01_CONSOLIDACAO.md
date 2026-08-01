@@ -3,7 +3,7 @@
 | 1    | Remover Supabase dos Components | 🔴         | ✅    |
 | 2    | Corrigir Parcelamentos          | 🔴         | ✅    |
 | 3    | Centralizar Cache               | 🔴         | ✅    |
-| 4    | Padronizar Status               | 🔴         | ⏳     |
+| 4    | Padronizar Status               | 🔴         | ✅    |
 | 5    | Refatorar `database.py`         | 🔴         | ⏳     |
 | 6    | Criar Testes Essenciais         | 🔴         | ⏳     |
 
@@ -111,7 +111,7 @@ Critério:
 
 ---
 
-### ☐ 4. Padronizar Status
+### ✅ 4. Padronizar Status
 
 Prioridade:
 🔴 Alta
@@ -133,13 +133,13 @@ Somente um padrão será utilizado em toda aplicação.
 
 Critério de conclusão:
 
-☐ Mobile atualizado
+☑ Mobile atualizado
 
-☐ Desktop atualizado
+☑ Desktop atualizado
 
-☐ Banco consistente
+☑ Banco consistente
 
-☐ Filtros funcionando
+☑ Filtros funcionando
 
 ---
 

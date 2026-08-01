@@ -10,6 +10,7 @@ from services.database import (
     excluir_multiplos,
 )
 from utils.formatacao import formatar_real
+from utils.status import STATUS_PAGO, STATUS_PENDENTE
 
 
 def _opcoes_registros(df, incluir_status=False):
@@ -34,7 +35,7 @@ def _render_baixa(df_base, mes):
             st.info("Nenhuma pendência encontrada.")
         else:
             df_pendentes = df_base[
-                df_base["status"].astype(str).str.lower() == "pendente"
+                df_base["status"] == STATUS_PENDENTE
             ]
             if df_pendentes.empty:
                 st.info("Nenhuma pendência encontrada.")
@@ -147,7 +148,7 @@ def _render_edicao(df_base, mes):
             novo_status = st.selectbox(
                 "Status",
                 ["Pendente", "Pago"],
-                index=0 if str(registro.get("status", "")).lower() == "pendente" else 1,
+                index=0 if registro.get("status") == STATUS_PENDENTE else 1,
                 key=f"edit_status_mobile_{registro_id}",
             )
             novo_vencimento = st.number_input(
@@ -166,7 +167,7 @@ def _render_edicao(df_base, mes):
             ):
                 if not nova_descricao.strip():
                     st.error("Informe uma descrição.")
-                elif novo_valor <= 0 and novo_status == "Pago":
+                elif novo_valor <= 0 and novo_status == STATUS_PAGO:
                     st.error("Registro pago precisa ter valor maior que zero.")
                 else:
                     atualizar_registro(

@@ -2,6 +2,8 @@ from datetime import datetime
 
 import pandas as pd
 
+from utils.status import STATUS_PAGO, STATUS_PENDENTE
+
 
 def formatar_data(valor):
     try:
@@ -28,13 +30,13 @@ def calcular_metricas(df_base):
     df["valor"] = df["valor"].astype(float)
 
     tipo = df["tipo"].astype(str).str.lower()
-    status = df["status"].astype(str).str.lower()
+    status = df["status"]
 
     saidas = tipo.isin(["saida", "saída"])
     entradas = tipo == "entrada"
 
-    pagos = df[(status == "pago") & saidas]["valor"].sum()
-    pendentes = df[(status == "pendente") & saidas]["valor"].sum()
+    pagos = df[(status == STATUS_PAGO) & saidas]["valor"].sum()
+    pendentes = df[(status == STATUS_PENDENTE) & saidas]["valor"].sum()
     entradas_total = df[entradas]["valor"].sum()
 
     return pagos, pendentes, entradas_total - pagos
@@ -45,9 +47,9 @@ def filtrar_status(df, status_view):
         return df
 
     if status_view == "Pendentes":
-        return df[df["status"].astype(str).str.lower() == "pendente"]
+        return df[df["status"] == STATUS_PENDENTE]
 
     if status_view == "Pagos":
-        return df[df["status"].astype(str).str.lower() == "pago"]
+        return df[df["status"] == STATUS_PAGO]
 
     return df
