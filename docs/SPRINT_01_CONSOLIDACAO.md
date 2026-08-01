@@ -147,7 +147,7 @@ Critério de conclusão:
 
 ✅ 5.1 Transformar database.py em Repository
 
-☐ 5.2 Criar transaction_service.py
+✅ 5.2 Criar transaction_service.py
 
 ☐ 5.3 Migrar regras financeiras
 

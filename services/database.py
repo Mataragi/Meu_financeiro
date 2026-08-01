@@ -1,20 +1,21 @@
 import pandas as pd
 import streamlit as st
-from uuid import uuid4
 
 from services.supabase_client import supabase
+from services.transaction_service import (
+    atualizar_status_transacoes,
+    atualizar_transacao,
+    calcular_mes_ano_parcela as calcular_mes_ano_parcela_service,
+    clonar_transacoes_mes,
+    criar_transacoes,
+    criar_transacoes_parceladas,
+    dar_baixa_transacao,
+    dar_baixa_transacoes,
+)
 from utils.status import (
-    STATUS_PAGO,
-    STATUS_PENDENTE,
     normalizar_status,
     normalizar_status_para_persistencia,
 )
-
-
-MESES_ORDEM = [
-    "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
-    "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"
-]
 
 
 def _invalidar_cache_consultas():
@@ -79,10 +80,13 @@ def excluir_divida_informal(id_divida):
 # =========================
 
 def inserir_dados(dados):
-    if dados:
-        dados_normalizados = [_normalizar_status_dados(dado) for dado in dados]
-        supabase.table("transacoes").insert(dados_normalizados).execute()
-        _invalidar_cache_consultas()
+    return criar_transacoes(dados, _inserir_dados)
+
+
+def _inserir_dados(dados):
+    dados_normalizados = [_normalizar_status_dados(dado) for dado in dados]
+    supabase.table("transacoes").insert(dados_normalizados).execute()
+    _invalidar_cache_consultas()
 
 
 def gerar_backup_transacoes():
@@ -109,16 +113,7 @@ def carregar_dados(mes, ano=None):
 
 
 def calcular_mes_ano_parcela(mes_inicial, ano_inicial, incremento):
-    if mes_inicial not in MESES_ORDEM:
-        raise ValueError(f"Mês inválido para parcelamento: {mes_inicial}")
-
-    indice_mes = MESES_ORDEM.index(mes_inicial)
-    novo_indice_total = indice_mes + incremento
-
-    novo_ano = int(ano_inicial) + (novo_indice_total // 12)
-    novo_mes = MESES_ORDEM[novo_indice_total % 12]
-
-    return novo_mes, novo_ano
+    return calcular_mes_ano_parcela_service(mes_inicial, ano_inicial, incremento)
 
 
 def inserir_parcelado(
@@ -132,79 +127,52 @@ def inserir_parcelado(
     total_parcelas,
     vencimento=None
 ):
-    if total_parcelas <= 1:
-        inserir_dados([{
-            "ano": ano,
-            "mes": mes,
-            "descricao": descricao,
-            "valor": valor_total,
-            "tipo": tipo,
-            "status": status,
-            "categoria": categoria,
-            "parcela_atual": 1,
-            "total_parcelas": 1,
-            "grupo_parcelamento": None,
-            "vencimento": vencimento,
-        }])
-        return
-
-    grupo = str(uuid4())
-    valor_parcela = round(valor_total / total_parcelas, 2)
-
-    registros = []
-
-    for i in range(total_parcelas):
-        mes_parcela, ano_parcela = calcular_mes_ano_parcela(mes, ano, i)
-
-        registros.append({
-            "ano": ano_parcela,
-            "mes": mes_parcela,
-            "descricao": f"{descricao} {i + 1}/{total_parcelas}",
-            "valor": valor_parcela,
-            "tipo": tipo,
-            "status": status,
-            "categoria": categoria,
-            "parcela_atual": i + 1,
-            "total_parcelas": total_parcelas,
-            "grupo_parcelamento": grupo,
-            "vencimento": vencimento,
-        })
-
-    inserir_dados(registros)
+    return criar_transacoes_parceladas(
+        ano,
+        mes,
+        descricao,
+        valor_total,
+        tipo,
+        status,
+        categoria,
+        total_parcelas,
+        _inserir_dados,
+        vencimento,
+    )
 
 
 def atualizar_registro(id_registro, dados):
-    if id_registro and dados:
-        dados_normalizados = _normalizar_status_dados(dados)
-        supabase.table("transacoes").update(dados_normalizados).eq("id", id_registro).execute()
-        _invalidar_cache_consultas()
+    return atualizar_transacao(id_registro, dados, _atualizar_registro)
+
+
+def _atualizar_registro(id_registro, dados):
+    dados_normalizados = _normalizar_status_dados(dados)
+    supabase.table("transacoes").update(dados_normalizados).eq("id", id_registro).execute()
+    _invalidar_cache_consultas()
 
 
 def dar_baixa_registro(id_registro):
-    if id_registro:
-        supabase.table("transacoes").update({
-            "status": STATUS_PAGO
-        }).eq("id", id_registro).execute()
+    return dar_baixa_transacao(id_registro, _atualizar_status_registro)
 
-        _invalidar_cache_consultas()
+
+def _atualizar_status_registro(id_registro, status):
+    dados_normalizados = _normalizar_status_dados({"status": status})
+    supabase.table("transacoes").update(dados_normalizados).eq("id", id_registro).execute()
+    _invalidar_cache_consultas()
 
 
 def dar_baixa_multiplos(ids):
-    if ids:
-        supabase.table("transacoes").update({
-            "status": STATUS_PAGO
-        }).in_("id", ids).execute()
-
-        _invalidar_cache_consultas()
+    return dar_baixa_transacoes(ids, _atualizar_status_multiplos)
 
 
 def atualizar_status_multiplos(ids, status):
-    if ids:
-        supabase.table("transacoes").update({
-            "status": normalizar_status_para_persistencia(status)
-        }).in_("id", ids).execute()
+    return atualizar_status_transacoes(ids, status, _atualizar_status_multiplos)
 
-        _invalidar_cache_consultas()
+
+def _atualizar_status_multiplos(ids, status):
+    dados_normalizados = _normalizar_status_dados({"status": status})
+    supabase.table("transacoes").update(dados_normalizados).in_("id", ids).execute()
+    _invalidar_cache_consultas()
 
 
 def excluir_registro(id_registro):
@@ -250,36 +218,23 @@ def excluir_mes(mes, ano):
 
 
 def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):
+    return clonar_transacoes_mes(
+        origem_mes,
+        origem_ano,
+        destino_mes,
+        destino_ano,
+        _carregar_transacoes_mes,
+        _inserir_dados,
+    )
+
+
+def _carregar_transacoes_mes(mes, ano):
     res = (
         supabase
         .table("transacoes")
         .select("*")
-        .eq("mes", origem_mes)
-        .eq("ano", origem_ano)
+        .eq("mes", mes)
+        .eq("ano", ano)
         .execute()
     )
-
-    if not res.data:
-        return 0
-
-    novos = []
-
-    for registro in res.data:
-        # A resposta do Supabase é tipada como JSON, que também pode conter
-        # valores escalares ou nulos. Aqui só copiamos registros (objetos).
-        if not isinstance(registro, dict):
-            continue
-
-        novos.append({
-            "ano": destino_ano,
-            "mes": destino_mes,
-            "descricao": registro["descricao"],
-            "valor": registro["valor"],
-            "tipo": registro["tipo"],
-            "status": STATUS_PENDENTE,
-            "categoria": registro.get("categoria", "Sem categoria"),
-            "vencimento": registro.get("vencimento"),
-        })
-
-    inserir_dados(novos)
-    return len(novos)
+    return res.data
