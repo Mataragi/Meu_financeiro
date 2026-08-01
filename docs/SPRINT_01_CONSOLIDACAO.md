@@ -2,7 +2,7 @@
 | ---- | ------------------------------- | ---------- | ------ |
 | 1    | Remover Supabase dos Components | 🔴         | ✅    |
 | 2    | Corrigir Parcelamentos          | 🔴         | ✅    |
-| 3    | Centralizar Cache               | 🔴         | ⏳     |
+| 3    | Centralizar Cache               | 🔴         | ✅    |
 | 4    | Padronizar Status               | 🔴         | ⏳     |
 | 5    | Refatorar `database.py`         | 🔴         | ⏳     |
 | 6    | Criar Testes Essenciais         | 🔴         | ⏳     |
@@ -90,7 +90,7 @@ Critério de conclusão:
 
 ---
 
-### ☐ 3. Centralizar Invalidação de Cache
+### ✅ 3. Centralizar Invalidação de Cache
 
 Prioridade:
 🔴 Alta
@@ -101,13 +101,13 @@ Toda operação de escrita deve invalidar o cache automaticamente.
 
 Critério:
 
-☐ Inserção
+☑ Inserção
 
-☐ Exclusão
+☑ Exclusão
 
-☐ Baixa
+☑ Baixa
 
-☐ Edição
+☑ Edição
 
 ---
 
