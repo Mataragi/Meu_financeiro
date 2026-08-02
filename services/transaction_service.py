@@ -1,6 +1,11 @@
 from uuid import uuid4
 
-from utils.status import STATUS_PAGO, STATUS_PENDENTE
+from utils.status import (
+    STATUS_PAGO,
+    STATUS_PENDENTE,
+    normalizar_status,
+    normalizar_status_para_persistencia,
+)
 
 
 MESES_ORDEM = [
@@ -9,9 +14,33 @@ MESES_ORDEM = [
 ]
 
 
+def normalizar_dados_transacao(dados):
+    if "status" not in dados:
+        return dados
+
+    return {
+        **dados,
+        "status": normalizar_status_para_persistencia(dados["status"]),
+    }
+
+
+def normalizar_transacoes_dataframe(df):
+    if "status" in df.columns:
+        df["status"] = df["status"].map(normalizar_status)
+
+    return df
+
+
+def carregar_transacoes(mes, ano, carregar_transacoes_persistidas):
+    return normalizar_transacoes_dataframe(
+        carregar_transacoes_persistidas(mes, ano)
+    )
+
+
 def criar_transacoes(dados, inserir_transacoes):
     if dados:
-        return inserir_transacoes(dados)
+        dados_normalizados = [normalizar_dados_transacao(dado) for dado in dados]
+        return inserir_transacoes(dados_normalizados)
 
 
 def calcular_mes_ano_parcela(mes_inicial, ano_inicial, incremento):
@@ -80,22 +109,26 @@ def criar_transacoes_parceladas(
 
 def atualizar_transacao(id_registro, dados, atualizar_transacao_persistida):
     if id_registro and dados:
-        return atualizar_transacao_persistida(id_registro, dados)
+        dados_normalizados = normalizar_dados_transacao(dados)
+        return atualizar_transacao_persistida(id_registro, dados_normalizados)
 
 
 def dar_baixa_transacao(id_registro, atualizar_status_registro):
     if id_registro:
-        return atualizar_status_registro(id_registro, STATUS_PAGO)
+        status_normalizado = normalizar_status_para_persistencia(STATUS_PAGO)
+        return atualizar_status_registro(id_registro, status_normalizado)
 
 
 def dar_baixa_transacoes(ids, atualizar_status_multiplos):
     if ids:
-        return atualizar_status_multiplos(ids, STATUS_PAGO)
+        status_normalizado = normalizar_status_para_persistencia(STATUS_PAGO)
+        return atualizar_status_multiplos(ids, status_normalizado)
 
 
 def atualizar_status_transacoes(ids, status, atualizar_status_multiplos):
     if ids:
-        return atualizar_status_multiplos(ids, status)
+        status_normalizado = normalizar_status_para_persistencia(status)
+        return atualizar_status_multiplos(ids, status_normalizado)
 
 
 def clonar_transacoes_mes(

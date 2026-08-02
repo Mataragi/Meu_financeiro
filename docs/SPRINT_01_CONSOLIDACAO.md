@@ -149,7 +149,7 @@ Critério de conclusão:
 
 ✅ 5.2 Criar transaction_service.py
 
-☐ 5.3 Migrar regras financeiras
+✅ 5.3 Migrar regras financeiras
 
 ☐ 5.4 Remover Streamlit do Repository
 

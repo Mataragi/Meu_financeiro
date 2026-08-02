@@ -6,6 +6,7 @@ from services.transaction_service import (
     atualizar_status_transacoes,
     atualizar_transacao,
     calcular_mes_ano_parcela as calcular_mes_ano_parcela_service,
+    carregar_transacoes,
     clonar_transacoes_mes,
     criar_transacoes,
     criar_transacoes_parceladas,
@@ -84,8 +85,7 @@ def inserir_dados(dados):
 
 
 def _inserir_dados(dados):
-    dados_normalizados = [_normalizar_status_dados(dado) for dado in dados]
-    supabase.table("transacoes").insert(dados_normalizados).execute()
+    supabase.table("transacoes").insert(dados).execute()
     _invalidar_cache_consultas()
 
 
@@ -100,6 +100,10 @@ def gerar_backup_transacoes():
 
 @st.cache_data(ttl=30)
 def carregar_dados(mes, ano=None):
+    return carregar_transacoes(mes, ano, _carregar_dados)
+
+
+def _carregar_dados(mes, ano=None):
     query = supabase.table("transacoes").select("*")
 
     if ano is not None:
@@ -109,7 +113,7 @@ def carregar_dados(mes, ano=None):
         query = query.eq("mes", mes)
 
     res = query.execute()
-    return _normalizar_status_dataframe(pd.DataFrame(res.data))
+    return pd.DataFrame(res.data)
 
 
 def calcular_mes_ano_parcela(mes_inicial, ano_inicial, incremento):
@@ -146,8 +150,7 @@ def atualizar_registro(id_registro, dados):
 
 
 def _atualizar_registro(id_registro, dados):
-    dados_normalizados = _normalizar_status_dados(dados)
-    supabase.table("transacoes").update(dados_normalizados).eq("id", id_registro).execute()
+    supabase.table("transacoes").update(dados).eq("id", id_registro).execute()
     _invalidar_cache_consultas()
 
 
@@ -156,8 +159,7 @@ def dar_baixa_registro(id_registro):
 
 
 def _atualizar_status_registro(id_registro, status):
-    dados_normalizados = _normalizar_status_dados({"status": status})
-    supabase.table("transacoes").update(dados_normalizados).eq("id", id_registro).execute()
+    supabase.table("transacoes").update({"status": status}).eq("id", id_registro).execute()
     _invalidar_cache_consultas()
 
 
@@ -170,8 +172,7 @@ def atualizar_status_multiplos(ids, status):
 
 
 def _atualizar_status_multiplos(ids, status):
-    dados_normalizados = _normalizar_status_dados({"status": status})
-    supabase.table("transacoes").update(dados_normalizados).in_("id", ids).execute()
+    supabase.table("transacoes").update({"status": status}).in_("id", ids).execute()
     _invalidar_cache_consultas()
 
 
