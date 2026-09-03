@@ -3,7 +3,7 @@ import streamlit as st
 
 from components.mobile_constants import CATEGORIAS
 from components.mobile_helpers import formatar_data, vencimento_seguro
-from services.database import (
+from services.transaction_service import (
     atualizar_registro,
     dar_baixa_multiplos,
     excluir_grupo_parcelamento,

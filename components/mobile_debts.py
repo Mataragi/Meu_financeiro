@@ -3,7 +3,7 @@ import pandas as pd
 
 from utils.formatacao import formatar_real
 from utils.status import STATUS_PENDENTE
-from services.database import (
+from services.debt_service import (
     inserir_divida_informal,
     carregar_dividas_informais,
     atualizar_divida_informal,

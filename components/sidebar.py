@@ -1,7 +1,11 @@
 import streamlit as st
 import pandas as pd
 
-from services.database import clonar_mes, gerar_backup_transacoes, inserir_dados
+from services.transaction_service import (
+    clonar_mes,
+    gerar_backup_transacoes,
+    inserir_dados,
+)
 from utils.processamento import ler_extrato, processar_extrato
 
 

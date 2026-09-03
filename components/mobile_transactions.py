@@ -3,7 +3,7 @@ import streamlit as st
 
 from components.mobile_constants import CATEGORIAS
 from components.mobile_helpers import filtrar_status
-from services.database import inserir_parcelado
+from services.transaction_service import inserir_parcelado
 from utils.formatacao import colorir_status, formatar_real
 from utils.status import STATUS_PAGO
 

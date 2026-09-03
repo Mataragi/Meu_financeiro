@@ -4,7 +4,7 @@
 | 2    | Corrigir Parcelamentos          | 🔴         | ✅    |
 | 3    | Centralizar Cache               | 🔴         | ✅    |
 | 4    | Padronizar Status               | 🔴         | ✅    |
-| 5    | Refatorar `database.py`         | 🔴         | ⏳     |
+| 5    | Refatorar `database.py`         | 🔴         | ✅    |
 | 6    | Criar Testes Essenciais         | 🔴         | ⏳     |
 
 # Sprint 01 — Consolidação da Arquitetura
@@ -143,7 +143,7 @@ Critério de conclusão:
 
 ---
 
-### ☐ 5. Refatorar database.py
+### ✅ 5. Refatorar database.py
 
 ✅ 5.1 Transformar database.py em Repository
 
@@ -151,7 +151,7 @@ Critério de conclusão:
 
 ✅ 5.3 Migrar regras financeiras
 
-☐ 5.4 Remover Streamlit do Repository
+✅ 5.4 Remover Streamlit do Repository
 
 Prioridade:
 🔴 Alta

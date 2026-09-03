@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from services.database import (
+from services.transaction_service import (
     atualizar_status_multiplos,
     carregar_dados,
     excluir_multiplos_do_mes,

@@ -9,7 +9,7 @@ from components.mobile_transactions import (
     render_mobile_transaction_form,
     render_mobile_transaction_list,
 )
-from services.database import carregar_dados
+from services.transaction_service import carregar_dados
 from utils.formatacao import formatar_real
 
 

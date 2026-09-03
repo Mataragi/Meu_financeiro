@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+from services import database
+from services.cache import cache_data, invalidar_cache_consultas
 from utils.status import (
     STATUS_PAGO,
     STATUS_PENDENTE,
@@ -31,16 +33,20 @@ def normalizar_transacoes_dataframe(df):
     return df
 
 
-def carregar_transacoes(mes, ano, carregar_transacoes_persistidas):
-    return normalizar_transacoes_dataframe(
-        carregar_transacoes_persistidas(mes, ano)
-    )
+@cache_data(ttl=30)
+def carregar_dados(mes, ano=None):
+    return normalizar_transacoes_dataframe(database.carregar_dados(mes, ano))
 
 
-def criar_transacoes(dados, inserir_transacoes):
+def inserir_dados(dados):
     if dados:
         dados_normalizados = [normalizar_dados_transacao(dado) for dado in dados]
-        return inserir_transacoes(dados_normalizados)
+        database.inserir_dados(dados_normalizados)
+        invalidar_cache_consultas()
+
+
+def gerar_backup_transacoes():
+    return database.gerar_backup_transacoes()
 
 
 def calcular_mes_ano_parcela(mes_inicial, ano_inicial, incremento):
@@ -56,7 +62,7 @@ def calcular_mes_ano_parcela(mes_inicial, ano_inicial, incremento):
     return novo_mes, novo_ano
 
 
-def criar_transacoes_parceladas(
+def inserir_parcelado(
     ano,
     mes,
     descricao,
@@ -65,11 +71,10 @@ def criar_transacoes_parceladas(
     status,
     categoria,
     total_parcelas,
-    inserir_transacoes,
     vencimento=None,
 ):
     if total_parcelas <= 1:
-        return criar_transacoes([{
+        return inserir_dados([{
             "ano": ano,
             "mes": mes,
             "descricao": descricao,
@@ -81,7 +86,7 @@ def criar_transacoes_parceladas(
             "total_parcelas": 1,
             "grupo_parcelamento": None,
             "vencimento": vencimento,
-        }], inserir_transacoes)
+        }])
 
     grupo = str(uuid4())
     valor_parcela = round(valor_total / total_parcelas, 2)
@@ -89,7 +94,6 @@ def criar_transacoes_parceladas(
 
     for i in range(total_parcelas):
         mes_parcela, ano_parcela = calcular_mes_ano_parcela(mes, ano, i)
-
         registros.append({
             "ano": ano_parcela,
             "mes": mes_parcela,
@@ -104,51 +108,76 @@ def criar_transacoes_parceladas(
             "vencimento": vencimento,
         })
 
-    return criar_transacoes(registros, inserir_transacoes)
+    return inserir_dados(registros)
 
 
-def atualizar_transacao(id_registro, dados, atualizar_transacao_persistida):
+def atualizar_registro(id_registro, dados):
     if id_registro and dados:
-        dados_normalizados = normalizar_dados_transacao(dados)
-        return atualizar_transacao_persistida(id_registro, dados_normalizados)
+        database.atualizar_registro(
+            id_registro,
+            normalizar_dados_transacao(dados),
+        )
+        invalidar_cache_consultas()
 
 
-def dar_baixa_transacao(id_registro, atualizar_status_registro):
+def dar_baixa_registro(id_registro):
     if id_registro:
-        status_normalizado = normalizar_status_para_persistencia(STATUS_PAGO)
-        return atualizar_status_registro(id_registro, status_normalizado)
+        database.atualizar_status_registro(id_registro, STATUS_PAGO)
+        invalidar_cache_consultas()
 
 
-def dar_baixa_transacoes(ids, atualizar_status_multiplos):
+def dar_baixa_multiplos(ids):
     if ids:
-        status_normalizado = normalizar_status_para_persistencia(STATUS_PAGO)
-        return atualizar_status_multiplos(ids, status_normalizado)
+        database.atualizar_status_multiplos(ids, STATUS_PAGO)
+        invalidar_cache_consultas()
 
 
-def atualizar_status_transacoes(ids, status, atualizar_status_multiplos):
+def atualizar_status_multiplos(ids, status):
     if ids:
-        status_normalizado = normalizar_status_para_persistencia(status)
-        return atualizar_status_multiplos(ids, status_normalizado)
+        database.atualizar_status_multiplos(
+            ids,
+            normalizar_status_para_persistencia(status),
+        )
+        invalidar_cache_consultas()
 
 
-def clonar_transacoes_mes(
-    origem_mes,
-    origem_ano,
-    destino_mes,
-    destino_ano,
-    carregar_transacoes_mes,
-    inserir_transacoes,
-):
-    registros_origem = carregar_transacoes_mes(origem_mes, origem_ano)
+def excluir_registro(id_registro):
+    if id_registro:
+        database.excluir_registro(id_registro)
+        invalidar_cache_consultas()
+
+
+def excluir_multiplos(ids):
+    if ids:
+        database.excluir_multiplos(ids)
+        invalidar_cache_consultas()
+
+
+def excluir_multiplos_do_mes(ids, mes):
+    if ids:
+        database.excluir_multiplos_do_mes(ids, mes)
+        invalidar_cache_consultas()
+
+
+def excluir_grupo_parcelamento(grupo_id):
+    if grupo_id:
+        database.excluir_grupo_parcelamento(grupo_id)
+        invalidar_cache_consultas()
+
+
+def excluir_mes(mes, ano):
+    database.excluir_mes(mes, ano)
+    invalidar_cache_consultas()
+
+
+def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):
+    registros_origem = database.carregar_dados_mes(origem_mes, origem_ano)
 
     if not registros_origem:
         return 0
 
     novos = []
-
     for registro in registros_origem:
-        # A resposta do Supabase é tipada como JSON, que também pode conter
-        # valores escalares ou nulos. Aqui só copiamos registros (objetos).
         if not isinstance(registro, dict):
             continue
 
@@ -163,5 +192,5 @@ def clonar_transacoes_mes(
             "vencimento": registro.get("vencimento"),
         })
 
-    criar_transacoes(novos, inserir_transacoes)
+    inserir_dados(novos)
     return len(novos)
