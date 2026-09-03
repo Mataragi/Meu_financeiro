@@ -42,7 +42,9 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 
 ## Changed
 
-- Nenhuma alteração registrada.
+- `database.py` foi consolidado como Repository de persistência, sem acoplamento com Streamlit.
+- Regras de transações foram centralizadas em `transaction_service.py` e a infraestrutura de cache foi isolada.
+- Components passaram a acessar transações e dívidas por meio dos Services correspondentes.
 
 ## Fixed
 

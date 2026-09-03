@@ -167,13 +167,13 @@ Separar:
 
 Critério:
 
-☐ Nenhum st.success()
+☑ Nenhum st.success()
 
-☐ Nenhum st.warning()
+☑ Nenhum st.warning()
 
-☐ Nenhum st.rerun()
+☑ Nenhum st.rerun()
 
-☐ Apenas lógica de persistência
+☑ Apenas lógica de persistência
 
 ---
 
