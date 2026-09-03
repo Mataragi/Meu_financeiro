@@ -5,7 +5,7 @@
 | 3    | Centralizar Cache               | 🔴         | ✅    |
 | 4    | Padronizar Status               | 🔴         | ✅    |
 | 5    | Refatorar `database.py`         | 🔴         | ✅    |
-| 6    | Criar Testes Essenciais         | 🔴         | ⏳     |
+| 6    | Criar Testes Essenciais         | 🔴         | ✅    |
 
 # Sprint 01 — Consolidação da Arquitetura
 
@@ -178,22 +178,22 @@ Critério:
 ---
 
 
-### ☐ 6. Criar Testes Essenciais
+### ✅ 6. Criar Testes Essenciais
 
 Prioridade:
 🔴 Alta
 
 Cobertura mínima:
 
-☐ Parcelamentos
+☑ Parcelamentos
 
-☐ Status
+☑ Status
 
-☐ Saldo
+☑ Saldo
 
-☐ Datas
+☑ Datas
 
-☐ Parser CSV
+☑ Parser CSV
 
 ---
 
