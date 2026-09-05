@@ -31,6 +31,43 @@ def _render_select_style():
         unsafe_allow_html=True,
     )
 
+    # O selectbox usa um input interno para busca/foco. No Android isso pode
+    # abrir o teclado virtual mesmo quando o usuário só quer escolher uma
+    # opção. O script mantém o input sem edição, desativa o foco de entrada e
+    # devolve os eventos de toque ao container do selectbox.
+    st.components.v1.html(
+        """
+        <script>
+        (() => {
+            const parentDocument = window.parent.document;
+
+            const bloquearTeclado = () => {
+                parentDocument
+                    .querySelectorAll('div[data-baseweb="select"] input')
+                    .forEach((input) => {
+                        input.setAttribute('readonly', 'readonly');
+                        input.setAttribute('inputmode', 'none');
+                        input.style.pointerEvents = 'none';
+
+                        if (input.parentElement) {
+                            input.parentElement.style.pointerEvents = 'auto';
+                        }
+                    });
+            };
+
+            bloquearTeclado();
+
+            const observer = new MutationObserver(bloquearTeclado);
+            observer.observe(parentDocument.body, {
+                childList: true,
+                subtree: true,
+            });
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
 
 def _render_filters():
     ano = st.selectbox("Ano", ANOS, key="ano_mobile")
