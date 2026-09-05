@@ -38,7 +38,8 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 
 ## Added
 
-- Nenhuma alteração registrada.
+- Registrador de transações externas em `services/external_transaction_service.py`,
+  com validação, normalização e proteção determinística contra duplicidade.
 
 ## Changed
 

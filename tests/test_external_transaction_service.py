@@ -1,0 +1,96 @@
+import pandas as pd
+import pytest
+
+from services import external_transaction_service as registrar
+
+
+PAYLOAD = {
+    "descricao": "PIX para Barbara Eloiza da Silva Costa",
+    "valor": 28.50,
+    "tipo": "Saída",
+    "status": "pago",
+    "mes": "SETEMBRO",
+    "ano": 2026,
+    "categoria": "Mercado",
+    "vencimento": 1,
+}
+
+
+class FakeTransactionService:
+    MESES_ORDEM = registrar.transaction_service.MESES_ORDEM
+
+    def __init__(self, registros=None):
+        self.registros = registros or []
+        self.inseridos = []
+        self.consultas = []
+
+    def carregar_dados(self, mes, ano):
+        self.consultas.append((mes, ano))
+        return pd.DataFrame(self.registros)
+
+    def inserir_dados(self, dados):
+        self.inseridos.append(dados)
+
+
+def test_registra_payload_valido_reutilizando_transaction_service(monkeypatch):
+    fake = FakeTransactionService()
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    assert registrar.registrar_transacao_externa(PAYLOAD) is True
+    assert fake.inseridos == [[{**PAYLOAD, "status": "Pago"}]]
+
+
+def test_status_e_normalizado(monkeypatch):
+    fake = FakeTransactionService()
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    registrar.registrar_transacao_externa({**PAYLOAD, "status": " PENDENTE "})
+
+    assert fake.inseridos[0][0]["status"] == "Pendente"
+
+
+@pytest.mark.parametrize(
+    "alteracao",
+    [
+        {"descricao": ""},
+        {"valor": 0},
+        {"tipo": "Transferência"},
+        {"mes": "MÊS INVÁLIDO"},
+        {"vencimento": 32},
+        {"status": "Em análise"},
+    ],
+)
+def test_payload_invalido_e_rejeitado_sem_chamar_repository(monkeypatch, alteracao):
+    fake = FakeTransactionService()
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    with pytest.raises(ValueError):
+        registrar.registrar_transacao_externa({**PAYLOAD, **alteracao})
+
+    assert fake.inseridos == []
+    assert fake.consultas == []
+
+
+def test_transacao_duplicada_nao_e_registrada(monkeypatch):
+    fake = FakeTransactionService([PAYLOAD])
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    assert registrar.registrar_transacao_externa(PAYLOAD) is False
+    assert fake.inseridos == []
+
+
+def test_transacao_semelhante_mas_com_valor_diferente_e_registrada(monkeypatch):
+    fake = FakeTransactionService([PAYLOAD])
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    assert registrar.registrar_transacao_externa({**PAYLOAD, "valor": 28.51}) is True
+    assert len(fake.inseridos) == 1
+
+
+def test_repository_so_recebe_payload_apos_validacao_e_deduplicacao(monkeypatch):
+    fake = FakeTransactionService()
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    registrar.registrar_transacao_externa(PAYLOAD)
+
+    assert len(fake.inseridos) == 1
