@@ -5,6 +5,7 @@ from components.mobile_actions import render_mobile_transaction_actions
 from components.mobile_constants import ANOS, MESES, STATUS_VIEW
 from components.mobile_debts import render_mobile_debts
 from components.mobile_helpers import calcular_metricas
+from components.mobile_tools import render_mobile_tools
 from components.mobile_transactions import (
     render_mobile_transaction_form,
     render_mobile_transaction_list,
@@ -98,6 +99,9 @@ def render_mobile():
 
     st.divider()
     render_mobile_transaction_actions(df_base, mes)
+
+    st.divider()
+    render_mobile_tools()
 
     st.divider()
     with st.expander("🤝 Dívidas informais"):

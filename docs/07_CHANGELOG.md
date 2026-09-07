@@ -38,11 +38,13 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 
 ## Added
 
+- Central de Ferramentas no Mobile com backup e restauração de backup.
 - Registrador de transações externas em `services/external_transaction_service.py`,
   com validação, normalização e proteção determinística contra duplicidade.
 
 ## Changed
 
+- Aplicação principal passou a iniciar exclusivamente a interface Mobile.
 - `database.py` foi consolidado como Repository de persistência, sem acoplamento com Streamlit.
 - Regras de transações foram centralizadas em `transaction_service.py` e a infraestrutura de cache foi isolada.
 - Components passaram a acessar transações e dívidas por meio dos Services correspondentes.
@@ -78,56 +80,3 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 
 - Interface Mobile.
 - Interface Desktop.
-
----
-
-## Changed
-
-- Melhor organização do código.
-- Otimização do cache.
-- Melhorias de desempenho.
-- Revisão dos filtros.
-
----
-
-## Fixed
-
-- Correção do cálculo de parcelamentos.
-- Correção da edição de registros.
-- Correção da atualização de status.
-- Correção de filtros.
-- Correção da soma das métricas.
-- Correção de problemas na interface Mobile.
-- Correção da exclusão em lote.
-
----
-
-# [Futuras Versões]
-
-## 1.0.0
-
-Planejado
-
-- Timeline.
-- Interface responsiva.
-- Recorrências.
-- Patrimônio.
-
----
-
-## 1.1.0
-
-Planejado
-
-- Melhorias na importação.
-- Dashboard avançado.
-
----
-
-## 2.0.0
-
-Visão de longo prazo
-
-- Flutter.
-- Login.
-- Multiusuário.
