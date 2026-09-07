@@ -98,6 +98,8 @@ Os únicos estados persistidos são:
 
 Entradas equivalentes podem ser normalizadas antes da persistência.
 
+Para compras com `forma_pagamento = Crédito`, o status inicial será obrigatoriamente `Pendente`. Após o pagamento da fatura correspondente, a transação poderá ser marcada como `Pago` pelo fluxo oficial de baixa.
+
 ### Tipo
 
 Os tipos utilizados no fluxo principal são:
@@ -155,11 +157,13 @@ Essa regra ainda não foi implementada automaticamente no código.
 
 ## 7. Regra de pagamento no crédito
 
-Compras realizadas no Crédito não devem ser tratadas como saída de caixa no momento da compra, porque o dinheiro será comprometido quando a fatura for paga.
+Compras realizadas no Crédito não devem ser tratadas como saída de caixa já paga no momento da compra, porque o dinheiro será comprometido quando a fatura for paga.
 
 Para pagamentos imediatos, como PIX, Débito e Dinheiro, o ciclo financeiro será determinado pela data da movimentação segundo a regra de fechamento do ciclo.
 
 Para Crédito, o lançamento financeiro deverá pertencer ao ciclo em que a fatura será paga, mantendo separado o fato de que a compra ocorreu anteriormente.
+
+O status inicial de uma compra no Crédito é `Pendente`. Quando a fatura correspondente for paga, o lançamento poderá ser baixado para `Pago` pelo fluxo oficial.
 
 Exemplo confirmado:
 
@@ -169,10 +173,12 @@ R$ 154,66
 Forma de pagamento: Crédito
 
 Compra realizada: setembro
-Fatura paga: outubro
+Fatura: outubro
 Vencimento: dia 5
 
 → lançamento financeiro no ciclo de outubro
+→ status inicial: Pendente
+→ após pagamento da fatura: Pago
 ```
 
 A modelagem definitiva da data da compra ainda não foi implementada e deverá ser definida antes da alteração estrutural do banco.
@@ -189,9 +195,11 @@ A automação não deve deduzir silenciosamente:
 - ciclo da fatura de Crédito sem informação suficiente;
 - vencimento a partir da data do comprovante;
 - categoria quando houver ambiguidade;
+- forma de pagamento quando não houver evidência suficiente;
 - conta de origem ou destino que não exista no contrato;
 - identificador externo inexistente;
-- natureza financeira de uma transferência entre contas próprias.
+- natureza financeira de uma transferência entre contas próprias;
+- status `Pago` para uma compra no Crédito sem evidência de pagamento da fatura.
 
 Quando uma informação necessária estiver ausente ou ambígua, o fluxo deverá solicitar confirmação ou complemento.
 
