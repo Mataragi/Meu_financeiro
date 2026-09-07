@@ -8,7 +8,7 @@
 
 **Status:** Documento Vivo
 
-**Última atualização:** Julho de 2026
+**Última atualização:** Setembro de 2026
 
 ---
 
@@ -84,11 +84,55 @@ Toda nova funcionalidade deverá justificar claramente seu valor.
 
 ---
 
+## DEC-003
+
+### Interface Mobile será a principal interface do projeto.
+
+### Problema
+
+A interface Desktop e Mobile evoluíam separadamente.
+
+### Decisão
+
+A evolução do sistema será baseada na experiência Mobile.
+
+### Justificativa
+
+O principal uso do Financeiro Pro ocorre em dispositivos móveis.
+
+### Impacto
+
+A aplicação principal passa a iniciar pela experiência Mobile.
+
+---
+
+## DEC-004
+
+### Ações individuais devem ficar associadas ao registro.
+
+### Problema
+
+Manter botões de edição e exclusão visíveis para todas as transações aumenta a poluição visual e reduz o foco na leitura.
+
+### Decisão
+
+Ações como editar, excluir e duplicar serão exibidas somente quando o registro for expandido.
+
+### Justificativa
+
+A listagem deve priorizar visualização e permitir ações sob demanda.
+
+### Impacto
+
+A interface Mobile utiliza registros expansíveis como menu contextual.
+
+---
+
 # 4. Decisões de Arquitetura
 
 ---
 
-## DEC-003
+## DEC-005
 
 ### A tabela "transacoes" será a única fonte de dados financeiros.
 
@@ -110,7 +154,7 @@ Todos os módulos financeiros utilizarão essa tabela como base.
 
 ---
 
-## DEC-004
+## DEC-006
 
 ### Fluxo financeiro e patrimônio serão separados.
 
@@ -132,7 +176,7 @@ O módulo Patrimônio será implementado futuramente sem alterar a lógica das t
 
 ---
 
-## DEC-005
+## DEC-007
 
 ### Parcelamentos serão compostos por transações independentes.
 
@@ -154,25 +198,25 @@ Maior flexibilidade para consultas e relatórios.
 
 ---
 
-## DEC-006
+## DEC-008
 
-### Interface Mobile será a principal interface do projeto.
+### Fontes externas devem reutilizar o fluxo oficial de transações.
 
 ### Problema
 
-A interface Desktop e Mobile evoluíam separadamente.
+Uma integração externa poderia criar uma segunda forma de persistência e duplicar regras de negócio.
 
 ### Decisão
 
-A evolução do sistema será baseada na experiência Mobile.
+O registrador de transações externas deve delegar a persistência ao `transaction_service`, sem acesso direto ao banco.
 
 ### Justificativa
 
-O principal uso do Financeiro Pro ocorre em dispositivos móveis.
+Mantém uma única regra de persistência e reduz divergências entre lançamentos manuais e externos.
 
 ### Impacto
 
-A tendência é evoluir para uma interface única responsiva.
+Novas fontes de dados devem convergir para o fluxo oficial do Financeiro Pro.
 
 ---
 
@@ -180,7 +224,7 @@ A tendência é evoluir para uma interface única responsiva.
 
 ---
 
-## DEC-007
+## DEC-009
 
 ### Utilização do Supabase como banco de dados.
 
@@ -202,7 +246,7 @@ Todos os dados passam a ser centralizados em um banco remoto.
 
 ---
 
-## DEC-008
+## DEC-010
 
 ### Organização modular do projeto.
 
@@ -226,7 +270,7 @@ Maior organização e facilidade de evolução.
 
 ---
 
-## DEC-009
+## DEC-011
 
 ### Documentação como parte do desenvolvimento.
 
@@ -248,6 +292,38 @@ Toda mudança relevante deverá atualizar a documentação.
 
 ---
 
+## DEC-012
+
+### A IA será interpretadora, não autoridade financeira.
+
+### Problema
+
+Uma integração com IA poderia preencher ou alterar informações sem uma regra determinística do sistema.
+
+### Decisão
+
+A IA poderá interpretar uma fonte externa e montar dados estruturados, mas o Financeiro Pro será responsável por validar as regras, detectar inconsistências, verificar duplicidade e executar o lançamento oficial.
+
+### Justificativa
+
+Preserva a confiabilidade dos dados e impede que uma interpretação externa altere silenciosamente a semântica financeira do sistema.
+
+### Impacto
+
+O fluxo futuro seguirá o princípio:
+
+```text
+IA interpreta
+    ↓
+Financeiro Pro valida
+    ↓
+Usuário confirma
+    ↓
+Financeiro Pro registra
+```
+
+---
+
 # 6. Decisões Futuras
 
 Algumas decisões ainda dependem da evolução do projeto.
@@ -259,6 +335,10 @@ Entre elas:
 - API pública
 - Open Finance
 - Inteligência Artificial
+- regra definitiva de competência financeira;
+- fechamento e transporte de saldo entre ciclos;
+- contas e transferências entre contas próprias;
+- contrato definitivo de fontes externas.
 
 Essas decisões serão registradas quando forem oficialmente aprovadas.
 
