@@ -42,6 +42,7 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Ações contextuais por transação no Mobile com edição, exclusão e duplicação.
 - Registrador de transações externas em `services/external_transaction_service.py`,
   com validação, normalização e proteção determinística contra duplicidade.
+- Campos `data_transacao` e `forma_pagamento` no domínio de transações.
 
 ## Changed
 
@@ -54,6 +55,9 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - O contrato da automação externa passou a prever `forma_pagamento` como evolução necessária antes da integração automática.
 - A visualização em tabela permanece como modo alternativo de conferência e análise, enquanto os cartões seguem como apresentação principal no Mobile.
 - Flutter foi registrado como evolução futura da interface, sem transformar a etapa atual em uma reescrita visual do Streamlit.
+- Novos lançamentos passam a registrar a data da operação separadamente da data de criação do registro.
+- Compras com forma de pagamento `Crédito` são criadas como `Pendente`; a baixa para `Pago` ocorre somente após o pagamento da fatura.
+- O histórico existente permanece preservado sem preenchimento automático de `forma_pagamento` ou `data_transacao`.
 
 ## Fixed
 

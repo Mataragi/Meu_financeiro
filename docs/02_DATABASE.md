@@ -2,9 +2,9 @@
 
 # Database Documentation
 
-**Versão:** 1.0
+**Versão:** 1.1
 **Status:** Documento Vivo
-**Última atualização:** Julho de 2026
+**Última atualização:** Setembro de 2026
 
 ---
 
@@ -113,18 +113,24 @@ Ela representa o fluxo financeiro.
 | Campo | Finalidade |
 |--------|------------|
 | id | Identificador único |
-| criado_em | Data de criação |
-| ano | Organização anual |
-| mes | Organização mensal |
+| criado_em | Data de criação do registro |
+| data_transacao | Data em que a operação aconteceu |
+| ano | Ano do ciclo financeiro |
+| mes | Mês do ciclo financeiro |
 | descricao | Nome da movimentação |
 | valor | Valor financeiro |
 | tipo | Entrada ou Saída |
 | status | Pago ou Pendente |
-| categoria | Classificação financeira |
-| vencimento | Dia do vencimento |
+| categoria | O que foi gasto ou recebido |
+| forma_pagamento | Como a movimentação foi paga ou recebida |
+| vencimento | Dia do vencimento da obrigação |
 | parcela_atual | Parcela corrente |
 | total_parcelas | Quantidade de parcelas |
 | grupo_parcelamento | Identificador do grupo |
+
+`data_transacao` e `criado_em` possuem significados diferentes. `criado_em` registra quando o sistema criou o registro; `data_transacao` registra quando a operação ocorreu.
+
+`mes` e `ano` representam o ciclo financeiro ao qual o lançamento pertence e não devem ser tratados automaticamente como a data da operação.
 
 ---
 
@@ -137,6 +143,8 @@ Nunca deve representar patrimônio.
 Nunca deve representar saldo bancário.
 
 Nunca deve representar saldo de investimentos.
+
+A categoria e a forma de pagamento são conceitos independentes.
 
 ---
 
@@ -152,6 +160,16 @@ Tipo
 - Entrada
 - Saída
 
+Forma de pagamento
+
+- PIX
+- Débito
+- Crédito
+- Dinheiro
+- Outro
+
+Para uma nova compra com forma de pagamento `Crédito`, o status inicial é `Pendente`. Após o pagamento da fatura, o registro poderá ser marcado como `Pago` pelo fluxo oficial de baixa.
+
 ---
 
 ## Origens possíveis
@@ -163,6 +181,7 @@ Uma transação pode ser criada por:
 - Clonagem
 - Importação de extrato
 - Futuras recorrências
+- Futuras fontes externas
 
 ---
 
@@ -320,6 +339,8 @@ Todos os novos campos devem seguir:
 Novas funcionalidades devem criar novas tabelas apenas quando representarem um novo domínio.
 
 Nunca criar tabelas apenas para facilitar consultas.
+
+Alterações estruturais em `transacoes` devem preservar dados históricos sempre que possível.
 
 ---
 
