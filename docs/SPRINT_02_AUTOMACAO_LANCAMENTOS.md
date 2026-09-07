@@ -81,7 +81,9 @@ Campos mínimos atuais do registrador externo:
 - `categoria`
 - `vencimento`
 
-Esses campos representam o contrato técnico atual, mas algumas regras de negócio ainda precisam ser formalizadas antes da automação completa.
+A evolução do contrato deverá acrescentar `forma_pagamento` e separar os conceitos de data da movimentação, competência/ciclo e vencimento antes da integração automática.
+
+O contrato definitivo será fechado antes da implementação da ponte ChatGPT → Financeiro Pro.
 
 ---
 
@@ -103,6 +105,24 @@ Os tipos utilizados no fluxo principal são:
 - `Entrada`
 - `Saída`
 
+### Categoria x forma de pagamento
+
+A categoria representa **o que foi gasto ou recebido**.
+
+A forma de pagamento representa **como a movimentação foi paga ou recebida**.
+
+Formas previstas:
+
+- `PIX`
+- `Débito`
+- `Crédito`
+- `Dinheiro`
+- `Outro`
+
+A implementação inicial seguirá o **Plano A**: adicionar `forma_pagamento` sem migração destrutiva do histórico.
+
+A migração dos registros históricos seguirá posteriormente o **Plano C**, preservando a categoria original quando identificável com segurança e sem inventar dados ausentes.
+
 ### Competência mensal
 
 O sistema trabalha com `mes` e `ano` como referência explícita da competência do lançamento.
@@ -115,7 +135,7 @@ Cada parcela é uma transação independente e compartilha um identificador de g
 
 ---
 
-## 6. Regra financeira em definição
+## 6. Regra financeira do ciclo
 
 O usuário confirmou que o ciclo financeiro pessoal utilizado pelo Financeiro Pro considera o recebimento no dia 30.
 
@@ -129,15 +149,44 @@ Exemplo confirmado:
 Ciclo financeiro de SETEMBRO/2026
 ```
 
-Essa regra ainda não foi implementada no código e deverá ser formalizada antes de ser usada automaticamente pelo registrador externo.
+Essa regra ainda não foi implementada automaticamente no código.
 
 ---
 
-## 7. Pontos que não devem ser inventados
+## 7. Regra de pagamento no crédito
+
+Compras realizadas no Crédito não devem ser tratadas como saída de caixa no momento da compra, porque o dinheiro será comprometido quando a fatura for paga.
+
+Para pagamentos imediatos, como PIX, Débito e Dinheiro, o ciclo financeiro será determinado pela data da movimentação segundo a regra de fechamento do ciclo.
+
+Para Crédito, o lançamento financeiro deverá pertencer ao ciclo em que a fatura será paga, mantendo separado o fato de que a compra ocorreu anteriormente.
+
+Exemplo confirmado:
+
+```text
+Compra de combustível
+R$ 154,66
+Forma de pagamento: Crédito
+
+Compra realizada: setembro
+Fatura paga: outubro
+Vencimento: dia 5
+
+→ lançamento financeiro no ciclo de outubro
+```
+
+A modelagem definitiva da data da compra ainda não foi implementada e deverá ser definida antes da alteração estrutural do banco.
+
+Quando uma operação de Crédito não possuir informação suficiente para determinar o ciclo da fatura, a automação deverá solicitar complemento ou confirmação.
+
+---
+
+## 8. Pontos que não devem ser inventados
 
 A automação não deve deduzir silenciosamente:
 
 - competência a partir de uma data sem regra definida;
+- ciclo da fatura de Crédito sem informação suficiente;
 - vencimento a partir da data do comprovante;
 - categoria quando houver ambiguidade;
 - conta de origem ou destino que não exista no contrato;
@@ -148,7 +197,7 @@ Quando uma informação necessária estiver ausente ou ambígua, o fluxo deverá
 
 ---
 
-## 8. Duplicidade
+## 9. Duplicidade
 
 A proteção atual do registrador externo utiliza comparação determinística dos dados recebidos.
 
@@ -158,7 +207,7 @@ Evolução futura poderá incorporar identificador externo, referência do compr
 
 ---
 
-## 9. Fora do escopo desta etapa
+## 10. Fora do escopo desta etapa
 
 Não fazem parte da implementação atual:
 
@@ -171,29 +220,32 @@ Não fazem parte da implementação atual:
 - autenticação adicional;
 - processamento automático sem confirmação;
 - alteração do cálculo de saldo;
-- criação de contas bancárias como novo domínio.
+- criação de contas bancárias como novo domínio;
+- migração destrutiva do histórico para `forma_pagamento`.
 
 Esses recursos somente serão considerados quando houver necessidade real e contrato definido.
 
 ---
 
-## 10. Próximas decisões obrigatórias
+## 11. Próximas decisões obrigatórias
 
 Antes da integração automática, devem ser definidas:
 
-1. diferença entre data da movimentação, competência e vencimento;
-2. regra completa do ciclo financeiro;
-3. comportamento de entradas e saídas realizadas em dias de fechamento do ciclo;
-4. tratamento de transferências entre contas próprias;
-5. obrigatoriedade e catálogo de categorias;
-6. contrato definitivo para fontes externas;
-7. estratégia de confirmação do usuário;
-8. estratégia de deduplicação futura;
-9. comportamento para dados incompletos ou ambíguos.
+1. campo e semântica definitivos da data da movimentação;
+2. diferença operacional entre data da movimentação, competência/ciclo e vencimento;
+3. regra completa do ciclo financeiro;
+4. comportamento de entradas e saídas realizadas em dias de fechamento do ciclo;
+5. tratamento de transferências entre contas próprias;
+6. obrigatoriedade e catálogo de categorias;
+7. contrato definitivo para fontes externas, incluindo `forma_pagamento`;
+8. estratégia de confirmação do usuário;
+9. estratégia de deduplicação futura;
+10. comportamento para dados incompletos ou ambíguos;
+11. estratégia de migração histórica da forma de pagamento.
 
 ---
 
-## 11. Critério de conclusão da Sprint
+## 12. Critério de conclusão da Sprint
 
 A Sprint 02 somente será considerada concluída quando uma fonte externa puder:
 
