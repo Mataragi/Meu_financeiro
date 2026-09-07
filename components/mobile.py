@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 
 from components.mobile_actions import render_mobile_transaction_actions
-from components.mobile_constants import ANOS, MESES, STATUS_VIEW
+from components.mobile_constants import ANOS, FORMA_PAGAMENTO_VIEW, MESES, STATUS_VIEW
 from components.mobile_debts import render_mobile_debts
 from components.mobile_helpers import calcular_metricas
 from components.mobile_tools import render_mobile_tools
@@ -32,10 +32,6 @@ def _render_select_style():
         unsafe_allow_html=True,
     )
 
-    # O selectbox usa um input interno para busca/foco. No Android isso pode
-    # abrir o teclado virtual mesmo quando o usuário só quer escolher uma
-    # opção. O script mantém o input sem edição, desativa o foco de entrada e
-    # devolve os eventos de toque ao container do selectbox.
     st.components.v1.html(
         """
         <script>
@@ -74,7 +70,12 @@ def _render_filters():
     ano = st.selectbox("Ano", ANOS, key="ano_mobile")
     mes = st.selectbox("📅 Mês", MESES, key="mes_mobile")
     status_view = st.selectbox("Status", STATUS_VIEW, key="status_view_mobile")
-    return ano, mes, status_view
+    forma_pagamento_view = st.selectbox(
+        "Forma de pagamento",
+        FORMA_PAGAMENTO_VIEW,
+        key="forma_pagamento_view_mobile",
+    )
+    return ano, mes, status_view, forma_pagamento_view
 
 
 def _render_metrics(df_base):
@@ -87,7 +88,7 @@ def _render_metrics(df_base):
 
 def render_mobile():
     _render_select_style()
-    ano, mes, status_view = _render_filters()
+    ano, mes, status_view, forma_pagamento_view = _render_filters()
     df_base = pd.DataFrame() if mes == "Selecione" else carregar_dados(mes, ano)
 
     _render_metrics(df_base)
@@ -95,7 +96,12 @@ def render_mobile():
     render_mobile_transaction_form(ano, mes)
 
     st.divider()
-    render_mobile_transaction_list(df_base, mes, status_view)
+    render_mobile_transaction_list(
+        df_base,
+        mes,
+        status_view,
+        forma_pagamento_view,
+    )
 
     st.divider()
     render_mobile_transaction_actions(df_base, mes)

@@ -1,6 +1,7 @@
 import importlib
 import sys
 import types
+from datetime import date
 
 import pytest
 
@@ -52,6 +53,8 @@ def test_parcelamento_cria_registros_com_competencia_e_grupo(transaction_service
         categoria="Tecnologia",
         total_parcelas=3,
         vencimento=10,
+        forma_pagamento="Crédito",
+        data_transacao=date(2026, 11, 1),
     )
 
     parcelas = repository.inseridos[0]
@@ -62,6 +65,9 @@ def test_parcelamento_cria_registros_com_competencia_e_grupo(transaction_service
     assert [parcela["valor"] for parcela in parcelas] == [100.0, 100.0, 100.0]
     assert [parcela["mes"] for parcela in parcelas] == ["NOVEMBRO", "DEZEMBRO", "JANEIRO"]
     assert [parcela["ano"] for parcela in parcelas] == [2026, 2026, 2027]
+    assert {parcela["status"] for parcela in parcelas} == {STATUS_PENDENTE}
+    assert {parcela["forma_pagamento"] for parcela in parcelas} == {"Crédito"}
+    assert {parcela["data_transacao"] for parcela in parcelas} == {"2026-11-01"}
     assert len({parcela["grupo_parcelamento"] for parcela in parcelas}) == 1
     assert parcelas[0]["grupo_parcelamento"] is not None
 
@@ -92,6 +98,8 @@ def test_duplicar_registro_cria_copia_pendente(transaction_service):
         "status": STATUS_PAGO,
         "categoria": "Mercado",
         "vencimento": 10,
+        "forma_pagamento": "Débito",
+        "data_transacao": "2026-09-10",
         "parcela_atual": 2,
         "total_parcelas": 3,
         "grupo_parcelamento": "grupo-original",
@@ -108,6 +116,8 @@ def test_duplicar_registro_cria_copia_pendente(transaction_service):
         "status": STATUS_PENDENTE,
         "categoria": "Mercado",
         "vencimento": 10,
+        "forma_pagamento": "Débito",
+        "data_transacao": "2026-09-10",
     }
     assert repository.inseridos == [[novo]]
 
@@ -119,6 +129,20 @@ def test_duplicar_registro_rejeita_mes_invalido(transaction_service):
         service.duplicar_registro({"descricao": "Teste"}, "INVALIDO", 2026)
 
     assert repository.inseridos == []
+
+
+def test_normaliza_data_transacao(transaction_service):
+    service, _ = transaction_service
+
+    assert service.normalizar_data_transacao("2026-09-07") == "2026-09-07"
+    assert service.normalizar_data_transacao(date(2026, 9, 7)) == "2026-09-07"
+
+
+def test_rejeita_data_transacao_invalida(transaction_service):
+    service, _ = transaction_service
+
+    with pytest.raises(ValueError, match="Data da transação inválida"):
+        service.normalizar_data_transacao("07/09/2026")
 
 
 @pytest.mark.parametrize(

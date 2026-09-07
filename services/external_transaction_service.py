@@ -9,16 +9,37 @@ import math
 from collections.abc import Mapping
 
 from services import transaction_service
-from utils.status import normalizar_status_para_persistencia
+from utils.forma_pagamento import normalizar_forma_pagamento
+from utils.status import normalizar_status_para_persistencia, STATUS_PENDENTE
 
 
 MESES_VALIDOS = frozenset(transaction_service.MESES_ORDEM)
 TIPOS_VALIDOS = {"ENTRADA": "Entrada", "SAÍDA": "Saída", "SAIDA": "Saída"}
 CAMPOS_OBRIGATORIOS = frozenset(
-    {"descricao", "valor", "tipo", "status", "mes", "ano", "categoria", "vencimento"}
+    {
+        "descricao",
+        "valor",
+        "tipo",
+        "status",
+        "mes",
+        "ano",
+        "categoria",
+        "vencimento",
+        "forma_pagamento",
+        "data_transacao",
+    }
 )
 CAMPOS_DEDUPLICACAO = (
-    "descricao", "valor", "tipo", "status", "mes", "ano", "categoria", "vencimento"
+    "descricao",
+    "valor",
+    "tipo",
+    "status",
+    "mes",
+    "ano",
+    "categoria",
+    "vencimento",
+    "forma_pagamento",
+    "data_transacao",
 )
 
 
@@ -76,16 +97,27 @@ def _normalizar_payload(dados):
     if not 1 <= vencimento <= 31 or str(dados["vencimento"]).strip() != str(vencimento):
         raise ValueError("Vencimento deve estar entre 1 e 31.")
 
+    forma_pagamento = normalizar_forma_pagamento(dados["forma_pagamento"])
+    data_transacao = transaction_service.normalizar_data_transacao(
+        dados["data_transacao"]
+    )
+    status = normalizar_status_para_persistencia(dados["status"])
+
+    if forma_pagamento == "Crédito":
+        status = STATUS_PENDENTE
+
     return {
         **dados,
         "descricao": descricao,
         "valor": valor,
         "tipo": tipo,
-        "status": normalizar_status_para_persistencia(dados["status"]),
+        "status": status,
         "mes": mes,
         "ano": ano,
         "categoria": categoria,
         "vencimento": vencimento,
+        "forma_pagamento": forma_pagamento,
+        "data_transacao": data_transacao,
     }
 
 
@@ -100,7 +132,7 @@ def _chave_deduplicacao(dados):
     chave = []
     for campo in CAMPOS_DEDUPLICACAO:
         valor = dados.get(campo)
-        if campo == "descricao" or campo == "categoria":
+        if campo in {"descricao", "categoria"}:
             valor = str(valor).strip()
         elif campo == "valor":
             valor = _valor_comparavel(valor)
@@ -110,6 +142,10 @@ def _chave_deduplicacao(dados):
             valor = str(valor).strip().upper()
         elif campo == "status":
             valor = normalizar_status_para_persistencia(valor)
+        elif campo == "forma_pagamento":
+            valor = normalizar_forma_pagamento(valor) if valor is not None else None
+        elif campo == "data_transacao":
+            valor = transaction_service.normalizar_data_transacao(valor)
         elif campo in {"ano", "vencimento"}:
             valor = int(valor) if valor is not None else None
         chave.append(valor)
@@ -129,8 +165,6 @@ def _transacao_duplicada(payload):
             if _chave_deduplicacao(registro) == chave:
                 return True
         except (TypeError, ValueError):
-            # Um registro legado inconsistente não deve bloquear um novo
-            # lançamento; a comparação só é determinística quando completa.
             continue
     return False
 

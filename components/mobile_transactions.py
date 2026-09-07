@@ -1,16 +1,39 @@
+from datetime import date
+
 import pandas as pd
 import streamlit as st
 
-from components.mobile_constants import ANOS, CATEGORIAS, MESES
-from components.mobile_helpers import filtrar_status, formatar_data, vencimento_seguro
+from components.mobile_constants import ANOS, CATEGORIAS, FORMA_PAGAMENTO_VIEW, MESES
+from components.mobile_helpers import (
+    filtrar_forma_pagamento,
+    filtrar_status,
+    formatar_data,
+    vencimento_seguro,
+)
 from services.transaction_service import (
     atualizar_registro,
     duplicar_registro,
     excluir_multiplos,
     inserir_parcelado,
 )
+from utils.forma_pagamento import FORMAS_PAGAMENTO
 from utils.formatacao import formatar_real
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
+
+
+FORMAS_PAGAMENTO_NOVO = list(FORMAS_PAGAMENTO)
+FORMAS_PAGAMENTO_EDICAO = ["Não informado", *FORMAS_PAGAMENTO_NOVO]
+
+
+def _data_transacao_para_formulario(registro):
+    valor = registro.get("data_transacao")
+    if not valor:
+        return None
+
+    try:
+        return date.fromisoformat(str(valor))
+    except ValueError:
+        return None
 
 
 def render_mobile_transaction_form(ano, mes):
@@ -27,15 +50,23 @@ def render_mobile_transaction_form(ano, mes):
         desc = st.text_input("Descrição")
         valor = st.number_input("Valor", min_value=0.0)
         categoria = st.selectbox("Categoria", CATEGORIAS)
+        forma_pagamento = st.selectbox("Forma de pagamento", FORMAS_PAGAMENTO_NOVO)
         tipo = st.selectbox("Tipo", ["Saída", "Entrada"])
-        status = st.selectbox("Status", [STATUS_PENDENTE, STATUS_PAGO])
+        data_transacao = st.date_input("Data da transação", value=date.today())
+
+        if forma_pagamento == "Crédito":
+            st.info("Compra no Crédito será criada como Pendente e ficará no ciclo da fatura.")
+            status = STATUS_PENDENTE
+        else:
+            status = st.selectbox("Status", [STATUS_PENDENTE, STATUS_PAGO])
+
         vencimento = st.number_input(
             "Dia do vencimento", min_value=1, max_value=31, value=10, step=1
         )
         total_parcelas = st.number_input(
             "Quantidade de parcelas", min_value=1, max_value=60, value=1, step=1
         )
-        st.caption("Use 1 para compra à vista. Use 2 ou mais para parcelar.")
+        st.caption("O mês selecionado continua sendo o ciclo financeiro do lançamento. A regra automática de ciclo por data será aplicada em etapa própria.")
 
         salvar = st.form_submit_button("💾 Salvar", use_container_width=True)
 
@@ -46,8 +77,8 @@ def render_mobile_transaction_form(ano, mes):
             st.error("Selecione um mês específico para salvar.")
         elif not desc.strip():
             st.error("Informe uma descrição.")
-        elif valor <= 0 and status == STATUS_PAGO:
-            st.error("Registro pago precisa ter valor maior que zero.")
+        elif valor <= 0:
+            st.error("O valor deve ser maior que zero.")
         elif categoria == "Selecione":
             st.error("Selecione uma categoria.")
         else:
@@ -61,6 +92,8 @@ def render_mobile_transaction_form(ano, mes):
                 categoria=categoria,
                 total_parcelas=int(total_parcelas),
                 vencimento=vencimento,
+                forma_pagamento=forma_pagamento,
+                data_transacao=data_transacao,
             )
             st.success(f"{int(total_parcelas)} registros enviados 🚀")
             st.session_state.show_form = False
@@ -98,6 +131,20 @@ def _render_edicao_inline(registro):
         else 1,
         key=f"edit_categoria_inline_{registro_id}",
     )
+
+    forma_atual = registro.get("forma_pagamento")
+    forma_index = (
+        FORMAS_PAGAMENTO_EDICAO.index(forma_atual)
+        if forma_atual in FORMAS_PAGAMENTO_EDICAO
+        else 0
+    )
+    nova_forma_pagamento = st.selectbox(
+        "Forma de pagamento",
+        FORMAS_PAGAMENTO_EDICAO,
+        index=forma_index,
+        key=f"edit_forma_pagamento_inline_{registro_id}",
+    )
+
     novo_status = st.selectbox(
         "Status",
         [STATUS_PENDENTE, STATUS_PAGO],
@@ -113,6 +160,21 @@ def _render_edicao_inline(registro):
         key=f"edit_vencimento_inline_{registro_id}",
     )
 
+    data_existente = _data_transacao_para_formulario(registro)
+    if data_existente is not None:
+        nova_data_transacao = st.date_input(
+            "Data da transação",
+            value=data_existente,
+            key=f"edit_data_transacao_inline_{registro_id}",
+        )
+    else:
+        nova_data_transacao = None
+        st.caption("Data da transação não informada neste registro histórico.")
+
+    if nova_forma_pagamento == "Crédito" and registro.get("forma_pagamento") != "Crédito":
+        st.info("Ao alterar para Crédito, o status será salvo como Pendente.")
+        novo_status = STATUS_PENDENTE
+
     col_salvar, col_cancelar = st.columns(2)
     with col_salvar:
         if st.button(
@@ -122,18 +184,26 @@ def _render_edicao_inline(registro):
         ):
             if not nova_descricao.strip():
                 st.error("Informe uma descrição.")
-            elif novo_valor <= 0 and novo_status == STATUS_PAGO:
-                st.error("Registro pago precisa ter valor maior que zero.")
+            elif novo_valor <= 0:
+                st.error("O valor deve ser maior que zero.")
             else:
+                dados_atualizacao = {
+                    "descricao": nova_descricao.strip(),
+                    "valor": novo_valor,
+                    "categoria": nova_categoria,
+                    "status": novo_status,
+                    "vencimento": novo_vencimento,
+                }
+                if nova_forma_pagamento == "Não informado":
+                    dados_atualizacao["forma_pagamento"] = None
+                else:
+                    dados_atualizacao["forma_pagamento"] = nova_forma_pagamento
+                if nova_data_transacao is not None:
+                    dados_atualizacao["data_transacao"] = nova_data_transacao
+
                 atualizar_registro(
                     registro_id,
-                    {
-                        "descricao": nova_descricao.strip(),
-                        "valor": novo_valor,
-                        "categoria": nova_categoria,
-                        "status": novo_status,
-                        "vencimento": novo_vencimento,
-                    },
+                    dados_atualizacao,
                 )
                 st.success("Registro atualizado ✅")
                 _limpar_estado_registro(registro_id)
@@ -261,7 +331,7 @@ def _render_transaction_actions(registro):
         _render_duplicacao_inline(registro)
 
 
-def render_mobile_transaction_list(df_base, mes, status_view):
+def render_mobile_transaction_list(df_base, mes, status_view, forma_pagamento_view="Todos"):
     st.subheader("Transações")
 
     if mes == "Selecione" or status_view == "Selecione":
@@ -272,6 +342,7 @@ def render_mobile_transaction_list(df_base, mes, status_view):
         "🔍 Buscar transação", placeholder="Ex: carro, mercado, claro..."
     ).strip()
     df_lista = filtrar_status(df_base.copy(), status_view)
+    df_lista = filtrar_forma_pagamento(df_lista, forma_pagamento_view)
 
     if busca:
         df_lista = df_lista[
@@ -296,7 +367,8 @@ def render_mobile_transaction_list(df_base, mes, status_view):
         valor = formatar_real(float(registro.get("valor", 0)))
         status = str(registro.get("status", ""))
         categoria = str(registro.get("categoria", "Sem categoria"))
-        data = formatar_data(registro.get("criado_em", ""))
+        forma_pagamento = str(registro.get("forma_pagamento") or "Não informado")
+        data = formatar_data(registro.get("data_transacao")) or "Data não informada"
 
         transacao = st.expander(
             f"{titulo}  ·  {valor}  ·  {status}",
@@ -304,5 +376,5 @@ def render_mobile_transaction_list(df_base, mes, status_view):
             on_change="rerun",
         )
         with transacao:
-            st.caption(f"{categoria}  •  {data}")
+            st.caption(f"{categoria}  •  {forma_pagamento}  •  {data}")
             _render_transaction_actions(registro)

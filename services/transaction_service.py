@@ -1,7 +1,9 @@
+from datetime import date, datetime
 from uuid import uuid4
 
 from services import database
 from services.cache import cache_data, invalidar_cache_consultas
+from utils.forma_pagamento import normalizar_forma_pagamento
 from utils.status import (
     STATUS_PAGO,
     STATUS_PENDENTE,
@@ -16,14 +18,44 @@ MESES_ORDEM = [
 ]
 
 
-def normalizar_dados_transacao(dados):
-    if "status" not in dados:
-        return dados
+def normalizar_data_transacao(valor):
+    if valor is None or valor == "":
+        return None
 
-    return {
-        **dados,
-        "status": normalizar_status_para_persistencia(dados["status"]),
-    }
+    if isinstance(valor, datetime):
+        return valor.date().isoformat()
+
+    if isinstance(valor, date):
+        return valor.isoformat()
+
+    if isinstance(valor, str):
+        try:
+            return date.fromisoformat(valor.strip()).isoformat()
+        except ValueError as exc:
+            raise ValueError("Data da transação inválida.") from exc
+
+    raise ValueError("Data da transação inválida.")
+
+
+def normalizar_dados_transacao(dados):
+    normalizados = dict(dados)
+
+    if "status" in normalizados:
+        normalizados["status"] = normalizar_status_para_persistencia(
+            normalizados["status"]
+        )
+
+    if "forma_pagamento" in normalizados and normalizados["forma_pagamento"] is not None:
+        normalizados["forma_pagamento"] = normalizar_forma_pagamento(
+            normalizados["forma_pagamento"]
+        )
+
+    if "data_transacao" in normalizados:
+        normalizados["data_transacao"] = normalizar_data_transacao(
+            normalizados["data_transacao"]
+        )
+
+    return normalizados
 
 
 def normalizar_transacoes_dataframe(df):
@@ -40,7 +72,9 @@ def carregar_dados(mes, ano=None):
 
 def inserir_dados(dados):
     if dados:
-        dados_normalizados = [normalizar_dados_transacao(dado) for dado in dados]
+        dados_normalizados = [
+            normalizar_dados_transacao(dado) for dado in dados
+        ]
         database.inserir_dados(dados_normalizados)
         invalidar_cache_consultas()
 
@@ -62,6 +96,11 @@ def duplicar_registro(registro, destino_mes, destino_ano):
         "categoria": registro.get("categoria", "Sem categoria"),
         "vencimento": registro.get("vencimento"),
     }
+
+    if registro.get("forma_pagamento") is not None:
+        novo_registro["forma_pagamento"] = registro.get("forma_pagamento")
+    if registro.get("data_transacao") is not None:
+        novo_registro["data_transacao"] = registro.get("data_transacao")
 
     inserir_dados([novo_registro])
     return novo_registro
@@ -94,7 +133,20 @@ def inserir_parcelado(
     categoria,
     total_parcelas,
     vencimento=None,
+    forma_pagamento=None,
+    data_transacao=None,
 ):
+    forma_normalizada = (
+        normalizar_forma_pagamento(forma_pagamento)
+        if forma_pagamento is not None
+        else None
+    )
+    data_normalizada = normalizar_data_transacao(data_transacao)
+    status_inicial = normalizar_status_para_persistencia(status)
+
+    if forma_normalizada == "Crédito":
+        status_inicial = STATUS_PENDENTE
+
     if total_parcelas <= 1:
         return inserir_dados([{
             "ano": ano,
@@ -102,12 +154,14 @@ def inserir_parcelado(
             "descricao": descricao,
             "valor": valor_total,
             "tipo": tipo,
-            "status": status,
+            "status": status_inicial,
             "categoria": categoria,
             "parcela_atual": 1,
             "total_parcelas": 1,
             "grupo_parcelamento": None,
             "vencimento": vencimento,
+            "forma_pagamento": forma_normalizada,
+            "data_transacao": data_normalizada,
         }])
 
     grupo = str(uuid4())
@@ -122,12 +176,14 @@ def inserir_parcelado(
             "descricao": f"{descricao} {i + 1}/{total_parcelas}",
             "valor": valor_parcela,
             "tipo": tipo,
-            "status": status,
+            "status": status_inicial,
             "categoria": categoria,
             "parcela_atual": i + 1,
             "total_parcelas": total_parcelas,
             "grupo_parcelamento": grupo,
             "vencimento": vencimento,
+            "forma_pagamento": forma_normalizada,
+            "data_transacao": data_normalizada,
         })
 
     return inserir_dados(registros)
@@ -203,7 +259,7 @@ def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):
         if not isinstance(registro, dict):
             continue
 
-        novos.append({
+        novo = {
             "ano": destino_ano,
             "mes": destino_mes,
             "descricao": registro["descricao"],
@@ -212,7 +268,12 @@ def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):
             "status": STATUS_PENDENTE,
             "categoria": registro.get("categoria", "Sem categoria"),
             "vencimento": registro.get("vencimento"),
-        })
+        }
+        if registro.get("forma_pagamento") is not None:
+            novo["forma_pagamento"] = registro.get("forma_pagamento")
+        if registro.get("data_transacao") is not None:
+            novo["data_transacao"] = registro.get("data_transacao")
+        novos.append(novo)
 
     inserir_dados(novos)
     return len(novos)

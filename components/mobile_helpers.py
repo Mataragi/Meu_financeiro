@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 import pandas as pd
 
@@ -7,9 +7,12 @@ from utils.status import STATUS_PAGO, STATUS_PENDENTE
 
 def formatar_data(valor):
     try:
+        if isinstance(valor, (date, datetime)):
+            return valor.strftime("%d/%m/%Y")
+
         dt = datetime.fromisoformat(str(valor).replace("Z", ""))
-        return dt.strftime("%d/%m")
-    except ValueError:
+        return dt.strftime("%d/%m/%Y")
+    except (TypeError, ValueError):
         return ""
 
 
@@ -53,3 +56,18 @@ def filtrar_status(df, status_view):
         return df[df["status"] == STATUS_PAGO]
 
     return df
+
+
+def filtrar_forma_pagamento(df, forma_pagamento_view):
+    if df.empty or forma_pagamento_view == "Todos":
+        return df
+
+    if forma_pagamento_view == "Não informado":
+        if "forma_pagamento" not in df.columns:
+            return df.iloc[0:0]
+        return df[df["forma_pagamento"].isna()]
+
+    if "forma_pagamento" not in df.columns:
+        return df.iloc[0:0]
+
+    return df[df["forma_pagamento"] == forma_pagamento_view]

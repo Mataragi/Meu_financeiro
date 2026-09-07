@@ -13,6 +13,8 @@ PAYLOAD = {
     "ano": 2026,
     "categoria": "Mercado",
     "vencimento": 1,
+    "forma_pagamento": "PIX",
+    "data_transacao": "2026-08-31",
 }
 
 
@@ -49,6 +51,17 @@ def test_status_e_normalizado(monkeypatch):
     assert fake.inseridos[0][0]["status"] == "Pendente"
 
 
+def test_credito_forca_status_pendente(monkeypatch):
+    fake = FakeTransactionService()
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    registrar.registrar_transacao_externa(
+        {**PAYLOAD, "forma_pagamento": "Crédito", "status": "Pago"}
+    )
+
+    assert fake.inseridos[0][0]["status"] == "Pendente"
+
+
 @pytest.mark.parametrize(
     "alteracao",
     [
@@ -58,6 +71,8 @@ def test_status_e_normalizado(monkeypatch):
         {"mes": "MÊS INVÁLIDO"},
         {"vencimento": 32},
         {"status": "Em análise"},
+        {"forma_pagamento": "Cheque"},
+        {"data_transacao": "31/08/2026"},
     ],
 )
 def test_payload_invalido_e_rejeitado_sem_chamar_repository(monkeypatch, alteracao):
@@ -71,6 +86,20 @@ def test_payload_invalido_e_rejeitado_sem_chamar_repository(monkeypatch, alterac
     assert fake.consultas == []
 
 
+def test_payload_com_campo_novo_ausente_e_rejeitado(monkeypatch):
+    fake = FakeTransactionService()
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    payload = dict(PAYLOAD)
+    payload.pop("forma_pagamento")
+
+    with pytest.raises(ValueError, match="forma_pagamento"):
+        registrar.registrar_transacao_externa(payload)
+
+    assert fake.inseridos == []
+    assert fake.consultas == []
+
+
 def test_transacao_duplicada_nao_e_registrada(monkeypatch):
     fake = FakeTransactionService([PAYLOAD])
     monkeypatch.setattr(registrar, "transaction_service", fake)
@@ -79,11 +108,13 @@ def test_transacao_duplicada_nao_e_registrada(monkeypatch):
     assert fake.inseridos == []
 
 
-def test_transacao_semelhante_mas_com_valor_diferente_e_registrada(monkeypatch):
+def test_transacao_semelhante_mas_com_data_diferente_e_registrada(monkeypatch):
     fake = FakeTransactionService([PAYLOAD])
     monkeypatch.setattr(registrar, "transaction_service", fake)
 
-    assert registrar.registrar_transacao_externa({**PAYLOAD, "valor": 28.51}) is True
+    assert registrar.registrar_transacao_externa(
+        {**PAYLOAD, "data_transacao": "2026-09-01"}
+    ) is True
     assert len(fake.inseridos) == 1
 
 

@@ -23,4 +23,14 @@ CATEGORIAS = [
     "Outros",
 ]
 
+FORMA_PAGAMENTO_VIEW = [
+    "Todos",
+    "Não informado",
+    "PIX",
+    "Débito",
+    "Crédito",
+    "Dinheiro",
+    "Outro",
+]
+
 ANOS = [2026, 2027, 2028, 2029, 2030]
