@@ -45,6 +45,28 @@ def inserir_dados(dados):
         invalidar_cache_consultas()
 
 
+def duplicar_registro(registro, destino_mes, destino_ano):
+    if not registro:
+        raise ValueError("Registro obrigatório para duplicação")
+
+    if destino_mes not in MESES_ORDEM:
+        raise ValueError(f"Mês inválido para duplicação: {destino_mes}")
+
+    novo_registro = {
+        "ano": int(destino_ano),
+        "mes": destino_mes,
+        "descricao": registro.get("descricao", ""),
+        "valor": registro.get("valor", 0),
+        "tipo": registro.get("tipo", "Saída"),
+        "status": STATUS_PENDENTE,
+        "categoria": registro.get("categoria", "Sem categoria"),
+        "vencimento": registro.get("vencimento"),
+    }
+
+    inserir_dados([novo_registro])
+    return novo_registro
+
+
 def gerar_backup_transacoes():
     return database.gerar_backup_transacoes()
 

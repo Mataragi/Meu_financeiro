@@ -79,6 +79,48 @@ def test_competencia_rejeita_mes_invalido(transaction_service):
         service.calcular_mes_ano_parcela("MES_INVALIDO", 2026, 1)
 
 
+def test_duplicar_registro_cria_copia_pendente(transaction_service):
+    service, repository = transaction_service
+
+    registro = {
+        "id": 10,
+        "ano": 2026,
+        "mes": "SETEMBRO",
+        "descricao": "Mercado",
+        "valor": 150.5,
+        "tipo": "Saída",
+        "status": STATUS_PAGO,
+        "categoria": "Mercado",
+        "vencimento": 10,
+        "parcela_atual": 2,
+        "total_parcelas": 3,
+        "grupo_parcelamento": "grupo-original",
+    }
+
+    novo = service.duplicar_registro(registro, "OUTUBRO", 2026)
+
+    assert novo == {
+        "ano": 2026,
+        "mes": "OUTUBRO",
+        "descricao": "Mercado",
+        "valor": 150.5,
+        "tipo": "Saída",
+        "status": STATUS_PENDENTE,
+        "categoria": "Mercado",
+        "vencimento": 10,
+    }
+    assert repository.inseridos == [[novo]]
+
+
+def test_duplicar_registro_rejeita_mes_invalido(transaction_service):
+    service, repository = transaction_service
+
+    with pytest.raises(ValueError, match="Mês inválido"):
+        service.duplicar_registro({"descricao": "Teste"}, "INVALIDO", 2026)
+
+    assert repository.inseridos == []
+
+
 @pytest.mark.parametrize(
     ("valor", "esperado"),
     [
