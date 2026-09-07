@@ -360,17 +360,17 @@ Novos lançamentos deverão separar categoria e forma de pagamento. Registros hi
 
 ## DEC-014
 
-### Compras no crédito possuem ciclo de pagamento diferente da data da compra.
+### Compras no crédito começam como pendentes e tornam-se pagas quando a fatura é paga.
 
 ### Problema
 
-No cartão de crédito, a compra acontece em uma data, mas o dinheiro somente sai quando a fatura é paga. Tratar a data da compra como se fosse a data da saída financeira distorce o controle de caixa utilizado pelo usuário.
+No cartão de crédito, a compra acontece em uma data, mas o dinheiro somente sai quando a fatura é paga. Tratar a compra como uma saída já paga distorce o controle de caixa utilizado pelo usuário.
 
 ### Decisão
 
-Para pagamentos imediatos, como PIX, Débito e Dinheiro, o ciclo financeiro será determinado pela data da movimentação conforme a regra de fechamento definida para o Financeiro Pro.
+Toda compra registrada como `Crédito` deverá iniciar com status `Pendente`. Ela permanecerá pendente até que a fatura correspondente seja efetivamente paga. Após o pagamento da fatura, a transação poderá ser marcada como `Pago` por meio do fluxo oficial de baixa.
 
-Para compras no Crédito, o lançamento financeiro deverá considerar o ciclo em que a fatura será paga, mantendo a distinção entre a data da compra e o vencimento/pagamento da obrigação.
+A compra no Crédito pertence ao ciclo em que a fatura será paga, mantendo separado o fato de que a compra ocorreu anteriormente.
 
 Exemplo confirmado pelo usuário:
 
@@ -384,17 +384,19 @@ Fatura paga: outubro
 Vencimento: dia 5
 
 → lançamento financeiro no ciclo de outubro
+→ status inicial: Pendente
+→ após pagamento da fatura: Pago
 ```
 
 A modelagem definitiva da data da compra ainda será definida antes da alteração do banco.
 
 ### Justificativa
 
-Essa regra representa o comportamento financeiro real utilizado pelo usuário e permite que o saldo projetado acompanhe o momento em que o dinheiro efetivamente será comprometido.
+Essa regra representa o comportamento financeiro real utilizado pelo usuário: a compra cria uma obrigação futura, enquanto o pagamento da fatura representa a saída efetiva do dinheiro.
 
 ### Impacto
 
-O contrato de transações deverá distinguir data da movimentação, competência/ciclo e vencimento. A automação externa deverá solicitar informações ausentes em operações de crédito, em vez de inventar o ciclo da fatura.
+O contrato de transações deverá distinguir forma de pagamento, data da movimentação, competência/ciclo e vencimento. A automação externa deverá solicitar informações ausentes em operações de crédito, em vez de inventar o ciclo da fatura ou marcar a compra como paga sem evidência de pagamento.
 
 ---
 
