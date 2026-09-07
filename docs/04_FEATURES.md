@@ -2,7 +2,7 @@
 
 # Features Documentation
 
-**Versão do Documento:** 1.1
+**Versão do Documento:** 1.2
 
 **Compatível com:** Financeiro Pro v0.9.x
 
@@ -80,7 +80,7 @@ Permite registrar:
 - Entradas
 - Saídas
 
-Campos disponíveis:
+Campos funcionais atuais:
 
 - descrição
 - valor
@@ -89,6 +89,22 @@ Campos disponíveis:
 - vencimento
 - mês
 - ano
+
+Evolução definida para novos lançamentos:
+
+- forma de pagamento
+
+A categoria representa o que foi gasto ou recebido. A forma de pagamento representa como a movimentação foi paga ou recebida.
+
+Formas de pagamento previstas:
+
+- PIX
+- Débito
+- Crédito
+- Dinheiro
+- Outro
+
+O histórico existente não sofrerá migração destrutiva. A migração dos registros antigos será tratada posteriormente.
 
 ---
 
@@ -100,8 +116,11 @@ Permite visualizar transações utilizando filtros por:
 - mês
 - status
 - descrição
+- forma de pagamento
 
 A interface Mobile apresenta os lançamentos em registros expansíveis, priorizando a visualização e mantendo as ações individuais ocultas até a interação do usuário.
+
+A visualização principal utiliza registros compactos. Uma visualização em tabela permanece disponível como alternativa para conferência e análise de vários lançamentos.
 
 ---
 
@@ -114,6 +133,7 @@ A interface Mobile apresenta os lançamentos em registros expansíveis, prioriza
 - categoria
 - status
 - vencimento
+- forma de pagamento, quando disponível no registro
 
 A edição mantém o mesmo registro.
 
@@ -169,6 +189,32 @@ Ele não interpreta comprovantes e não define sozinho regras de competência fi
 
 ---
 
+### Compras no Crédito
+
+Compras feitas no Crédito possuem comportamento financeiro diferente de pagamentos imediatos.
+
+Em pagamentos imediatos, como PIX, Débito e Dinheiro, o ciclo financeiro acompanha a data da movimentação segundo a regra de fechamento do Financeiro Pro.
+
+No Crédito, a compra ocorre antes da saída efetiva do dinheiro. O lançamento financeiro pertence ao ciclo em que a fatura será paga, enquanto a data da compra deverá ser preservada separadamente quando a modelagem definitiva for implementada.
+
+Exemplo:
+
+```text
+Compra de combustível
+R$ 154,66
+Forma de pagamento: Crédito
+
+Compra: setembro
+Fatura: outubro
+Vencimento: dia 5
+
+→ ciclo financeiro de outubro
+```
+
+A automação deverá pedir complemento quando não houver informação suficiente para determinar o ciclo da fatura.
+
+---
+
 ## Dependências
 
 - Banco de Dados
@@ -185,7 +231,7 @@ As transações representam apenas fluxo financeiro.
 
 Não representam patrimônio.
 
-A regra definitiva de competência financeira, fechamento de ciclo e transporte de saldo ainda está em definição.
+A modelagem definitiva da data da movimentação, do fechamento completo do ciclo e do transporte de saldo ainda será evoluída antes de automatizações dependentes dessas regras.
 
 ---
 
@@ -393,13 +439,9 @@ Evitar perda de dados.
 
 🟢 Estável
 
----
-
 ## Objetivo
 
 Registrar valores emprestados entre pessoas.
-
----
 
 ## Funcionalidades
 
@@ -410,8 +452,6 @@ Consulta
 Edição
 
 Exclusão
-
----
 
 ## Regras
 
@@ -427,13 +467,9 @@ São armazenadas em domínio separado.
 
 🟢 Principal
 
----
-
 ## Objetivo
 
 Oferecer uma experiência rápida para utilização diária.
-
----
 
 ## Características
 
@@ -443,8 +479,8 @@ Oferecer uma experiência rápida para utilização diária.
 - leitura otimizada
 - ações contextuais por registro
 - ferramentas globais centralizadas
-
----
+- visualização em cards como padrão
+- visualização em tabela como alternativa de análise
 
 ## Estrutura de ações
 
@@ -471,8 +507,6 @@ Mantidas em seção própria:
 
 - Backup
 - Restaurar backup
-
----
 
 ## Objetivo de UX
 
@@ -567,6 +601,8 @@ Status
 Status
 
 🟡 Planejada
+
+A migração para Flutter será realizada futuramente como evolução da interface e da experiência mobile. O Streamlit permanece como plataforma atual de validação e uso do produto.
 
 ---
 
