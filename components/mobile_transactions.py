@@ -297,12 +297,12 @@ def render_mobile_transaction_list(df_base, mes, status_view):
         status = str(registro.get("status", ""))
         categoria = str(registro.get("categoria", "Sem categoria"))
         data = formatar_data(registro.get("criado_em", ""))
-        expandido = st.session_state.get("transacao_expandida") == registro_id
 
-        with st.expander(
+        transacao = st.expander(
             f"{titulo}  ·  {valor}  ·  {status}",
-            expanded=expandido,
             key=f"transacao_expander_{registro_id}",
-        ):
+            on_change="rerun",
+        )
+        with transacao:
             st.caption(f"{categoria}  •  {data}")
             _render_transaction_actions(registro)
