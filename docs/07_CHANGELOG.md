@@ -50,6 +50,10 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - `database.py` foi consolidado como Repository de persistência, sem acoplamento com Streamlit.
 - Regras de transações foram centralizadas em `transaction_service.py` e a infraestrutura de cache foi isolada.
 - Components passaram a acessar transações e dívidas por meio dos Services correspondentes.
+- A documentação funcional passou a separar categoria de forma de pagamento e registrar o tratamento específico das compras no Crédito.
+- O contrato da automação externa passou a prever `forma_pagamento` como evolução necessária antes da integração automática.
+- A visualização em tabela permanece como modo alternativo de conferência e análise, enquanto os cartões seguem como apresentação principal no Mobile.
+- Flutter foi registrado como evolução futura da interface, sem transformar a etapa atual em uma reescrita visual do Streamlit.
 
 ## Fixed
 
