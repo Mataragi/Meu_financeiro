@@ -324,21 +324,96 @@ Financeiro Pro registra
 
 ---
 
+## DEC-013
+
+### Categoria e forma de pagamento representam conceitos diferentes.
+
+### Problema
+
+O sistema vinha utilizando valores como `Cartão de crédito` dentro de categoria para identificar compras realizadas no crédito. Isso mistura o motivo do gasto com o meio utilizado para pagamento e dificulta filtros, somatórios e automações.
+
+### Decisão
+
+A categoria responderá **o que foi gasto ou recebido**, enquanto `forma_pagamento` responderá **como a movimentação foi paga ou recebida**.
+
+As formas de pagamento previstas são:
+
+- PIX
+- Débito
+- Crédito
+- Dinheiro
+- Outro
+
+A implementação inicial seguirá o **Plano A**: adicionar `forma_pagamento` sem migração destrutiva do histórico existente.
+
+A migração dos registros históricos será tratada posteriormente pelo **Plano C**, preservando a categoria original sempre que ela puder ser identificada com segurança e sem inventar informação ausente.
+
+### Justificativa
+
+A separação permite, por exemplo, registrar `Combustível` como categoria e `Crédito` como forma de pagamento. Também permite localizar e somar todas as compras feitas no crédito sem transformar o método de pagamento em uma categoria financeira.
+
+### Impacto
+
+Novos lançamentos deverão separar categoria e forma de pagamento. Registros históricos poderão permanecer sem `forma_pagamento` até a migração planejada.
+
+---
+
+## DEC-014
+
+### Compras no crédito possuem ciclo de pagamento diferente da data da compra.
+
+### Problema
+
+No cartão de crédito, a compra acontece em uma data, mas o dinheiro somente sai quando a fatura é paga. Tratar a data da compra como se fosse a data da saída financeira distorce o controle de caixa utilizado pelo usuário.
+
+### Decisão
+
+Para pagamentos imediatos, como PIX, Débito e Dinheiro, o ciclo financeiro será determinado pela data da movimentação conforme a regra de fechamento definida para o Financeiro Pro.
+
+Para compras no Crédito, o lançamento financeiro deverá considerar o ciclo em que a fatura será paga, mantendo a distinção entre a data da compra e o vencimento/pagamento da obrigação.
+
+Exemplo confirmado pelo usuário:
+
+```text
+Compra de combustível
+R$ 154,66
+Forma de pagamento: Crédito
+
+Compra realizada: setembro
+Fatura paga: outubro
+Vencimento: dia 5
+
+→ lançamento financeiro no ciclo de outubro
+```
+
+A modelagem definitiva da data da compra ainda será definida antes da alteração do banco.
+
+### Justificativa
+
+Essa regra representa o comportamento financeiro real utilizado pelo usuário e permite que o saldo projetado acompanhe o momento em que o dinheiro efetivamente será comprometido.
+
+### Impacto
+
+O contrato de transações deverá distinguir data da movimentação, competência/ciclo e vencimento. A automação externa deverá solicitar informações ausentes em operações de crédito, em vez de inventar o ciclo da fatura.
+
+---
+
 # 6. Decisões Futuras
 
 Algumas decisões ainda dependem da evolução do projeto.
 
 Entre elas:
 
-- Flutter
-- Multiusuário
-- API pública
-- Open Finance
-- Inteligência Artificial
-- regra definitiva de competência financeira;
-- fechamento e transporte de saldo entre ciclos;
+- Flutter como próxima plataforma de interface;
+- Multiusuário;
+- API pública;
+- Open Finance;
+- Inteligência Artificial como integração operacional;
+- modelagem definitiva do campo de data da movimentação;
+- regra completa de fechamento e transporte de saldo entre ciclos;
 - contas e transferências entre contas próprias;
-- contrato definitivo de fontes externas.
+- contrato definitivo de fontes externas;
+- migração histórica da forma de pagamento.
 
 Essas decisões serão registradas quando forem oficialmente aprovadas.
 
