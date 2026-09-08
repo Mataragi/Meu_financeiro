@@ -45,7 +45,7 @@ Supabase
 | 1 | Criar registrador de transações externas | ✅ Concluído |
 | 2 | Definir contrato e regras de entrada | 🔄 Em definição |
 | 3 | Criar porta de integração ChatGPT → Financeiro Pro | ✅ Concluído |
-| 4 | Implementar confirmação antes do lançamento | ⏳ Pendente |
+| 4 | Implementar confirmação antes do lançamento | 🔄 Em validação |
 | 5 | Validar fluxo ponta a ponta | ⏳ Pendente |
 
 ---
@@ -77,12 +77,12 @@ A função pública `receber_payload_chatgpt()` representa a porta de entrada pa
 Responsabilidades da porta:
 
 - receber um payload estruturado;
-- encaminhar o payload ao registrador oficial;
-- preservar o resultado do registrador;
+- preparar o payload pelo fluxo oficial;
+- não persistir durante a recepção;
+- encaminhar a confirmação ao registrador oficial;
 - não acessar Supabase diretamente;
 - não realizar chamadas de rede;
-- não duplicar validações ou regras financeiras;
-- não executar confirmação automática do usuário.
+- não duplicar validações ou regras financeiras.
 
 Fluxo atual:
 
@@ -90,6 +90,14 @@ Fluxo atual:
 ChatGPT
    ↓
 receber_payload_chatgpt()
+   ↓
+preparar_transacao_externa()
+   ↓
+validação + normalização + duplicidade
+   ↓
+👤 confirmação explícita
+   ↓
+confirmar_payload_chatgpt()
    ↓
 external_transaction_service
    ↓
@@ -255,7 +263,45 @@ Evolução futura poderá incorporar identificador externo, referência do compr
 
 ---
 
-## 11. Fora do escopo desta etapa
+## 11. Item 4 — Confirmação antes do lançamento
+
+Implementação inicial concluída e em validação.
+
+O fluxo foi separado em duas etapas explícitas:
+
+```text
+Payload externo
+      ↓
+Preparação
+      ↓
+Validação + normalização + duplicidade
+      ↓
+Proposta, sem persistência
+      ↓
+Confirmação explícita do usuário
+      ↓
+Nova validação + nova checagem de duplicidade
+      ↓
+Persistência oficial
+```
+
+Foram adicionadas duas operações no `external_transaction_service`:
+
+- `preparar_transacao_externa()` — prepara e verifica a proposta sem gravar;
+- `confirmar_transacao_externa()` — revalida, verifica duplicidade novamente e somente então persiste.
+
+A `chatgpt_bridge` expõe o mesmo fluxo por meio de:
+
+- `receber_payload_chatgpt()`;
+- `confirmar_payload_chatgpt()`.
+
+A revalidação na confirmação é intencional: a proposta não é tratada como autoridade e uma alteração de dados entre preparação e confirmação não pode pular a validação oficial.
+
+Não foi criado estado persistente adicional, tabela auxiliar ou mecanismo de fila.
+
+---
+
+## 12. Fora do escopo desta etapa
 
 Não fazem parte da implementação atual:
 
@@ -275,7 +321,7 @@ Esses recursos somente serão considerados quando houver necessidade real e cont
 
 ---
 
-## 12. Próximas decisões obrigatórias
+## 13. Próximas decisões obrigatórias
 
 Antes da automação completa, devem ser definidas:
 
@@ -293,7 +339,7 @@ Antes da automação completa, devem ser definidas:
 
 ---
 
-## 13. Critério de conclusão da Sprint
+## 14. Critério de conclusão da Sprint
 
 A Sprint 02 somente será considerada concluída quando uma fonte externa puder:
 
