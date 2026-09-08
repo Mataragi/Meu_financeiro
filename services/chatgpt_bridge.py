@@ -7,14 +7,17 @@ não acessa o banco diretamente e não substitui a validação do registrador.
 
 from collections.abc import Mapping
 
-from services.external_transaction_service import registrar_transacao_externa
+from services.external_transaction_service import (
+    confirmar_transacao_externa,
+    preparar_transacao_externa,
+)
 
 
-def receber_payload_chatgpt(dados: Mapping) -> bool:
-    """Encaminha um payload do ChatGPT para o registrador oficial.
+def receber_payload_chatgpt(dados: Mapping) -> dict:
+    """Prepara um payload do ChatGPT sem persistir a transação."""
+    return preparar_transacao_externa(dados)
 
-    O payload ainda será tratado como uma proposta externa. A validação,
-    normalização, deduplicação e persistência continuam sob responsabilidade
-    do fluxo oficial do Financeiro Pro.
-    """
-    return registrar_transacao_externa(dados)
+
+def confirmar_payload_chatgpt(proposta: Mapping) -> bool:
+    """Confirma uma proposta do ChatGPT e registra a transação."""
+    return confirmar_transacao_externa(proposta)
