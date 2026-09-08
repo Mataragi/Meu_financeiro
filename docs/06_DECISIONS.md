@@ -1,4 +1,4 @@
-# Financeiro Pro
+## Financeiro Pro
 
 # Decisions Log
 
@@ -397,6 +397,30 @@ Essa regra representa o comportamento financeiro real utilizado pelo usuário: a
 ### Impacto
 
 O contrato de transações deverá distinguir forma de pagamento, data da movimentação, competência/ciclo e vencimento. A automação externa deverá solicitar informações ausentes em operações de crédito, em vez de inventar o ciclo da fatura ou marcar a compra como paga sem evidência de pagamento.
+
+---
+
+## DEC-015
+
+### A ponte ChatGPT → Financeiro Pro será uma porta fina sobre o registrador oficial.
+
+### Problema
+
+A integração com o ChatGPT precisa receber dados interpretados sem criar um segundo caminho de persistência ou permitir que a IA acesse diretamente o banco.
+
+### Decisão
+
+Criar `services/chatgpt_bridge.py` como ponto de entrada para payloads estruturados produzidos pelo ChatGPT. A função `receber_payload_chatgpt()` delegará integralmente ao `external_transaction_service`.
+
+A ponte não realizará chamadas de rede, não acessará Supabase diretamente, não duplicará regras financeiras e não substituirá a confirmação do usuário.
+
+### Justificativa
+
+Uma porta explícita permite conectar posteriormente um mecanismo real de transporte sem alterar o domínio financeiro. A validação, normalização, deduplicação e persistência continuam centralizadas no fluxo oficial.
+
+### Impacto
+
+O Item 3 da Sprint 02 fica implementado sem introduzir API pública, webhook, Edge Function ou processamento automático. Esses mecanismos poderão ser avaliados posteriormente quando houver necessidade real.
 
 ---
 
