@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from services import external_transaction_service as registrar
+from services import chatgpt_bridge
 from services.transaction_service import normalizar_data_transacao
 
 
@@ -129,3 +130,26 @@ def test_repository_so_recebe_payload_apos_validacao_e_deduplicacao(monkeypatch)
     registrar.registrar_transacao_externa(PAYLOAD)
 
     assert len(fake.inseridos) == 1
+
+
+def test_ponte_chatgpt_delega_para_registrador_oficial(monkeypatch):
+    chamadas = []
+
+    def fake_registrar(payload):
+        chamadas.append(payload)
+        return True
+
+    monkeypatch.setattr(chatgpt_bridge, "registrar_transacao_externa", fake_registrar)
+
+    assert chatgpt_bridge.receber_payload_chatgpt(PAYLOAD) is True
+    assert chamadas == [PAYLOAD]
+
+
+def test_ponte_chatgpt_preserva_resultado_do_registrador(monkeypatch):
+    monkeypatch.setattr(
+        chatgpt_bridge,
+        "registrar_transacao_externa",
+        lambda payload: False,
+    )
+
+    assert chatgpt_bridge.receber_payload_chatgpt(PAYLOAD) is False
