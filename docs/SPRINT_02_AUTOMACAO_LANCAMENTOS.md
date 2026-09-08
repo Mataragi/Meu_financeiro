@@ -44,7 +44,7 @@ Supabase
 |---|---|---|
 | 1 | Criar registrador de transações externas | ✅ Concluído |
 | 2 | Definir contrato e regras de entrada | 🔄 Em definição |
-| 3 | Criar porta de integração ChatGPT → Financeiro Pro | ⏳ Pendente |
+| 3 | Criar porta de integração ChatGPT → Financeiro Pro | ✅ Concluído |
 | 4 | Implementar confirmação antes do lançamento | ⏳ Pendente |
 | 5 | Validar fluxo ponta a ponta | ⏳ Pendente |
 
@@ -68,7 +68,45 @@ O registrador não interpreta comprovantes e não define regras de competência 
 
 ---
 
-## 4. Contrato provisório de entrada
+## 4. Item 3 — Porta de integração ChatGPT → Financeiro Pro
+
+Implementada em `services/chatgpt_bridge.py`.
+
+A função pública `receber_payload_chatgpt()` representa a porta de entrada para payloads produzidos pelo ChatGPT.
+
+Responsabilidades da porta:
+
+- receber um payload estruturado;
+- encaminhar o payload ao registrador oficial;
+- preservar o resultado do registrador;
+- não acessar Supabase diretamente;
+- não realizar chamadas de rede;
+- não duplicar validações ou regras financeiras;
+- não executar confirmação automática do usuário.
+
+Fluxo atual:
+
+```text
+ChatGPT
+   ↓
+receber_payload_chatgpt()
+   ↓
+external_transaction_service
+   ↓
+transaction_service
+   ↓
+Repository
+   ↓
+Supabase
+```
+
+A porta é deliberadamente fina. A existência de uma função específica permite conectar posteriormente um mecanismo real de transporte sem alterar o domínio financeiro.
+
+A implementação atual não cria API pública, webhook, Edge Function ou processamento automático. Esses recursos permanecem fora do escopo desta etapa.
+
+---
+
+## 5. Contrato provisório de entrada
 
 Campos mínimos atuais do registrador externo:
 
@@ -80,14 +118,16 @@ Campos mínimos atuais do registrador externo:
 - `ano`
 - `categoria`
 - `vencimento`
+- `forma_pagamento`
+- `data_transacao`
 
-A evolução do contrato deverá acrescentar `forma_pagamento` e separar os conceitos de data da movimentação, competência/ciclo e vencimento antes da integração automática.
+Formato esperado de data: `YYYY-MM-DD` no payload estruturado. A interface pode apresentar a data em formato brasileiro, mas a integração utiliza o valor de data normalizado pelo serviço.
 
-O contrato definitivo será fechado antes da implementação da ponte ChatGPT → Financeiro Pro.
+O contrato será refinado conforme as regras financeiras restantes forem formalizadas. A porta ChatGPT não deve interpretar ou preencher silenciosamente campos cuja informação não esteja disponível.
 
 ---
 
-## 5. Regras já confirmadas
+## 6. Regras já confirmadas
 
 ### Status
 
@@ -137,7 +177,7 @@ Cada parcela é uma transação independente e compartilha um identificador de g
 
 ---
 
-## 6. Regra financeira do ciclo
+## 7. Regra financeira do ciclo
 
 O usuário confirmou que o ciclo financeiro pessoal utilizado pelo Financeiro Pro considera o recebimento no dia 30.
 
@@ -155,7 +195,7 @@ Essa regra ainda não foi implementada automaticamente no código.
 
 ---
 
-## 7. Regra de pagamento no crédito
+## 8. Regra de pagamento no crédito
 
 Compras realizadas no Crédito não devem ser tratadas como saída de caixa já paga no momento da compra, porque o dinheiro será comprometido quando a fatura for paga.
 
@@ -187,7 +227,7 @@ Quando uma operação de Crédito não possuir informação suficiente para dete
 
 ---
 
-## 8. Pontos que não devem ser inventados
+## 9. Pontos que não devem ser inventados
 
 A automação não deve deduzir silenciosamente:
 
@@ -205,7 +245,7 @@ Quando uma informação necessária estiver ausente ou ambígua, o fluxo deverá
 
 ---
 
-## 9. Duplicidade
+## 10. Duplicidade
 
 A proteção atual do registrador externo utiliza comparação determinística dos dados recebidos.
 
@@ -215,7 +255,7 @@ Evolução futura poderá incorporar identificador externo, referência do compr
 
 ---
 
-## 10. Fora do escopo desta etapa
+## 11. Fora do escopo desta etapa
 
 Não fazem parte da implementação atual:
 
@@ -235,9 +275,9 @@ Esses recursos somente serão considerados quando houver necessidade real e cont
 
 ---
 
-## 11. Próximas decisões obrigatórias
+## 12. Próximas decisões obrigatórias
 
-Antes da integração automática, devem ser definidas:
+Antes da automação completa, devem ser definidas:
 
 1. campo e semântica definitivos da data da movimentação;
 2. diferença operacional entre data da movimentação, competência/ciclo e vencimento;
@@ -253,7 +293,7 @@ Antes da integração automática, devem ser definidas:
 
 ---
 
-## 12. Critério de conclusão da Sprint
+## 13. Critério de conclusão da Sprint
 
 A Sprint 02 somente será considerada concluída quando uma fonte externa puder:
 
