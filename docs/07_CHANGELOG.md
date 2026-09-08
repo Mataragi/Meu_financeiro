@@ -43,6 +43,7 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Registrador de transações externas em `services/external_transaction_service.py`,
   com validação, normalização e proteção determinística contra duplicidade.
 - Campos `data_transacao` e `forma_pagamento` no domínio de transações.
+- Porta `services/chatgpt_bridge.py` para receber payloads estruturados produzidos pelo ChatGPT e encaminhá-los ao registrador oficial.
 
 ## Changed
 
