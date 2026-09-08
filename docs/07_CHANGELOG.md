@@ -43,7 +43,9 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Registrador de transações externas em `services/external_transaction_service.py`,
   com validação, normalização e proteção determinística contra duplicidade.
 - Campos `data_transacao` e `forma_pagamento` no domínio de transações.
-- Porta `services/chatgpt_bridge.py` para receber payloads estruturados produzidos pelo ChatGPT e encaminhá-los ao registrador oficial.
+- Porta `services/chatgpt_bridge.py` para receber payloads estruturados produzidos pelo ChatGPT e encaminhá-los ao fluxo oficial.
+- Etapa de preparação de transações externas sem persistência até a confirmação explícita do usuário.
+- Revalidação e nova checagem de duplicidade no momento da confirmação antes da persistência.
 
 ## Changed
 
@@ -59,6 +61,7 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Novos lançamentos passam a registrar a data da operação separadamente da data de criação do registro.
 - Compras com forma de pagamento `Crédito` são criadas como `Pendente`; a baixa para `Pago` ocorre somente após o pagamento da fatura.
 - O histórico existente permanece preservado sem preenchimento automático de `forma_pagamento` ou `data_transacao`.
+- A ponte ChatGPT passou a separar preparação e confirmação, evitando persistência automática durante a recepção do payload.
 
 ## Fixed
 
