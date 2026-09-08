@@ -410,9 +410,9 @@ A integração com o ChatGPT precisa receber dados interpretados sem criar um se
 
 ### Decisão
 
-Criar `services/chatgpt_bridge.py` como ponto de entrada para payloads estruturados produzidos pelo ChatGPT. A função `receber_payload_chatgpt()` delegará integralmente ao `external_transaction_service`.
+Criar `services/chatgpt_bridge.py` como ponto de entrada para payloads estruturados produzidos pelo ChatGPT. A ponte prepara o payload para validação e duplicidade e somente persiste por meio do fluxo oficial após confirmação explícita.
 
-A ponte não realizará chamadas de rede, não acessará Supabase diretamente, não duplicará regras financeiras e não substituirá a confirmação do usuário.
+A ponte não realizará chamadas de rede, não acessará Supabase diretamente, não duplicará regras financeiras e não permitirá confirmação implícita.
 
 ### Justificativa
 
@@ -420,7 +420,7 @@ Uma porta explícita permite conectar posteriormente um mecanismo real de transp
 
 ### Impacto
 
-O Item 3 da Sprint 02 fica implementado sem introduzir API pública, webhook, Edge Function ou processamento automático. Esses mecanismos poderão ser avaliados posteriormente quando houver necessidade real.
+O Item 4 da Sprint 02 adiciona uma separação clara entre **preparar** e **confirmar**. A preparação não persiste. A confirmação revalida a proposta e verifica duplicidade novamente antes de gravar. API pública, webhook, Edge Function e processamento automático continuam fora do escopo.
 
 ---
 
