@@ -52,7 +52,11 @@ def render_mobile_transaction_form(ano, mes):
         categoria = st.selectbox("Categoria", CATEGORIAS)
         forma_pagamento = st.selectbox("Forma de pagamento", FORMAS_PAGAMENTO_NOVO)
         tipo = st.selectbox("Tipo", ["Saída", "Entrada"])
-        data_transacao = st.date_input("Data da transação", value=date.today())
+        data_transacao = st.date_input(
+            "Data da transação",
+            value=date.today(),
+            format="DD/MM/YYYY",
+        )
 
         if forma_pagamento == "Crédito":
             st.info("Compra no Crédito será criada como Pendente e ficará no ciclo da fatura.")
@@ -165,6 +169,7 @@ def _render_edicao_inline(registro):
         nova_data_transacao = st.date_input(
             "Data da transação",
             value=data_existente,
+            format="DD/MM/YYYY",
             key=f"edit_data_transacao_inline_{registro_id}",
         )
     else:
