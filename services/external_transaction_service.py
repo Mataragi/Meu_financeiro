@@ -169,12 +169,35 @@ def _transacao_duplicada(payload):
     return False
 
 
-def registrar_transacao_externa(dados):
-    """Valida e registra uma transação externa; retorna False se duplicada."""
+def preparar_transacao_externa(dados):
+    """Valida, normaliza e verifica duplicidade sem persistir a transação."""
     payload = _normalizar_payload(dados)
+    return {
+        "payload": payload,
+        "duplicada": _transacao_duplicada(payload),
+    }
+
+
+def confirmar_transacao_externa(proposta):
+    """Confirma uma proposta previamente preparada e persiste com nova validação."""
+    if not isinstance(proposta, Mapping) or "payload" not in proposta:
+        raise ValueError("Proposta de transação externa inválida.")
+
+    payload = _normalizar_payload(proposta["payload"])
 
     if _transacao_duplicada(payload):
         return False
 
     transaction_service.inserir_dados([payload])
+    return True
+
+
+def registrar_transacao_externa(dados):
+    """Valida e registra uma transação externa; retorna False se duplicada."""
+    proposta = preparar_transacao_externa(dados)
+
+    if proposta["duplicada"]:
+        return False
+
+    transaction_service.inserir_dados([proposta["payload"]])
     return True
