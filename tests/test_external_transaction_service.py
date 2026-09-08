@@ -132,24 +132,84 @@ def test_repository_so_recebe_payload_apos_validacao_e_deduplicacao(monkeypatch)
     assert len(fake.inseridos) == 1
 
 
-def test_ponte_chatgpt_delega_para_registrador_oficial(monkeypatch):
+def test_preparacao_valida_sem_persistir(monkeypatch):
+    fake = FakeTransactionService()
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    proposta = registrar.preparar_transacao_externa(PAYLOAD)
+
+    assert proposta == {"payload": {**PAYLOAD, "status": "Pago"}, "duplicada": False}
+    assert fake.inseridos == []
+    assert fake.consultas == [("SETEMBRO", 2026)]
+
+
+def test_preparacao_identifica_duplicidade_sem_persistir(monkeypatch):
+    fake = FakeTransactionService([PAYLOAD])
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    proposta = registrar.preparar_transacao_externa(PAYLOAD)
+
+    assert proposta["duplicada"] is True
+    assert fake.inseridos == []
+
+
+def test_confirmacao_registra_proposta_valida(monkeypatch):
+    fake = FakeTransactionService()
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    proposta = registrar.preparar_transacao_externa(PAYLOAD)
+    assert fake.inseridos == []
+
+    assert registrar.confirmar_transacao_externa(proposta) is True
+    assert fake.inseridos == [[{**PAYLOAD, "status": "Pago"}]]
+
+
+def test_confirmacao_revalida_e_impede_duplicidade(monkeypatch):
+    fake = FakeTransactionService([PAYLOAD])
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    proposta = {"payload": dict(PAYLOAD), "duplicada": False}
+
+    assert registrar.confirmar_transacao_externa(proposta) is False
+    assert fake.inseridos == []
+    assert len(fake.consultas) == 1
+
+
+def test_confirmacao_rejeita_proposta_invalida(monkeypatch):
+    fake = FakeTransactionService()
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    with pytest.raises(ValueError, match="Proposta"):
+        registrar.confirmar_transacao_externa({})
+
+    assert fake.inseridos == []
+    assert fake.consultas == []
+
+
+def test_ponte_chatgpt_prepara_sem_persistir(monkeypatch):
     chamadas = []
 
-    def fake_registrar(payload):
+    def fake_preparar(payload):
         chamadas.append(payload)
-        return True
+        return {"payload": payload, "duplicada": False}
 
-    monkeypatch.setattr(chatgpt_bridge, "registrar_transacao_externa", fake_registrar)
+    monkeypatch.setattr(chatgpt_bridge, "preparar_transacao_externa", fake_preparar)
 
-    assert chatgpt_bridge.receber_payload_chatgpt(PAYLOAD) is True
+    proposta = chatgpt_bridge.receber_payload_chatgpt(PAYLOAD)
+
+    assert proposta == {"payload": PAYLOAD, "duplicada": False}
     assert chamadas == [PAYLOAD]
 
 
-def test_ponte_chatgpt_preserva_resultado_do_registrador(monkeypatch):
-    monkeypatch.setattr(
-        chatgpt_bridge,
-        "registrar_transacao_externa",
-        lambda payload: False,
-    )
+def test_ponte_chatgpt_confirmacao_delega_para_registrador(monkeypatch):
+    chamadas = []
 
-    assert chatgpt_bridge.receber_payload_chatgpt(PAYLOAD) is False
+    def fake_confirmar(proposta):
+        chamadas.append(proposta)
+        return True
+
+    monkeypatch.setattr(chatgpt_bridge, "confirmar_transacao_externa", fake_confirmar)
+
+    proposta = {"payload": PAYLOAD, "duplicada": False}
+    assert chatgpt_bridge.confirmar_payload_chatgpt(proposta) is True
+    assert chamadas == [proposta]
