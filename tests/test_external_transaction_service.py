@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from services import external_transaction_service as registrar
+from services.transaction_service import normalizar_data_transacao
 
 
 PAYLOAD = {
@@ -32,6 +33,9 @@ class FakeTransactionService:
 
     def inserir_dados(self, dados):
         self.inseridos.append(dados)
+
+    def normalizar_data_transacao(self, valor):
+        return normalizar_data_transacao(valor)
 
 
 def test_registra_payload_valido_reutilizando_transaction_service(monkeypatch):
