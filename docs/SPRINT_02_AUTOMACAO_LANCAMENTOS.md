@@ -2,7 +2,7 @@
 
 # Sprint 02 — Automação de Lançamentos
 
-**Status:** Em validação final
+**Status:** Concluída
 
 **Objetivo:** preparar o Financeiro Pro para receber movimentações de fontes externas, especialmente comprovantes interpretados por IA, sem comprometer a confiabilidade dos dados financeiros.
 
@@ -47,6 +47,8 @@ Supabase
 | 3 | Criar porta de integração ChatGPT → Financeiro Pro | ✅ Concluído |
 | 4 | Implementar confirmação antes do lançamento | ✅ Concluído |
 | 5 | Validar fluxo ponta a ponta | ✅ Concluído |
+
+**Observação:** o Item 2 permanece como contrato provisório porque parte das regras financeiras do produto ainda precisa ser formalizada. Isso não bloqueia a conclusão do fluxo técnico da Sprint 02.
 
 ---
 
@@ -318,6 +320,16 @@ Cenários cobertos:
 
 O teste não acessa Supabase real e não cria dados financeiros de teste no banco de produção.
 
+**Validação final executada no ambiente local:**
+
+```text
+43 passed in 5.40s
+python -m compileall components services utils tests → OK
+git diff --check → OK
+```
+
+A suíte local confirma o fluxo técnico da Sprint 02 sem necessidade de inserir dados de teste no banco real.
+
 ---
 
 ## 13. Fora do escopo desta etapa
@@ -340,9 +352,9 @@ Esses recursos somente serão considerados quando houver necessidade real e cont
 
 ---
 
-## 14. Próximas decisões obrigatórias
+## 14. Backlog técnico para evolução
 
-Antes da automação completa, devem ser definidas:
+As seguintes decisões permanecem como próximos trabalhos e não bloqueiam a conclusão da Sprint 02:
 
 1. campo e semântica definitivos da data da movimentação;
 2. diferença operacional entre data da movimentação, competência/ciclo e vencimento;
@@ -351,18 +363,18 @@ Antes da automação completa, devem ser definidas:
 5. tratamento de transferências entre contas próprias;
 6. obrigatoriedade e catálogo de categorias;
 7. contrato definitivo para fontes externas, incluindo `forma_pagamento`;
-8. estratégia de confirmação do usuário;
+8. estratégia de confirmação do usuário em uma futura interface real;
 9. estratégia de deduplicação futura;
 10. comportamento para dados incompletos ou ambíguos;
 11. estratégia de migração histórica da forma de pagamento.
 
-Essas decisões permanecem como backlog de evolução e não bloqueiam a validação do fluxo técnico da Sprint 02. O contrato utilizado nesta Sprint é explicitamente provisório.
+Esses pontos deverão ser formalizados antes de qualquer automação financeira que dependa dessas regras.
 
 ---
 
 ## 15. Critério de conclusão da Sprint
 
-A Sprint 02 somente será considerada concluída quando uma fonte externa puder:
+A Sprint 02 foi concluída porque uma fonte externa pode:
 
 ```text
 ser interpretada
@@ -373,9 +385,9 @@ ser validada pelas regras do Financeiro Pro
     ↓
 ser apresentada para confirmação
     ↓
-ser registrada pelo fluxo oficial de transações
+ser registrada pelo fluxo oficial
 ```
 
 sem duplicar regras, acessar o banco diretamente ou alterar silenciosamente a semântica financeira do sistema.
 
-O Item 5 comprova tecnicamente esse fluxo por meio de teste ponta a ponta. A validação final da Sprint depende apenas da execução da suíte no ambiente local após sincronização do commit.
+O teste ponta a ponta comprova tecnicamente esse fluxo no ambiente local.
