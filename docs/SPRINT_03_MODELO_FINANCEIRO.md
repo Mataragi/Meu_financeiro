@@ -10,20 +10,22 @@
 
 ## 1. Motivo da Sprint
 
-O Financeiro Pro já possui uma base arquitetural organizada e um fluxo seguro para receber transações externas. Entretanto, algumas regras importantes ainda estão registradas como decisões de produto, mas não possuem uma modelagem operacional completa no sistema.
+O Financeiro Pro já possui uma base arquitetural organizada e um fluxo seguro para receber transações externas. Entretanto, algumas regras importantes ainda precisam de modelagem operacional completa.
 
-As principais são:
+A Sprint 03 formaliza:
 
 - data da movimentação;
 - competência/ciclo financeiro;
 - vencimento;
-- fechamento do ciclo;
+- saldo de abertura;
+- saldo real;
+- saldo projetado;
 - saldo transportado entre ciclos;
 - compras no Crédito;
 - transferências entre contas próprias;
 - comportamento de dados incompletos em automações.
 
-A Sprint 03 não terá como objetivo adicionar muitas funcionalidades. O foco será definir a verdade financeira do sistema antes de automatizá-la.
+O foco é definir a verdade financeira do sistema antes de automatizá-la.
 
 ---
 
@@ -51,7 +53,7 @@ Nenhuma regra será implementada apenas porque parece intuitiva. Quando houver m
 |---|---|---|---|
 | 1 | Formalizar data da movimentação, competência e vencimento | 🔴 | ✅ |
 | 2 | Formalizar regra completa do ciclo financeiro | 🔴 | ✅ |
-| 3 | Definir modelo de saldo real, pendências e saldo transportado | 🔴 | ⏳ |
+| 3 | Definir modelo de saldo real, pendências e saldo transportado | 🔴 | ✅ |
 | 4 | Formalizar comportamento de Crédito e pagamento de fatura | 🔴 | ⏳ |
 | 5 | Definir tratamento de transferências entre contas próprias | 🟠 | ⏳ |
 | 6 | Formalizar contrato definitivo para lançamentos externos | 🟠 | ⏳ |
@@ -65,106 +67,27 @@ Nenhuma regra será implementada apenas porque parece intuitiva. Quando houver m
 
 ### 4.1 Definições oficiais
 
-O modelo financeiro passa a tratar três conceitos diferentes:
-
-**`data_transacao`**
-
-Representa a data em que a operação financeira efetivamente aconteceu.
-
-Ela descreve o fato financeiro e não o momento em que o registro foi criado no sistema.
-
 ```text
-data_transacao ≠ criado_em
-```
-
-`criado_em` continua representando o momento de criação do registro e não deve ser utilizado como substituto da data da operação.
-
-**`mes` + `ano`**
-
-Representam a competência/ciclo financeiro ao qual o lançamento pertence.
-
-Essa competência é uma informação financeira explícita e não deve ser confundida automaticamente com o mês de `data_transacao`.
-
-**`vencimento`**
-
-Representa o dia em que uma obrigação deve ser paga, quando existir uma obrigação com vencimento aplicável.
-
-Portanto, `vencimento` não é a data em que a operação necessariamente aconteceu.
-
-### 4.2 Regra de separação
-
-```text
-QUANDO aconteceu?
-       ↓
- data_transacao
-
-EM QUAL ciclo financeiro será considerado?
-       ↓
- mes + ano
-
-QUANDO a obrigação vence?
-       ↓
- vencimento
-```
-
-Os três campos possuem semânticas diferentes e não devem ser preenchidos por cópia automática de um para outro sem regra explícita.
-
-### 4.3 Exemplo confirmado
-
-Uma operação realizada em 31/08/2026 pode pertencer ao ciclo financeiro de setembro:
-
-```text
-31/08/2026
-    ↓
-data_transacao
-
-SETEMBRO/2026
-    ↓
-mes + ano
-```
-
-O fato de a operação ter ocorrido em agosto não obriga o lançamento a pertencer à competência de agosto.
-
-### 4.4 Regra para vencimento
-
-O sistema não deve inferir o vencimento simplesmente a partir de `data_transacao`.
-
-Quando não existir informação de vencimento aplicável, o campo deverá permanecer ausente/nulo conforme o contrato do fluxo de entrada.
-
-Quando existir um vencimento conhecido, ele deverá ser registrado como o dia da obrigação correspondente.
-
-Para operações de Crédito, o vencimento está associado à obrigação/fatura e não à data em que a compra foi realizada.
-
-### 4.5 Consequência para automações
-
-Uma fonte externa deverá informar ou permitir confirmar separadamente:
-
-- quando a operação ocorreu;
-- em qual competência/ciclo ela deve ser registrada;
-- qual é o vencimento, quando houver.
-
-A automação não deverá preencher silenciosamente esses campos usando uma única data como fonte para todos os significados.
-
-### 4.6 Limites desta decisão
-
-Este item não implementa ainda a regra automática que transforma uma `data_transacao` em `mes` + `ano`.
-
-Também não define a regra completa de fechamento do ciclo, pois essa decisão pertence ao Item 2.
-
-O comportamento específico de Crédito e fatura será aprofundado no Item 4.
-
-### 4.7 Critério de aceite do Item 1
-
-Considera-se o Item 1 concluído quando o sistema e sua documentação reconhecem que:
-
-```text
-data_transacao = fato ocorrido
+data_transacao = fato financeiro ocorrido
 mes + ano       = competência/ciclo financeiro
 vencimento      = dia da obrigação, quando aplicável
 criado_em       = momento de criação do registro
 ```
 
-Sem utilizar `criado_em` como data financeira e sem assumir que os três conceitos são intercambiáveis.
+`data_transacao` não deve ser substituída por `criado_em`. `mes` + `ano` não precisam coincidir com o mês civil da operação.
+
+### 4.2 Exemplo
+
+Uma operação realizada em 31/08/2026 pode pertencer ao ciclo de setembro:
+
+```text
+31/08/2026 → data_transacao
+SETEMBRO/2026 → mes + ano
+```
+
+### 4.3 Limites
+
+Este item não implementa o cálculo automático da competência nem altera o banco. O comportamento específico de Crédito será aprofundado no Item 4.
 
 ---
 
@@ -174,11 +97,7 @@ Sem utilizar `criado_em` como data financeira e sem assumir que os três conceit
 
 ### 5.1 Regra oficial
 
-O ciclo financeiro é definido pelas **datas reais dos recebimentos principais**.
-
-> **Um ciclo começa no dia em que o recebimento principal ocorre e termina no dia anterior ao próximo recebimento principal.**
-
-O ciclo não é definido pelo primeiro e pelo último dia do mês civil e não depende de o mês possuir 28, 29, 30 ou 31 dias.
+Um ciclo financeiro começa no dia em que o recebimento principal ocorre e termina no dia anterior ao próximo recebimento principal.
 
 ```text
 Recebimento principal A
@@ -197,118 +116,30 @@ Recebimento principal B
 INÍCIO DO PRÓXIMO CICLO
 ```
 
-### 5.2 Exemplo de referência
+O ciclo não depende de o mês possuir 28, 29, 30 ou 31 dias.
 
-Considerando recebimentos principais em 30/08/2026 e 30/09/2026:
-
-```text
-Ciclo de SETEMBRO/2026
-
-Início: 30/08/2026
-Fim:    29/09/2026
-
-Próximo ciclo
-
-Início: 30/09/2026
-Fim:    29/10/2026
-```
-
-Assim, uma operação realizada em 31/08/2026 pertence ao ciclo de setembro, enquanto uma operação realizada em 29/09/2026 ainda pertence ao mesmo ciclo. A operação realizada em 30/09/2026 pertence ao novo ciclo.
-
-### 5.3 O ciclo acompanha a data real do recebimento
-
-O sistema não deverá assumir que o recebimento sempre acontecerá no dia 30.
-
-Se a data real do recebimento principal mudar, o limite do ciclo também muda.
-
-Exemplo:
+### 5.2 Exemplo
 
 ```text
-Recebimento anterior: 30/08/2026
-Próximo recebimento:  29/09/2026
+Recebimento: 30/08/2026
+Próximo:     30/09/2026
 
-Ciclo:
-30/08/2026 → 28/09/2026
+Ciclo de SETEMBRO/2026:
+30/08/2026 → 29/09/2026
 
-Novo ciclo:
-29/09/2026 → dia anterior ao próximo recebimento
+Próximo ciclo:
+30/09/2026 → 29/10/2026
 ```
 
-Portanto, a regra é **ancorada nas datas reais dos recebimentos**, e não em um número fixo do calendário.
+O dia do recebimento inicia o novo ciclo. O dia anterior ao próximo recebimento encerra o ciclo atual.
 
-### 5.4 Regra para o dia do recebimento
+### 5.3 Recebimento antecipado ou atrasado
 
-O próprio dia do recebimento inicia o novo ciclo.
+O ciclo acompanha as datas reais. Se o próximo recebimento ocorrer em 29/09 em vez de 30/09, o ciclo anterior termina em 28/09 e o novo começa em 29/09.
 
-Logo:
+### 5.4 Dia 1 e virada de ano
 
-```text
-Recebimento em 30/09
-        ↓
-30/09 pertence ao novo ciclo
-
-29/09
-        ↓
-último dia do ciclo anterior
-```
-
-Isso formaliza a regra prática de que operações dos dias 30 e 31 podem pertencer ao ciclo seguinte quando o próximo recebimento inicia esse ciclo.
-
-### 5.5 Regra para o dia 1
-
-O dia 1 não possui tratamento especial.
-
-Ele pertence ao ciclo que estiver vigente naquela data.
-
-Exemplo:
-
-```text
-30/08 → início do ciclo
-31/08
-01/09
-02/09
-...
-29/09 → fim do ciclo
-30/09 → início do próximo ciclo
-```
-
-Portanto, o calendário civil não reinicia o ciclo financeiro no dia 1.
-
-### 5.6 Entradas e saídas
-
-A classificação do ciclo é determinada pela **data em que a movimentação financeira ocorre dentro do período do ciclo**, respeitando as regras específicas de competência já definidas para situações como Crédito.
-
-Isso significa que uma entrada ou saída ocorrida entre o início e o fim do ciclo pertence àquele ciclo, salvo quando uma regra financeira específica determinar outra competência.
-
-O ciclo, portanto, não transforma automaticamente toda movimentação em uma simples regra de `mês(data_transacao)`.
-
-### 5.7 Parcelamentos
-
-Parcelamentos continuam sendo compostos por transações independentes.
-
-Cada parcela deverá possuir sua própria competência/ciclo financeiro, de acordo com o período financeiro ao qual aquela parcela pertence.
-
-O calendário civil não deve ser utilizado isoladamente para decidir a competência de uma parcela.
-
-A regra geral é:
-
-```text
-Data/obrigação da parcela
-        ↓
-identificação do ciclo vigente
-        ↓
-mes + ano da parcela
-```
-
-A lógica específica de geração das parcelas permanece no domínio de parcelamentos e deverá ser coberta pelos testes da Sprint 03. Este Item não altera a implementação existente.
-
-### 5.8 Virada de ano
-
-A virada do ano não interrompe artificialmente um ciclo.
-
-Se um ciclo atravessar dezembro e janeiro, ele continua até o dia anterior ao próximo recebimento.
-
-Exemplo:
+O dia 1 não reinicia o ciclo. Uma virada de ano também não interrompe artificialmente o período.
 
 ```text
 Recebimento: 30/12/2026
@@ -318,78 +149,171 @@ Ciclo:
 30/12/2026 → 29/01/2027
 ```
 
-Nesse caso, o ciclo possui início em 2026 e termina em 2027. O `mes` + `ano` utilizado pelo lançamento deverá representar o ciclo financeiro ao qual ele pertence, e não simplesmente o mês civil da data da operação.
+### 5.5 Parcelamentos
 
-### 5.9 Limites da decisão
+Parcelamentos continuam sendo transações independentes. Cada parcela deverá possuir a competência/ciclo correspondente ao período financeiro ao qual pertence.
 
-Este Item formaliza **como o período de um ciclo é delimitado**.
+### 5.6 Limites
 
-Ele não define ainda:
-
-- como o saldo de abertura será calculado;
-- como o saldo será transportado para o próximo ciclo;
-- como pendências afetarão saldo real ou projetado;
-- como uma fatura de Crédito será liquidada.
-
-Esses comportamentos pertencem aos Itens 3 e 4.
-
-Também não implementa ainda a determinação automática do ciclo no código de produção.
-
-### 5.10 Critério de aceite do Item 2
-
-Considera-se o Item 2 concluído quando a regra puder ser expressa sem depender do número de dias do mês:
-
-```text
-Ciclo atual:
-recebimento principal atual
-        ↓
-até
-um dia antes do próximo recebimento principal
-```
-
-E quando estiver claro que:
-
-- o dia do recebimento inicia o novo ciclo;
-- o dia anterior ao próximo recebimento encerra o ciclo atual;
-- o dia 1 não reinicia o ciclo;
-- meses com 28, 29, 30 ou 31 dias não alteram a regra;
-- a virada de ano não interrompe o ciclo;
-- parcelamentos respeitam o ciclo financeiro de cada parcela;
-- regras específicas, como Crédito, podem definir uma competência própria e serão tratadas em seus respectivos itens.
+Este item define o período do ciclo. Não define saldo de abertura, transporte, projeção ou liquidação de Crédito. Esses comportamentos pertencem aos Itens 3 e 4.
 
 ---
 
 ## 6. Item 3 — Saldo real, pendências e transporte entre ciclos
 
-Objetivo:
+**Status: Concluído.**
 
-Separar claramente conceitos que hoje podem ser confundidos pelo cálculo atual.
+### 6.1 Diagnóstico
 
-O modelo a ser avaliado deverá distinguir, no mínimo:
+O cálculo atual não possui saldo de abertura, encerramento ou transporte formal. Entradas Pendentes são incluídas no saldo atual, enquanto Saídas Pendentes são ignoradas. Também não existe saldo projetado formal.
 
-```text
-Saldo de abertura
-+ Entradas efetivamente recebidas
-- Saídas efetivamente pagas
-= Saldo real
-```
+A nova regra foi formalizada sem alterar ainda o cálculo de produção.
 
-E, separadamente:
+### 6.2 Saldo de abertura
+
+Para o primeiro ciclo controlado pelo sistema:
 
 ```text
-Saldo real
-- Obrigações pendentes
-+ Entradas previstas
-= visão projetada
+Saldo de abertura = valor inicial informado e confirmado pelo usuário
 ```
 
-Também deverá ser definido como o saldo de encerramento de um ciclo se torna saldo de abertura do ciclo seguinte.
+Para os ciclos seguintes:
 
-A Sprint não deverá alterar o cálculo atual sem uma decisão explícita e testes de regressão.
+```text
+Saldo de abertura do ciclo N+1
+    = saldo de encerramento real do ciclo N
+```
+
+O saldo de abertura não deverá ser inferido pela soma das transações do ciclo atual.
+
+### 6.3 Entradas realizadas
+
+São somente as transações que atendem:
+
+```text
+tipo = Entrada
+status = Pago
+```
+
+Entradas Pendentes não compõem o saldo real.
+
+### 6.4 Saídas realizadas
+
+São somente as transações que atendem:
+
+```text
+tipo = Saída
+status = Pago
+```
+
+Saídas Pendentes não reduzem o saldo real.
+
+### 6.5 Saldo real
+
+```text
+Saldo real =
+    saldo de abertura
+    + Entradas Pagas
+    - Saídas Pagas
+```
+
+Esse valor representa o dinheiro efetivamente disponível ao final do ciclo, conforme os lançamentos conhecidos.
+
+### 6.6 Pendências e valores previstos
+
+```text
+Obrigações pendentes = Σ Saídas Pendentes
+Entradas previstas   = Σ Entradas Pendentes
+```
+
+Entrada Pendente representa recebimento esperado. Saída Pendente representa obrigação ainda não realizada.
+
+### 6.7 Saldo projetado
+
+```text
+Saldo projetado =
+    saldo real
+    - Saídas Pendentes
+    + Entradas Pendentes
+```
+
+Na primeira implementação, a projeção ficará restrita ao ciclo/horizonte explicitamente consultado. Projeção multi-ciclo será evolução futura.
+
+### 6.8 Saldo de encerramento
+
+```text
+Saldo de encerramento = saldo real do ciclo
+```
+
+Pendências futuras não alteram o saldo de encerramento real. Elas afetam somente a visão projetada.
+
+### 6.9 Transporte
+
+```text
+Saldo transportado do ciclo N
+        ↓
+Saldo de abertura do ciclo N+1
+```
+
+O transporte é uma relação entre ciclos, não uma nova movimentação financeira.
+
+### 6.10 Tratamento do "Fechamento"
+
+`Fechamento` não será tratado como tipo financeiro nem como mecanismo de transporte.
+
+O encerramento é resultado calculado do ciclo. Registros históricos eventualmente chamados `Fechamento` não serão apagados ou convertidos automaticamente. Eles deverão ser auditados antes de qualquer migração.
+
+### 6.11 Alterações retroativas
+
+Como o saldo transportado é derivado do encerramento anterior, uma alteração retroativa em um ciclo deverá permitir recalcular os ciclos posteriores. O modelo não dependerá de saldos de abertura digitados de forma independente para cada ciclo.
+
+### 6.12 Representação do primeiro saldo
+
+O saldo inicial será tratado como posição de abertura, separada dos fatos financeiros de `transacoes`. A forma física de persistência será definida na implementação do modelo.
+
+### 6.13 Casos que deverão ser cobertos posteriormente
+
+Antes da implementação, os testes deverão contemplar:
+
+- primeiro ciclo com saldo inicial positivo;
+- primeiro ciclo com saldo inicial negativo;
+- ciclo sem entradas ou sem saídas;
+- Entradas Pagas e Pendentes;
+- Saídas Pagas e Pendentes;
+- saldo real negativo;
+- saldo projetado negativo;
+- transporte positivo e negativo;
+- ciclo sem transações, mas com saldo transportado;
+- ciclos iniciados nos dias 30 e 31;
+- recebimento antecipado ou atrasado;
+- virada de dezembro para janeiro;
+- competência diferente de `data_transacao`;
+- parcelamentos;
+- Crédito pendente e posteriormente pago;
+- registros históricos de `Fechamento`;
+- alterações retroativas e exclusões que afetem ciclos anteriores.
+
+### 6.14 Critério de aceite
+
+O Item 3 é considerado formalizado quando o domínio distinguir:
+
+```text
+saldo de abertura
+saldo real
+obrigações pendentes
+entradas previstas
+saldo projetado
+saldo de encerramento
+saldo transportado
+```
+
+e quando o transporte entre ciclos não depender de uma transação artificial.
 
 ---
 
 ## 7. Item 4 — Crédito e pagamento da fatura
+
+**Status: Pendente.**
 
 Regra já aprovada:
 
@@ -403,19 +327,7 @@ Fatura paga
 Pago
 ```
 
-Exemplo:
-
-```text
-Compra: setembro
-Fatura: outubro
-Vencimento: dia 5
-
-→ competência financeira: outubro
-→ status inicial: Pendente
-→ pagamento da fatura: transação passa para Pago
-```
-
-A Sprint deverá definir como representar de forma consistente:
+A Sprint deverá definir de forma consistente:
 
 - data real da compra;
 - ciclo da fatura;
@@ -428,9 +340,9 @@ A Sprint deverá definir como representar de forma consistente:
 
 ## 8. Item 5 — Transferências entre contas próprias
 
-Objetivo:
+**Status: Pendente.**
 
-Evitar que transferências entre contas do próprio usuário sejam interpretadas como renda ou despesa.
+Objetivo: evitar que transferências entre contas do próprio usuário sejam interpretadas como renda ou despesa.
 
 O modelo deverá distinguir, quando aplicável:
 
@@ -446,91 +358,50 @@ A criação do domínio completo de contas não faz parte automaticamente desta 
 
 ## 9. Item 6 — Contrato definitivo de lançamentos externos
 
-O contrato atual da Sprint 02 é provisório.
+**Status: Pendente.**
 
-Após as regras financeiras serem formalizadas, deverão ser revisados os campos obrigatórios e condicionais para fontes externas.
+O contrato da Sprint 02 é provisório e deverá ser revisado após a formalização das regras financeiras.
 
-O contrato deverá impedir que uma fonte externa invente ou complete silenciosamente informações financeiras ausentes.
-
-Especial atenção:
+A revisão deverá tratar especialmente:
 
 - forma de pagamento;
 - data da movimentação;
 - competência;
 - vencimento;
-- crédito;
+- Crédito;
 - transferências internas;
-- dados ambíguos.
+- dados ambíguos ou ausentes.
+
+A fonte externa não deverá inventar ou completar silenciosamente informações financeiras.
 
 ---
 
 ## 10. Item 7 — Testes das regras financeiras
 
-Cada regra formalizada deverá possuir cobertura automatizada antes de ser incorporada ao comportamento principal.
+**Status: Pendente.**
 
-Os testes deverão priorizar casos de borda, especialmente:
+Cada regra formalizada deverá possuir cobertura automatizada antes de alterar o comportamento principal.
 
-- dias 30 e 31;
-- virada de ano;
-- Crédito entre ciclos;
-- vencimentos;
-- entradas pendentes;
-- saídas pendentes;
-- saldo transportado;
-- transferências internas;
-- dados externos incompletos.
+Os testes deverão priorizar casos de borda de ciclo, saldo, Crédito, transferências e dados históricos.
 
 ---
 
-## 11. Fora do escopo inicial
+## 11. Critério de encerramento da Sprint
 
-Não fazem parte desta Sprint, salvo decisão posterior:
+A Sprint 03 será concluída quando as regras dos sete itens estiverem formalizadas, testadas e implementadas somente onde houver decisão suficiente para isso.
 
-- migração completa do histórico para `forma_pagamento`;
-- criação de contas bancárias completas;
-- Open Finance;
-- API pública;
-- webhook;
-- automação sem confirmação;
-- migração para Flutter;
-- redesign visual amplo.
-
-Esses itens dependem das decisões financeiras e arquiteturais desta Sprint ou pertencem a fases posteriores.
-
----
-
-## 12. Critério de conclusão
-
-A Sprint 03 somente será considerada concluída quando:
+A ordem oficial permanece:
 
 ```text
-As regras financeiras estiverem definidas
-          ↓
-As ambiguidades críticas estiverem resolvidas
-          ↓
-As decisões estiverem documentadas
-          ↓
-As regras principais possuírem testes
-          ↓
-O modelo estiver pronto para implementação controlada
+Regra
+  ↓
+Decisão
+  ↓
+Documentação
+  ↓
+Teste
+  ↓
+Implementação
 ```
 
-A Sprint não exige que todas as regras sejam imediatamente aplicadas ao banco. O objetivo principal é eliminar ambiguidades antes de automatizar o comportamento financeiro.
-
----
-
-## 13. Resultado esperado
-
-Ao final da Sprint 03, o Financeiro Pro deverá possuir uma definição clara de:
-
-- quando uma movimentação acontece;
-- a qual ciclo ela pertence;
-- quando uma obrigação vence;
-- o que compõe o saldo real;
-- o que é pendência;
-- como o saldo é transportado;
-- como o Crédito se comporta;
-- como transferências próprias são tratadas;
-- quais informações uma automação externa pode ou não preencher.
-
-Isso servirá como base para as próximas evoluções de UX, automação e futura migração de interface.
+A formalização de um item não implica implementação automática.
