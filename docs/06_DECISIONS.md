@@ -489,6 +489,57 @@ As próximas regras de ciclo financeiro, Crédito e contrato externo deverão ut
 
 ---
 
+## DEC-017
+
+### O ciclo financeiro é determinado pelos recebimentos principais reais.
+
+### Problema
+
+O ciclo utilizado pelo usuário não coincide necessariamente com o mês civil. Como o recebimento principal ocorre em torno do dia 30, considerar sempre o primeiro e o último dia do mês faria com que operações próximas ao recebimento fossem atribuídas ao ciclo errado.
+
+### Decisão
+
+Um ciclo financeiro começa **no dia em que o recebimento principal ocorre** e termina **no dia anterior ao próximo recebimento principal**.
+
+O dia do recebimento inicia o novo ciclo. O dia anterior ao próximo recebimento encerra o ciclo atual.
+
+O ciclo acompanha as datas reais dos recebimentos e não depende de um dia fixo do calendário.
+
+Exemplo:
+
+```text
+Recebimento: 30/08/2026
+Próximo:     30/09/2026
+
+Ciclo de SETEMBRO/2026:
+30/08/2026 → 29/09/2026
+
+Próximo ciclo:
+30/09/2026 → 29/10/2026
+```
+
+Se a data do próximo recebimento mudar, o limite do ciclo também muda:
+
+```text
+Recebimento anterior: 30/08/2026
+Próximo recebimento:  29/09/2026
+
+Ciclo:
+30/08/2026 → 28/09/2026
+```
+
+O dia 1 não reinicia o ciclo. Meses com 28, 29, 30 ou 31 dias não alteram a regra. A virada de ano também não encerra um ciclo por si só.
+
+### Justificativa
+
+Essa regra representa diretamente o funcionamento financeiro utilizado pelo usuário e elimina a dependência do calendário civil. Também permite que o sistema acompanhe alterações reais na data do recebimento sem depender de regras como `dia >= 30`.
+
+### Impacto
+
+A competência financeira deverá ser associada ao ciclo correspondente e não simplesmente ao mês civil de `data_transacao`. Parcelamentos deverão atribuir cada parcela ao ciclo financeiro em que ela estiver enquadrada, respeitando suas regras específicas. O cálculo de saldo e o comportamento de Crédito serão definidos separadamente nos Itens 3 e 4 da Sprint 03.
+
+---
+
 # 6. Decisões Futuras
 
 Algumas decisões ainda dependem da evolução do projeto.
@@ -500,7 +551,8 @@ Entre elas:
 - API pública;
 - Open Finance;
 - Inteligência Artificial como integração operacional;
-- regra completa de fechamento e transporte de saldo entre ciclos;
+- regra completa de saldo real, pendências e transporte entre ciclos;
+- comportamento definitivo de Crédito e pagamento de fatura;
 - contas e transferências entre contas próprias;
 - contrato definitivo de fontes externas;
 - migração histórica da forma de pagamento.
