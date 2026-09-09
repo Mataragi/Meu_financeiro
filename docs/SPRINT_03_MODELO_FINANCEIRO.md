@@ -54,7 +54,7 @@ Nenhuma regra será implementada apenas porque parece intuitiva. Quando houver m
 | 1 | Formalizar data da movimentação, competência e vencimento | 🔴 | ✅ |
 | 2 | Formalizar regra completa do ciclo financeiro | 🔴 | ✅ |
 | 3 | Definir modelo de saldo real, pendências e saldo transportado | 🔴 | ✅ |
-| 4 | Formalizar comportamento de Crédito e pagamento de fatura | 🔴 | ⏳ |
+| 4 | Formalizar comportamento de Crédito e pagamento de fatura | 🔴 | ✅ |
 | 5 | Definir tratamento de transferências entre contas próprias | 🟠 | ⏳ |
 | 6 | Formalizar contrato definitivo para lançamentos externos | 🟠 | ⏳ |
 | 7 | Criar testes das regras financeiras formalizadas | 🔴 | ⏳ |
@@ -313,28 +313,165 @@ e quando o transporte entre ciclos não depender de uma transação artificial.
 
 ## 7. Item 4 — Crédito e pagamento da fatura
 
-**Status: Pendente.**
+**Status: Concluído.**
 
-Regra já aprovada:
+### 7.1 Conceito
+
+Compra no Crédito representa uma saída futura. A compra possui uma `data_transacao` real, mas pertence à competência da fatura na qual será paga.
 
 ```text
-Compra no Crédito
-        ↓
+Compra
+  ↓
+data_transacao real
+  ↓
+competência da fatura
+  ↓
 Pendente
-        ↓
-Fatura paga
-        ↓
+  ↓
+pagamento da fatura
+  ↓
 Pago
 ```
 
-A Sprint deverá definir de forma consistente:
+Enquanto estiver Pendente, o lançamento não altera o saldo real. Ele compõe a projeção de saída do ciclo correspondente.
 
-- data real da compra;
-- ciclo da fatura;
-- vencimento;
-- baixa da fatura;
-- impacto no saldo;
-- compras parceladas no Crédito.
+### 7.2 Fechamento da fatura
+
+A regra oficial para determinar a competência da primeira parcela é:
+
+```text
+Dia da compra 01 a 04
+→ primeira parcela na competência do próprio mês
+
+Dia da compra 05 em diante
+→ primeira parcela na competência do mês seguinte
+```
+
+O dia 05 pertence à próxima fatura.
+
+Exemplos:
+
+```text
+04/09/2026 → primeira parcela em SETEMBRO
+05/09/2026 → primeira parcela em OUTUBRO
+09/09/2026 → primeira parcela em OUTUBRO
+```
+
+### 7.3 Parcelamento no Crédito
+
+Parcelamentos continuam sendo transações independentes. A primeira parcela segue a regra de fechamento e as demais avançam uma competência por vez.
+
+Exemplo de compra em 09/09/2026 em 3 parcelas:
+
+```text
+1ª parcela → OUTUBRO
+2ª parcela → NOVEMBRO
+3ª parcela → DEZEMBRO
+```
+
+Exemplo de compra em 04/09/2026 em 3 parcelas:
+
+```text
+1ª parcela → SETEMBRO
+2ª parcela → OUTUBRO
+3ª parcela → NOVEMBRO
+```
+
+Cada parcela permanece disponível para consulta, edição, exclusão e demais ações individuais.
+
+### 7.4 Dados do lançamento
+
+Uma compra no Crédito deve preservar a separação entre:
+
+```text
+data_transacao = data real da compra
+mes + ano       = competência da fatura
+vencimento      = dia de vencimento da obrigação
+forma_pagamento = Crédito
+status          = Pendente, até o pagamento
+```
+
+A competência não deve ser confundida com a data real da compra.
+
+### 7.5 Pagamento da fatura
+
+O Financeiro Pro terá uma ação em lote **Pagar Fatura**.
+
+A ação deve localizar os lançamentos que pertencem à fatura selecionada por meio de:
+
+```text
+tipo = Saída
+forma_pagamento = Crédito
+status = Pendente
+mes + ano = competência da fatura
+```
+
+O valor da fatura será a soma dos lançamentos encontrados. Antes da baixa, o sistema deverá apresentar uma confirmação com a quantidade de lançamentos e o valor total.
+
+Após a confirmação:
+
+```text
+Todos os lançamentos selecionados
+        ↓
+status = Pago
+```
+
+Nenhum lançamento será apagado, consolidado ou transformado em outro tipo de transação.
+
+### 7.6 Ações individuais
+
+O pagamento em lote não substitui as ações individuais dos cards.
+
+Os lançamentos continuam podendo ser:
+
+- editados;
+- excluídos;
+- duplicados;
+- pagos individualmente quando necessário.
+
+Assim, correções ou exceções podem ser tratadas diretamente no lançamento.
+
+### 7.7 Modelo de fatura
+
+Na primeira implementação, não será criada uma tabela física específica de `faturas` apenas para agrupar esses lançamentos.
+
+A fatura será tratada como um agrupamento lógico dos lançamentos de Crédito por competência, ano e status.
+
+A criação de uma entidade física de fatura fica como evolução futura caso surja uma necessidade real que não possa ser resolvida pelo modelo atual.
+
+### 7.8 Impacto no saldo
+
+Enquanto os lançamentos da fatura estiverem pendentes:
+
+```text
+Saldo real → não é reduzido
+Saldo projetado → é reduzido pelas saídas pendentes
+```
+
+Depois do pagamento:
+
+```text
+Pendente → Pago
+        ↓
+Saída passa a compor o saldo real
+```
+
+### 7.9 Critério de aceite
+
+O Item 4 é considerado formalizado quando o domínio conseguir representar corretamente:
+
+```text
+compra real
+competência da fatura
+fechamento no dia 05
+parcelamento
+pendência
+pagamento da fatura
+baixa em lote
+impacto no saldo real e projetado
+```
+
+Sem confundir `categoria` com `forma_pagamento` e sem alterar a `data_transacao` para representar a competência.
 
 ---
 
