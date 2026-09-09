@@ -424,6 +424,71 @@ O Item 4 da Sprint 02 adiciona uma separação clara entre **preparar** e **conf
 
 ---
 
+## DEC-016
+
+### Data da movimentação, competência e vencimento são conceitos independentes.
+
+### Problema
+
+Uma única data pode representar coisas diferentes no fluxo financeiro: o momento em que a operação ocorreu, o ciclo em que ela deve ser considerada e o prazo de uma obrigação. Tratar esses conceitos como equivalentes causa lançamentos em competência incorreta e dificulta automações, especialmente no Crédito.
+
+### Decisão
+
+O Financeiro Pro adotará oficialmente a seguinte semântica:
+
+```text
+quando a operação aconteceu?
+        ↓
+   data_transacao
+
+em qual ciclo financeiro ela pertence?
+        ↓
+      mes + ano
+
+quando a obrigação deve ser paga?
+        ↓
+     vencimento
+
+quando o registro foi criado no sistema?
+        ↓
+      criado_em
+```
+
+`data_transacao` representa o fato financeiro ocorrido e não deve ser substituída por `criado_em`.
+
+`mes` e `ano` representam a competência/ciclo financeiro explícito do lançamento e não precisam coincidir com o mês de `data_transacao`.
+
+`vencimento` representa o dia da obrigação, quando houver vencimento aplicável, e não a data de ocorrência da operação.
+
+Nenhum desses campos deverá ser preenchido por cópia automática de outro sem regra financeira explícita.
+
+### Justificativa
+
+A separação preserva o histórico real da operação sem perder o modelo de competência utilizado pelo usuário. Também cria uma base segura para definir posteriormente a regra automática de fechamento do ciclo e o tratamento das faturas de Crédito.
+
+### Exemplo
+
+Uma operação ocorrida em 31/08/2026 pode ser registrada no ciclo de setembro:
+
+```text
+31/08/2026 → data_transacao
+SETEMBRO/2026 → mes + ano
+```
+
+A data da operação permanece agosto, enquanto a competência financeira é setembro.
+
+### Vencimento
+
+Quando existir uma obrigação com vencimento conhecido, o sistema armazenará o dia correspondente. Quando não houver informação de vencimento aplicável, a automação não deverá inventar uma data.
+
+No Crédito, o vencimento se refere à obrigação/fatura e é semanticamente separado da data em que a compra foi realizada.
+
+### Impacto
+
+As próximas regras de ciclo financeiro, Crédito e contrato externo deverão utilizar esses conceitos explicitamente. A regra automática que calcula a competência a partir da data ainda pertence ao Item 2 da Sprint 03 e não é criada por esta decisão.
+
+---
+
 # 6. Decisões Futuras
 
 Algumas decisões ainda dependem da evolução do projeto.
@@ -435,7 +500,6 @@ Entre elas:
 - API pública;
 - Open Finance;
 - Inteligência Artificial como integração operacional;
-- modelagem definitiva do campo de data da movimentação;
 - regra completa de fechamento e transporte de saldo entre ciclos;
 - contas e transferências entre contas próprias;
 - contrato definitivo de fontes externas;
