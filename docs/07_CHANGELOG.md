@@ -63,6 +63,7 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Compras com forma de pagamento `Crédito` são criadas como `Pendente`; a baixa para `Pago` ocorre somente após o pagamento da fatura.
 - O histórico existente permanece preservado sem preenchimento automático de `forma_pagamento` ou `data_transacao`.
 - A ponte ChatGPT passou a separar preparação e confirmação, evitando persistência automática durante a recepção do payload.
+- Sprint 02 — Automação de Lançamentos — foi concluída após validação ponta a ponta do fluxo externo.
 
 ## Fixed
 
