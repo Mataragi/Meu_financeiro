@@ -64,6 +64,7 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - O histórico existente permanece preservado sem preenchimento automático de `forma_pagamento` ou `data_transacao`.
 - A ponte ChatGPT passou a separar preparação e confirmação, evitando persistência automática durante a recepção do payload.
 - Sprint 02 — Automação de Lançamentos — foi concluída após validação ponta a ponta do fluxo externo.
+- Sprint 03 — Item 1 — formalizou a semântica de `data_transacao`, `mes` + `ano`, `vencimento` e `criado_em`, mantendo esses conceitos separados.
 
 ## Fixed
 
