@@ -46,6 +46,7 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Porta `services/chatgpt_bridge.py` para receber payloads estruturados produzidos pelo ChatGPT e encaminhá-los ao fluxo oficial.
 - Etapa de preparação de transações externas sem persistência até a confirmação explícita do usuário.
 - Revalidação e nova checagem de duplicidade no momento da confirmação antes da persistência.
+- Teste ponta a ponta do fluxo ChatGPT → preparação → confirmação → Transaction Service → Repository.
 
 ## Changed
 
