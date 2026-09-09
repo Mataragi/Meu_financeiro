@@ -1,29 +1,3 @@
-## Marcos do Projeto
-
-### Julho/2026
-
-- Primeira documentação completa.
-
-- Arquitetura consolidada.
-
-- Definição oficial dos domínios.
-
-- Roadmap criado.
-
-- Base preparada para evolução.
-
----
-
-### Futuro
-
-Primeira versão pública.
-
-Primeiro usuário.
-
-Primeiro deploy mobile.
-
-Primeiro release 1.0.
-
 # Financeiro Pro
 
 # Changelog
@@ -40,8 +14,7 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 
 - Central de Ferramentas no Mobile com backup e restauração de backup.
 - Ações contextuais por transação no Mobile com edição, exclusão e duplicação.
-- Registrador de transações externas em `services/external_transaction_service.py`,
-  com validação, normalização e proteção determinística contra duplicidade.
+- Registrador de transações externas em `services/external_transaction_service.py`, com validação, normalização e proteção determinística contra duplicidade.
 - Campos `data_transacao` e `forma_pagamento` no domínio de transações.
 - Porta `services/chatgpt_bridge.py` para receber payloads estruturados produzidos pelo ChatGPT e encaminhá-los ao fluxo oficial.
 - Etapa de preparação de transações externas sem persistência até a confirmação explícita do usuário.
@@ -65,7 +38,10 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - A ponte ChatGPT passou a separar preparação e confirmação, evitando persistência automática durante a recepção do payload.
 - Sprint 02 — Automação de Lançamentos — foi concluída após validação ponta a ponta do fluxo externo.
 - Sprint 03 — Item 1 — formalizou a semântica de `data_transacao`, `mes` + `ano`, `vencimento` e `criado_em`, mantendo esses conceitos separados.
-- Sprint 03 — Item 2 — formalizou o ciclo financeiro como o período entre um recebimento principal e o dia anterior ao próximo recebimento principal, acompanhando as datas reais dos recebimentos.
+- Sprint 03 — Item 2 — formalizou o ciclo financeiro entre o recebimento principal atual e o dia anterior ao próximo recebimento principal.
+- Sprint 03 — Item 3 — formalizou saldo de abertura, saldo real, pendências, saldo projetado, saldo de encerramento e saldo transportado entre ciclos.
+- O saldo transportado passou a ser definido como relação entre ciclos, sem criação de transação artificial de `Fechamento`.
+- O saldo inicial do primeiro ciclo passou a ser tratado conceitualmente como posição de abertura confirmada pelo usuário, separada das transações financeiras.
 
 ## Fixed
 
