@@ -20,6 +20,7 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Etapa de preparação de transações externas sem persistência até a confirmação explícita do usuário.
 - Revalidação e nova checagem de duplicidade no momento da confirmação antes da persistência.
 - Teste ponta a ponta do fluxo ChatGPT → preparação → confirmação → Transaction Service → Repository.
+- Formalização da ação futura `Pagar Fatura` como baixa em lote dos lançamentos de Crédito pendentes da competência selecionada.
 
 ## Changed
 
@@ -42,6 +43,9 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Sprint 03 — Item 3 — formalizou saldo de abertura, saldo real, pendências, saldo projetado, saldo de encerramento e saldo transportado entre ciclos.
 - O saldo transportado passou a ser definido como relação entre ciclos, sem criação de transação artificial de `Fechamento`.
 - O saldo inicial do primeiro ciclo passou a ser tratado conceitualmente como posição de abertura confirmada pelo usuário, separada das transações financeiras.
+- Sprint 03 — Item 4 — formalizou a competência das compras no Crédito, o fechamento no dia 05, o parcelamento por competências e o fluxo de pagamento da fatura.
+- Compras no Crédito feitas do dia 01 ao 04 pertencem à fatura do próprio mês; compras feitas do dia 05 em diante pertencem à fatura do mês seguinte.
+- A primeira implementação de fatura será um agrupamento lógico por `tipo`, `forma_pagamento`, `mes` e `ano`, sem tabela física específica de `faturas`.
 
 ## Fixed
 
