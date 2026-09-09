@@ -50,7 +50,7 @@ Nenhuma regra será implementada apenas porque parece intuitiva. Quando houver m
 | Item | Tarefa | Prioridade | Status |
 |---|---|---|---|
 | 1 | Formalizar data da movimentação, competência e vencimento | 🔴 | ✅ |
-| 2 | Formalizar regra completa do ciclo financeiro | 🔴 | ⏳ |
+| 2 | Formalizar regra completa do ciclo financeiro | 🔴 | ✅ |
 | 3 | Definir modelo de saldo real, pendências e saldo transportado | 🔴 | ⏳ |
 | 4 | Formalizar comportamento de Crédito e pagamento de fatura | 🔴 | ⏳ |
 | 5 | Definir tratamento de transferências entre contas próprias | 🟠 | ⏳ |
@@ -170,31 +170,192 @@ Sem utilizar `criado_em` como data financeira e sem assumir que os três conceit
 
 ## 5. Item 2 — Ciclo financeiro
 
-Objetivo:
+**Status: Concluído.**
 
-Formalizar a regra de fechamento utilizada pelo usuário.
+### 5.1 Regra oficial
 
-Regra conhecida:
+O ciclo financeiro é definido pelas **datas reais dos recebimentos principais**.
 
-- recebimento principal ocorre no dia 30;
-- operações dos dias 30 e 31 podem pertencer ao ciclo seguinte.
+> **Um ciclo começa no dia em que o recebimento principal ocorre e termina no dia anterior ao próximo recebimento principal.**
+
+O ciclo não é definido pelo primeiro e pelo último dia do mês civil e não depende de o mês possuir 28, 29, 30 ou 31 dias.
+
+```text
+Recebimento principal A
+        ↓
+INÍCIO DO CICLO
+        │
+        │ operações do período
+        │
+        ↓
+Dia anterior ao recebimento B
+        ↓
+FIM DO CICLO
+
+Recebimento principal B
+        ↓
+INÍCIO DO PRÓXIMO CICLO
+```
+
+### 5.2 Exemplo de referência
+
+Considerando recebimentos principais em 30/08/2026 e 30/09/2026:
+
+```text
+Ciclo de SETEMBRO/2026
+
+Início: 30/08/2026
+Fim:    29/09/2026
+
+Próximo ciclo
+
+Início: 30/09/2026
+Fim:    29/10/2026
+```
+
+Assim, uma operação realizada em 31/08/2026 pertence ao ciclo de setembro, enquanto uma operação realizada em 29/09/2026 ainda pertence ao mesmo ciclo. A operação realizada em 30/09/2026 pertence ao novo ciclo.
+
+### 5.3 O ciclo acompanha a data real do recebimento
+
+O sistema não deverá assumir que o recebimento sempre acontecerá no dia 30.
+
+Se a data real do recebimento principal mudar, o limite do ciclo também muda.
 
 Exemplo:
 
 ```text
-31/08/2026 → ciclo SETEMBRO/2026
+Recebimento anterior: 30/08/2026
+Próximo recebimento:  29/09/2026
+
+Ciclo:
+30/08/2026 → 28/09/2026
+
+Novo ciclo:
+29/09/2026 → dia anterior ao próximo recebimento
 ```
 
-A definição deverá responder também:
+Portanto, a regra é **ancorada nas datas reais dos recebimentos**, e não em um número fixo do calendário.
 
-- o que acontece com operações do dia 30;
-- o que acontece com operações do dia 1;
-- como entradas são tratadas;
-- como saídas são tratadas;
-- como parcelamentos respeitam o ciclo;
-- como a competência é calculada quando houver informação de fatura.
+### 5.4 Regra para o dia do recebimento
 
-Nenhuma dessas regras será automatizada antes da decisão formal.
+O próprio dia do recebimento inicia o novo ciclo.
+
+Logo:
+
+```text
+Recebimento em 30/09
+        ↓
+30/09 pertence ao novo ciclo
+
+29/09
+        ↓
+último dia do ciclo anterior
+```
+
+Isso formaliza a regra prática de que operações dos dias 30 e 31 podem pertencer ao ciclo seguinte quando o próximo recebimento inicia esse ciclo.
+
+### 5.5 Regra para o dia 1
+
+O dia 1 não possui tratamento especial.
+
+Ele pertence ao ciclo que estiver vigente naquela data.
+
+Exemplo:
+
+```text
+30/08 → início do ciclo
+31/08
+01/09
+02/09
+...
+29/09 → fim do ciclo
+30/09 → início do próximo ciclo
+```
+
+Portanto, o calendário civil não reinicia o ciclo financeiro no dia 1.
+
+### 5.6 Entradas e saídas
+
+A classificação do ciclo é determinada pela **data em que a movimentação financeira ocorre dentro do período do ciclo**, respeitando as regras específicas de competência já definidas para situações como Crédito.
+
+Isso significa que uma entrada ou saída ocorrida entre o início e o fim do ciclo pertence àquele ciclo, salvo quando uma regra financeira específica determinar outra competência.
+
+O ciclo, portanto, não transforma automaticamente toda movimentação em uma simples regra de `mês(data_transacao)`.
+
+### 5.7 Parcelamentos
+
+Parcelamentos continuam sendo compostos por transações independentes.
+
+Cada parcela deverá possuir sua própria competência/ciclo financeiro, de acordo com o período financeiro ao qual aquela parcela pertence.
+
+O calendário civil não deve ser utilizado isoladamente para decidir a competência de uma parcela.
+
+A regra geral é:
+
+```text
+Data/obrigação da parcela
+        ↓
+identificação do ciclo vigente
+        ↓
+mes + ano da parcela
+```
+
+A lógica específica de geração das parcelas permanece no domínio de parcelamentos e deverá ser coberta pelos testes da Sprint 03. Este Item não altera a implementação existente.
+
+### 5.8 Virada de ano
+
+A virada do ano não interrompe artificialmente um ciclo.
+
+Se um ciclo atravessar dezembro e janeiro, ele continua até o dia anterior ao próximo recebimento.
+
+Exemplo:
+
+```text
+Recebimento: 30/12/2026
+Próximo:     30/01/2027
+
+Ciclo:
+30/12/2026 → 29/01/2027
+```
+
+Nesse caso, o ciclo possui início em 2026 e termina em 2027. O `mes` + `ano` utilizado pelo lançamento deverá representar o ciclo financeiro ao qual ele pertence, e não simplesmente o mês civil da data da operação.
+
+### 5.9 Limites da decisão
+
+Este Item formaliza **como o período de um ciclo é delimitado**.
+
+Ele não define ainda:
+
+- como o saldo de abertura será calculado;
+- como o saldo será transportado para o próximo ciclo;
+- como pendências afetarão saldo real ou projetado;
+- como uma fatura de Crédito será liquidada.
+
+Esses comportamentos pertencem aos Itens 3 e 4.
+
+Também não implementa ainda a determinação automática do ciclo no código de produção.
+
+### 5.10 Critério de aceite do Item 2
+
+Considera-se o Item 2 concluído quando a regra puder ser expressa sem depender do número de dias do mês:
+
+```text
+Ciclo atual:
+recebimento principal atual
+        ↓
+até
+um dia antes do próximo recebimento principal
+```
+
+E quando estiver claro que:
+
+- o dia do recebimento inicia o novo ciclo;
+- o dia anterior ao próximo recebimento encerra o ciclo atual;
+- o dia 1 não reinicia o ciclo;
+- meses com 28, 29, 30 ou 31 dias não alteram a regra;
+- a virada de ano não interrompe o ciclo;
+- parcelamentos respeitam o ciclo financeiro de cada parcela;
+- regras específicas, como Crédito, podem definir uma competência própria e serão tratadas em seus respectivos itens.
 
 ---
 
