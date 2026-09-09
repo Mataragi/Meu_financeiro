@@ -1,4 +1,4 @@
-## Financeiro Pro
+# Financeiro Pro
 
 # Decisions Log
 
@@ -41,90 +41,30 @@ Toda decisão relevante deve responder às seguintes perguntas:
 ---
 
 ## DEC-001
-
 ### O Financeiro Pro será um aplicativo de finanças pessoais.
 
-### Problema
-
-Existia a possibilidade de expandir o projeto para um sistema administrativo completo.
-
-### Decisão
-
-O projeto permanecerá focado exclusivamente em finanças pessoais.
-
-### Justificativa
-
-Manter um escopo reduzido aumenta a qualidade do produto e evita funcionalidades desnecessárias.
-
-### Impacto
-
-Todas as novas funcionalidades deverão respeitar esse foco.
+O projeto permanecerá focado exclusivamente em finanças pessoais. Manter o escopo reduzido aumenta a qualidade do produto e evita funcionalidades desnecessárias.
 
 ---
 
 ## DEC-002
-
 ### Simplicidade acima da quantidade de funcionalidades.
 
-### Problema
-
-Adicionar muitos recursos pode tornar o sistema complexo.
-
-### Decisão
-
-Priorizar uma interface simples e intuitiva.
-
-### Justificativa
-
-O objetivo do Financeiro Pro é resolver problemas rapidamente, não oferecer dezenas de telas.
-
-### Impacto
-
-Toda nova funcionalidade deverá justificar claramente seu valor.
+Toda nova funcionalidade deverá justificar claramente seu valor. O objetivo é resolver problemas rapidamente, sem transformar o produto em um sistema excessivamente complexo.
 
 ---
 
 ## DEC-003
-
 ### Interface Mobile será a principal interface do projeto.
 
-### Problema
-
-A interface Desktop e Mobile evoluíam separadamente.
-
-### Decisão
-
-A evolução do sistema será baseada na experiência Mobile.
-
-### Justificativa
-
-O principal uso do Financeiro Pro ocorre em dispositivos móveis.
-
-### Impacto
-
-A aplicação principal passa a iniciar pela experiência Mobile.
+A evolução do sistema será baseada na experiência Mobile, que é a principal forma de uso do Financeiro Pro.
 
 ---
 
 ## DEC-004
-
 ### Ações individuais devem ficar associadas ao registro.
 
-### Problema
-
-Manter botões de edição e exclusão visíveis para todas as transações aumenta a poluição visual e reduz o foco na leitura.
-
-### Decisão
-
-Ações como editar, excluir e duplicar serão exibidas somente quando o registro for expandido.
-
-### Justificativa
-
-A listagem deve priorizar visualização e permitir ações sob demanda.
-
-### Impacto
-
-A interface Mobile utiliza registros expansíveis como menu contextual.
+Editar, excluir e duplicar ficam associadas ao registro expandido, reduzindo poluição visual e mantendo a listagem focada na leitura.
 
 ---
 
@@ -133,90 +73,30 @@ A interface Mobile utiliza registros expansíveis como menu contextual.
 ---
 
 ## DEC-005
+### A tabela `transacoes` será a única fonte de dados financeiros.
 
-### A tabela "transacoes" será a única fonte de dados financeiros.
-
-### Problema
-
-Duplicação de informações entre módulos.
-
-### Decisão
-
-Centralizar o fluxo financeiro na tabela `transacoes`.
-
-### Justificativa
-
-Evita inconsistências e reduz complexidade.
-
-### Impacto
-
-Todos os módulos financeiros utilizarão essa tabela como base.
+O fluxo financeiro será centralizado em `transacoes` para evitar duplicação e inconsistência.
 
 ---
 
 ## DEC-006
-
 ### Fluxo financeiro e patrimônio serão separados.
 
-### Problema
-
-Investimentos e transferências distorcem relatórios financeiros quando tratados como despesas.
-
-### Decisão
-
-Criar um domínio específico para patrimônio.
-
-### Justificativa
-
-Fluxo financeiro e patrimônio representam conceitos diferentes.
-
-### Impacto
-
-O módulo Patrimônio será implementado futuramente sem alterar a lógica das transações.
+Investimentos e transferências não deverão distorcer relatórios financeiros tratados como despesas. Um domínio específico de patrimônio será criado futuramente.
 
 ---
 
 ## DEC-007
-
 ### Parcelamentos serão compostos por transações independentes.
 
-### Problema
-
-Era necessário controlar cada parcela individualmente.
-
-### Decisão
-
-Cada parcela será armazenada como uma transação própria.
-
-### Justificativa
-
-Permite baixa, edição, filtros e exclusão individual.
-
-### Impacto
-
-Maior flexibilidade para consultas e relatórios.
+Cada parcela será uma transação própria, permitindo baixa, edição, filtros e exclusão individual.
 
 ---
 
 ## DEC-008
-
 ### Fontes externas devem reutilizar o fluxo oficial de transações.
 
-### Problema
-
-Uma integração externa poderia criar uma segunda forma de persistência e duplicar regras de negócio.
-
-### Decisão
-
-O registrador de transações externas deve delegar a persistência ao `transaction_service`, sem acesso direto ao banco.
-
-### Justificativa
-
-Mantém uma única regra de persistência e reduz divergências entre lançamentos manuais e externos.
-
-### Impacto
-
-Novas fontes de dados devem convergir para o fluxo oficial do Financeiro Pro.
+O registrador externo delega a persistência ao `transaction_service`, sem acesso direto ao banco, para manter uma única regra oficial de persistência.
 
 ---
 
@@ -225,92 +105,32 @@ Novas fontes de dados devem convergir para o fluxo oficial do Financeiro Pro.
 ---
 
 ## DEC-009
-
 ### Utilização do Supabase como banco de dados.
 
-### Problema
-
-Era necessário substituir o armazenamento local.
-
-### Decisão
-
-Migrar para o Supabase.
-
-### Justificativa
-
-Persistência confiável, escalabilidade e simplicidade de integração.
-
-### Impacto
-
-Todos os dados passam a ser centralizados em um banco remoto.
+O Supabase foi adotado como persistência centralizada do projeto.
 
 ---
 
 ## DEC-010
-
 ### Organização modular do projeto.
 
-### Problema
-
-O crescimento do código dificultava manutenção.
-
-### Decisão
-
-Separar responsabilidades em módulos.
-
-### Estrutura
-
-- components
-- services
-- utils
-
-### Impacto
-
-Maior organização e facilidade de evolução.
+As responsabilidades são separadas principalmente em `components`, `services` e `utils`, favorecendo manutenção e evolução.
 
 ---
 
 ## DEC-011
-
 ### Documentação como parte do desenvolvimento.
 
-### Problema
-
-Decisões importantes eram registradas apenas em conversas.
-
-### Decisão
-
-Documentar arquitetura, funcionalidades e decisões do projeto.
-
-### Justificativa
-
-Garantir continuidade e facilitar futuras evoluções.
-
-### Impacto
-
-Toda mudança relevante deverá atualizar a documentação.
+Decisões relevantes devem ser documentadas para preservar contexto, reduzir retrabalho e facilitar futuras evoluções.
 
 ---
 
 ## DEC-012
-
 ### A IA será interpretadora, não autoridade financeira.
 
-### Problema
+A IA pode interpretar fontes externas e montar dados estruturados, mas o Financeiro Pro valida regras, detecta inconsistências, verifica duplicidade e executa o lançamento oficial.
 
-Uma integração com IA poderia preencher ou alterar informações sem uma regra determinística do sistema.
-
-### Decisão
-
-A IA poderá interpretar uma fonte externa e montar dados estruturados, mas o Financeiro Pro será responsável por validar as regras, detectar inconsistências, verificar duplicidade e executar o lançamento oficial.
-
-### Justificativa
-
-Preserva a confiabilidade dos dados e impede que uma interpretação externa altere silenciosamente a semântica financeira do sistema.
-
-### Impacto
-
-O fluxo futuro seguirá o princípio:
+Fluxo:
 
 ```text
 IA interpreta
@@ -325,18 +145,11 @@ Financeiro Pro registra
 ---
 
 ## DEC-013
-
 ### Categoria e forma de pagamento representam conceitos diferentes.
 
-### Problema
+A categoria responde **o que foi gasto ou recebido**. `forma_pagamento` responde **como a movimentação foi paga ou recebida**.
 
-O sistema vinha utilizando valores como `Cartão de crédito` dentro de categoria para identificar compras realizadas no crédito. Isso mistura o motivo do gasto com o meio utilizado para pagamento e dificulta filtros, somatórios e automações.
-
-### Decisão
-
-A categoria responderá **o que foi gasto ou recebido**, enquanto `forma_pagamento` responderá **como a movimentação foi paga ou recebida**.
-
-As formas de pagamento previstas são:
+Formas previstas:
 
 - PIX
 - Débito
@@ -344,166 +157,61 @@ As formas de pagamento previstas são:
 - Dinheiro
 - Outro
 
-A implementação inicial seguirá o **Plano A**: adicionar `forma_pagamento` sem migração destrutiva do histórico existente.
-
-A migração dos registros históricos será tratada posteriormente pelo **Plano C**, preservando a categoria original sempre que ela puder ser identificada com segurança e sem inventar informação ausente.
-
-### Justificativa
-
-A separação permite, por exemplo, registrar `Combustível` como categoria e `Crédito` como forma de pagamento. Também permite localizar e somar todas as compras feitas no crédito sem transformar o método de pagamento em uma categoria financeira.
-
-### Impacto
-
-Novos lançamentos deverão separar categoria e forma de pagamento. Registros históricos poderão permanecer sem `forma_pagamento` até a migração planejada.
+A implementação inicial segue o Plano A, sem migração destrutiva. A migração histórica seguirá o Plano C quando houver informação suficiente para preservar a categoria corretamente.
 
 ---
 
 ## DEC-014
-
 ### Compras no crédito começam como pendentes e tornam-se pagas quando a fatura é paga.
 
-### Problema
+Toda compra com `Crédito` inicia como `Pendente` e somente passa a `Pago` após o pagamento da fatura pelo fluxo oficial.
 
-No cartão de crédito, a compra acontece em uma data, mas o dinheiro somente sai quando a fatura é paga. Tratar a compra como uma saída já paga distorce o controle de caixa utilizado pelo usuário.
-
-### Decisão
-
-Toda compra registrada como `Crédito` deverá iniciar com status `Pendente`. Ela permanecerá pendente até que a fatura correspondente seja efetivamente paga. Após o pagamento da fatura, a transação poderá ser marcada como `Pago` por meio do fluxo oficial de baixa.
-
-A compra no Crédito pertence ao ciclo em que a fatura será paga, mantendo separado o fato de que a compra ocorreu anteriormente.
-
-Exemplo confirmado pelo usuário:
+Exemplo:
 
 ```text
-Compra de combustível
-R$ 154,66
-Forma de pagamento: Crédito
-
 Compra realizada: setembro
 Fatura paga: outubro
 Vencimento: dia 5
 
-→ lançamento financeiro no ciclo de outubro
+→ competência financeira: outubro
 → status inicial: Pendente
-→ após pagamento da fatura: Pago
+→ após pagamento: Pago
 ```
-
-A modelagem definitiva da data da compra ainda será definida antes da alteração do banco.
-
-### Justificativa
-
-Essa regra representa o comportamento financeiro real utilizado pelo usuário: a compra cria uma obrigação futura, enquanto o pagamento da fatura representa a saída efetiva do dinheiro.
-
-### Impacto
-
-O contrato de transações deverá distinguir forma de pagamento, data da movimentação, competência/ciclo e vencimento. A automação externa deverá solicitar informações ausentes em operações de crédito, em vez de inventar o ciclo da fatura ou marcar a compra como paga sem evidência de pagamento.
 
 ---
 
 ## DEC-015
-
 ### A ponte ChatGPT → Financeiro Pro será uma porta fina sobre o registrador oficial.
 
-### Problema
-
-A integração com o ChatGPT precisa receber dados interpretados sem criar um segundo caminho de persistência ou permitir que a IA acesse diretamente o banco.
-
-### Decisão
-
-Criar `services/chatgpt_bridge.py` como ponto de entrada para payloads estruturados produzidos pelo ChatGPT. A ponte prepara o payload para validação e duplicidade e somente persiste por meio do fluxo oficial após confirmação explícita.
-
-A ponte não realizará chamadas de rede, não acessará Supabase diretamente, não duplicará regras financeiras e não permitirá confirmação implícita.
-
-### Justificativa
-
-Uma porta explícita permite conectar posteriormente um mecanismo real de transporte sem alterar o domínio financeiro. A validação, normalização, deduplicação e persistência continuam centralizadas no fluxo oficial.
-
-### Impacto
-
-O Item 4 da Sprint 02 adiciona uma separação clara entre **preparar** e **confirmar**. A preparação não persiste. A confirmação revalida a proposta e verifica duplicidade novamente antes de gravar. API pública, webhook, Edge Function e processamento automático continuam fora do escopo.
+`services/chatgpt_bridge.py` recebe payloads estruturados, prepara a proposta e somente persiste após confirmação explícita. Não acessa Supabase diretamente, não duplica regras financeiras e não permite confirmação implícita.
 
 ---
 
 ## DEC-016
-
 ### Data da movimentação, competência e vencimento são conceitos independentes.
 
-### Problema
-
-Uma única data pode representar coisas diferentes no fluxo financeiro: o momento em que a operação ocorreu, o ciclo em que ela deve ser considerada e o prazo de uma obrigação. Tratar esses conceitos como equivalentes causa lançamentos em competência incorreta e dificulta automações, especialmente no Crédito.
-
-### Decisão
-
-O Financeiro Pro adotará oficialmente a seguinte semântica:
-
 ```text
-quando a operação aconteceu?
-        ↓
-   data_transacao
-
-em qual ciclo financeiro ela pertence?
-        ↓
-      mes + ano
-
-quando a obrigação deve ser paga?
-        ↓
-     vencimento
-
-quando o registro foi criado no sistema?
-        ↓
-      criado_em
+quando aconteceu?       → data_transacao
+qual ciclo/competência? → mes + ano
+quando vence?           → vencimento
+quando foi criado?      → criado_em
 ```
 
-`data_transacao` representa o fato financeiro ocorrido e não deve ser substituída por `criado_em`.
+`data_transacao` não deve ser substituída por `criado_em`. `mes` + `ano` não precisam coincidir com o mês civil de `data_transacao`.
 
-`mes` e `ano` representam a competência/ciclo financeiro explícito do lançamento e não precisam coincidir com o mês de `data_transacao`.
-
-`vencimento` representa o dia da obrigação, quando houver vencimento aplicável, e não a data de ocorrência da operação.
-
-Nenhum desses campos deverá ser preenchido por cópia automática de outro sem regra financeira explícita.
-
-### Justificativa
-
-A separação preserva o histórico real da operação sem perder o modelo de competência utilizado pelo usuário. Também cria uma base segura para definir posteriormente a regra automática de fechamento do ciclo e o tratamento das faturas de Crédito.
-
-### Exemplo
-
-Uma operação ocorrida em 31/08/2026 pode ser registrada no ciclo de setembro:
+Exemplo:
 
 ```text
 31/08/2026 → data_transacao
 SETEMBRO/2026 → mes + ano
 ```
 
-A data da operação permanece agosto, enquanto a competência financeira é setembro.
-
-### Vencimento
-
-Quando existir uma obrigação com vencimento conhecido, o sistema armazenará o dia correspondente. Quando não houver informação de vencimento aplicável, a automação não deverá inventar uma data.
-
-No Crédito, o vencimento se refere à obrigação/fatura e é semanticamente separado da data em que a compra foi realizada.
-
-### Impacto
-
-As próximas regras de ciclo financeiro, Crédito e contrato externo deverão utilizar esses conceitos explicitamente. A regra automática que calcula a competência a partir da data ainda pertence ao Item 2 da Sprint 03 e não é criada por esta decisão.
-
 ---
 
 ## DEC-017
-
 ### O ciclo financeiro é determinado pelos recebimentos principais reais.
 
-### Problema
-
-O ciclo utilizado pelo usuário não coincide necessariamente com o mês civil. Como o recebimento principal ocorre em torno do dia 30, considerar sempre o primeiro e o último dia do mês faria com que operações próximas ao recebimento fossem atribuídas ao ciclo errado.
-
-### Decisão
-
-Um ciclo financeiro começa **no dia em que o recebimento principal ocorre** e termina **no dia anterior ao próximo recebimento principal**.
-
-O dia do recebimento inicia o novo ciclo. O dia anterior ao próximo recebimento encerra o ciclo atual.
-
-O ciclo acompanha as datas reais dos recebimentos e não depende de um dia fixo do calendário.
+Um ciclo começa no dia em que o recebimento principal ocorre e termina no dia anterior ao próximo recebimento principal.
 
 Exemplo:
 
@@ -513,46 +221,94 @@ Próximo:     30/09/2026
 
 Ciclo de SETEMBRO/2026:
 30/08/2026 → 29/09/2026
-
-Próximo ciclo:
-30/09/2026 → 29/10/2026
 ```
 
-Se a data do próximo recebimento mudar, o limite do ciclo também muda:
+O dia do recebimento inicia o novo ciclo. A regra acompanha as datas reais dos recebimentos e não depende de o mês ter 28, 29, 30 ou 31 dias.
+
+---
+
+## DEC-018
+### Saldo de abertura, saldo real, saldo projetado e saldo transportado são conceitos distintos de transações.
+
+### Problema
+
+O cálculo atual não possui saldo de abertura, encerramento ou transporte formal e trata Entradas Pendentes como entradas já realizadas, enquanto Saídas Pendentes não reduzem o saldo atual. Isso mistura dinheiro efetivamente movimentado com valores previstos.
+
+### Decisão
+
+O modelo oficial passa a ser:
 
 ```text
-Recebimento anterior: 30/08/2026
-Próximo recebimento:  29/09/2026
-
-Ciclo:
-30/08/2026 → 28/09/2026
+Saldo real =
+    saldo de abertura
+    + Entradas Pagas
+    - Saídas Pagas
 ```
 
-O dia 1 não reinicia o ciclo. Meses com 28, 29, 30 ou 31 dias não alteram a regra. A virada de ano também não encerra um ciclo por si só.
+```text
+Saldo projetado =
+    saldo real
+    - Saídas Pendentes
+    + Entradas Pendentes
+```
+
+O saldo de encerramento real é o saldo real do ciclo.
+
+O saldo transportado do ciclo N é o saldo de encerramento real do ciclo N e será utilizado como saldo de abertura do ciclo N+1.
+
+```text
+Ciclo N
+saldo de encerramento
+        ↓
+Ciclo N+1
+saldo de abertura
+```
+
+O transporte é uma relação entre ciclos e **não uma nova movimentação financeira**.
+
+### Saldo inicial
+
+No primeiro ciclo controlado pelo Financeiro Pro, o saldo de abertura será informado e confirmado pelo usuário. Ele não será falsificado como uma entrada em `transacoes`.
+
+A representação persistente deverá ser própria para posição de abertura, separada dos fatos financeiros. A forma física dessa representação será definida durante a implementação.
+
+### Fechamento
+
+`Fechamento` não será tratado como tipo financeiro nem como mecanismo de transporte. O encerramento será resultado calculado do ciclo.
+
+Registros históricos eventualmente chamados `Fechamento` não serão apagados ou convertidos automaticamente. Eles deverão ser auditados antes de qualquer migração.
+
+### Alterações retroativas
+
+Como o saldo transportado é derivado do encerramento anterior, uma alteração retroativa que afete um ciclo deverá permitir recalcular os ciclos posteriores. O sistema não deverá depender de saldos de abertura digitados de forma independente para cada ciclo.
+
+### Saldo projetado
+
+A primeira implementação da projeção ficará restrita ao ciclo/horizonte explicitamente consultado. Uma projeção multi-ciclo será tratada como evolução futura.
 
 ### Justificativa
 
-Essa regra representa diretamente o funcionamento financeiro utilizado pelo usuário e elimina a dependência do calendário civil. Também permite que o sistema acompanhe alterações reais na data do recebimento sem depender de regras como `dia >= 30`.
+Separar fatos financeiros de posições de abertura e resultados de ciclo evita transações artificiais, duplicidade de saldo e distorções de relatórios. Também prepara o domínio para futura evolução da interface para Flutter.
 
 ### Impacto
 
-A competência financeira deverá ser associada ao ciclo correspondente e não simplesmente ao mês civil de `data_transacao`. Parcelamentos deverão atribuir cada parcela ao ciclo financeiro em que ela estiver enquadrada, respeitando suas regras específicas. O cálculo de saldo e o comportamento de Crédito serão definidos separadamente nos Itens 3 e 4 da Sprint 03.
+A implementação futura poderá exigir uma representação própria para saldo inicial, identificação formal dos ciclos e recálculo de ciclos dependentes. O cálculo atual permanecerá compatível até que a nova regra seja implementada e coberta por testes.
 
 ---
 
 # 6. Decisões Futuras
 
-Algumas decisões ainda dependem da evolução do projeto.
-
-Entre elas:
+Algumas decisões ainda dependem da evolução do projeto:
 
 - Flutter como próxima plataforma de interface;
 - Multiusuário;
 - API pública;
 - Open Finance;
 - Inteligência Artificial como integração operacional;
-- regra completa de saldo real, pendências e transporte entre ciclos;
-- comportamento definitivo de Crédito e pagamento de fatura;
+- identificação física dos ciclos no banco;
+- persistência definitiva do saldo de abertura;
+- política de auditoria para registros históricos de `Fechamento`;
+- comportamento de alterações retroativas entre ciclos;
 - contas e transferências entre contas próprias;
 - contrato definitivo de fontes externas;
 - migração histórica da forma de pagamento.
@@ -563,21 +319,13 @@ Essas decisões serão registradas quando forem oficialmente aprovadas.
 
 # 7. Processo para novas decisões
 
-Sempre que uma decisão impactar:
-
-- arquitetura;
-- banco de dados;
-- experiência do usuário;
-- regras de negócio;
-- organização do projeto;
-
-ela deverá ser registrada neste documento.
+Sempre que uma decisão impactar arquitetura, banco de dados, experiência do usuário, regras de negócio ou organização do projeto, ela deverá ser registrada neste documento.
 
 ---
 
 # 8. Princípios
 
-As decisões do Financeiro Pro devem seguir os seguintes princípios:
+As decisões do Financeiro Pro devem seguir:
 
 - Simplicidade.
 - Clareza.
@@ -590,10 +338,4 @@ As decisões do Financeiro Pro devem seguir os seguintes princípios:
 
 # 9. Considerações Finais
 
-O objetivo deste documento não é impedir mudanças.
-
-Seu objetivo é garantir que toda mudança importante seja consciente, registrada e compreendida.
-
-Toda decisão poderá ser revisada no futuro.
-
-Entretanto, nenhuma decisão relevante deverá existir sem uma justificativa documentada.
+O objetivo deste documento não é impedir mudanças. É garantir que toda mudança importante seja consciente, registrada e compreendida.
