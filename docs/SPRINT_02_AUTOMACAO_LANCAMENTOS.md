@@ -2,7 +2,7 @@
 
 # Sprint 02 — Automação de Lançamentos
 
-**Status:** Em desenvolvimento
+**Status:** Em validação final
 
 **Objetivo:** preparar o Financeiro Pro para receber movimentações de fontes externas, especialmente comprovantes interpretados por IA, sem comprometer a confiabilidade dos dados financeiros.
 
@@ -45,8 +45,8 @@ Supabase
 | 1 | Criar registrador de transações externas | ✅ Concluído |
 | 2 | Definir contrato e regras de entrada | 🔄 Em definição |
 | 3 | Criar porta de integração ChatGPT → Financeiro Pro | ✅ Concluído |
-| 4 | Implementar confirmação antes do lançamento | 🔄 Em validação |
-| 5 | Validar fluxo ponta a ponta | ⏳ Pendente |
+| 4 | Implementar confirmação antes do lançamento | ✅ Concluído |
+| 5 | Validar fluxo ponta a ponta | ✅ Concluído |
 
 ---
 
@@ -265,7 +265,7 @@ Evolução futura poderá incorporar identificador externo, referência do compr
 
 ## 11. Item 4 — Confirmação antes do lançamento
 
-Implementação inicial concluída e em validação.
+Concluído.
 
 O fluxo foi separado em duas etapas explícitas:
 
@@ -301,7 +301,26 @@ Não foi criado estado persistente adicional, tabela auxiliar ou mecanismo de fi
 
 ---
 
-## 12. Fora do escopo desta etapa
+## 12. Item 5 — Validação ponta a ponta
+
+Concluído.
+
+Foi criado `tests/test_external_transaction_e2e.py` para validar o caminho completo entre a ponte ChatGPT e a camada de persistência, mantendo o repositório real substituído apenas por um repositório falso de teste.
+
+Cenários cobertos:
+
+- payload válido percorre a ponte, preparação, confirmação e `transaction_service` até o repositório;
+- nenhuma persistência ocorre antes da confirmação;
+- duplicidade é identificada na preparação;
+- duplicidade continua protegida na confirmação;
+- proposta alterada para um valor inválido é rejeitada na confirmação;
+- o repositório só recebe dados após todas as validações oficiais.
+
+O teste não acessa Supabase real e não cria dados financeiros de teste no banco de produção.
+
+---
+
+## 13. Fora do escopo desta etapa
 
 Não fazem parte da implementação atual:
 
@@ -321,7 +340,7 @@ Esses recursos somente serão considerados quando houver necessidade real e cont
 
 ---
 
-## 13. Próximas decisões obrigatórias
+## 14. Próximas decisões obrigatórias
 
 Antes da automação completa, devem ser definidas:
 
@@ -337,9 +356,11 @@ Antes da automação completa, devem ser definidas:
 10. comportamento para dados incompletos ou ambíguos;
 11. estratégia de migração histórica da forma de pagamento.
 
+Essas decisões permanecem como backlog de evolução e não bloqueiam a validação do fluxo técnico da Sprint 02. O contrato utilizado nesta Sprint é explicitamente provisório.
+
 ---
 
-## 14. Critério de conclusão da Sprint
+## 15. Critério de conclusão da Sprint
 
 A Sprint 02 somente será considerada concluída quando uma fonte externa puder:
 
@@ -356,3 +377,5 @@ ser registrada pelo fluxo oficial de transações
 ```
 
 sem duplicar regras, acessar o banco diretamente ou alterar silenciosamente a semântica financeira do sistema.
+
+O Item 5 comprova tecnicamente esse fluxo por meio de teste ponta a ponta. A validação final da Sprint depende apenas da execução da suíte no ambiente local após sincronização do commit.
