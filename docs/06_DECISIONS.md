@@ -166,16 +166,20 @@ A implementação inicial segue o Plano A, sem migração destrutiva. A migraç�
 
 Toda compra com `Crédito` inicia como `Pendente` e somente passa a `Pago` após o pagamento da fatura pelo fluxo oficial.
 
+Enquanto estiver pendente, a compra não reduz o saldo real, mas compõe a projeção de saída do ciclo da fatura.
+
 Exemplo:
 
 ```text
-Compra realizada: setembro
-Fatura paga: outubro
+Compra realizada: 09/09/2026
+Fatura: outubro/2026
 Vencimento: dia 5
 
-→ competência financeira: outubro
+→ data_transacao: 09/09/2026
+→ competência: OUTUBRO/2026
+→ forma_pagamento: Crédito
 → status inicial: Pendente
-→ após pagamento: Pago
+→ após pagamento da fatura: Pago
 ```
 
 ---
@@ -296,6 +300,113 @@ A implementação futura poderá exigir uma representação própria para saldo 
 
 ---
 
+## DEC-019
+### O fechamento do Crédito ocorre antes do dia 05, e o dia 05 já pertence à próxima fatura.
+
+### Decisão
+
+A competência da primeira parcela de uma compra no Crédito será determinada pela data real da compra:
+
+```text
+Dia 01 a 04
+→ primeira parcela na competência do próprio mês
+
+Dia 05 em diante
+→ primeira parcela na competência do mês seguinte
+```
+
+Exemplos:
+
+```text
+04/09/2026 → primeira parcela em SETEMBRO
+05/09/2026 → primeira parcela em OUTUBRO
+09/09/2026 → primeira parcela em OUTUBRO
+```
+
+Em compras parceladas, as parcelas seguintes avançam uma competência por vez.
+
+Exemplo:
+
+```text
+Compra em 09/09/2026 em 3x
+
+1ª → OUTUBRO
+2ª → NOVEMBRO
+3ª → DEZEMBRO
+```
+
+### Justificativa
+
+A regra representa o comportamento real da fatura utilizada pelo usuário e permite determinar a competência sem alterar a data real da compra.
+
+---
+
+## DEC-020
+### A fatura será inicialmente um agrupamento lógico de lançamentos de Crédito.
+
+Na primeira implementação, não será criada uma tabela física específica de `faturas`.
+
+Uma fatura será representada logicamente pelos lançamentos que atendem:
+
+```text
+tipo = Saída
+forma_pagamento = Crédito
+mes + ano = competência da fatura
+```
+
+Para a ação de pagamento, somente registros `Pendente` serão liquidados.
+
+A criação futura de uma entidade física de fatura dependerá de uma necessidade real que não possa ser resolvida pelo modelo atual.
+
+---
+
+## DEC-021
+### `Pagar Fatura` será uma ação em lote que liquida os lançamentos de Crédito pendentes da competência selecionada.
+
+A ação deverá localizar:
+
+```text
+tipo = Saída
+forma_pagamento = Crédito
+status = Pendente
+mes + ano = competência da fatura
+```
+
+Antes da execução, o usuário deverá confirmar a quantidade de lançamentos e o valor total.
+
+Após a confirmação:
+
+```text
+Pendente → Pago
+```
+
+Nenhum lançamento será apagado, consolidado ou transformado em outro tipo de transação.
+
+As ações individuais dos cards continuam disponíveis para editar, excluir, duplicar e dar baixa quando necessário.
+
+### Impacto no saldo
+
+Antes do pagamento:
+
+```text
+Saldo real → não é reduzido
+Saldo projetado → considera a saída pendente
+```
+
+Após o pagamento:
+
+```text
+Saída passa a ser Paga
+        ↓
+compor o saldo real
+```
+
+### Justificativa
+
+A baixa em lote reproduz a operação real de pagamento da fatura e elimina a necessidade de selecionar manualmente cada parcela ou compra de Crédito.
+
+---
+
 # 6. Decisões Futuras
 
 Algumas decisões ainda dependem da evolução do projeto:
@@ -311,7 +422,8 @@ Algumas decisões ainda dependem da evolução do projeto:
 - comportamento de alterações retroativas entre ciclos;
 - contas e transferências entre contas próprias;
 - contrato definitivo de fontes externas;
-- migração histórica da forma de pagamento.
+- migração histórica da forma de pagamento;
+- múltiplos cartões, caso essa necessidade seja incorporada ao domínio futuramente.
 
 Essas decisões serão registradas quando forem oficialmente aprovadas.
 
