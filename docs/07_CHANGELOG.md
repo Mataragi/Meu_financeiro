@@ -65,6 +65,7 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - A ponte ChatGPT passou a separar preparação e confirmação, evitando persistência automática durante a recepção do payload.
 - Sprint 02 — Automação de Lançamentos — foi concluída após validação ponta a ponta do fluxo externo.
 - Sprint 03 — Item 1 — formalizou a semântica de `data_transacao`, `mes` + `ano`, `vencimento` e `criado_em`, mantendo esses conceitos separados.
+- Sprint 03 — Item 2 — formalizou o ciclo financeiro como o período entre um recebimento principal e o dia anterior ao próximo recebimento principal, acompanhando as datas reais dos recebimentos.
 
 ## Fixed
 
