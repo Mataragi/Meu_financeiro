@@ -2,7 +2,7 @@
 
 # Sprint 03 — Formalização do Modelo Financeiro
 
-**Status:** Planejada
+**Status:** Em desenvolvimento
 
 **Objetivo:** transformar as regras financeiras já identificadas durante as Sprints 01 e 02 em um modelo explícito, consistente e testável antes de novas automações ou alterações estruturais no banco.
 
@@ -49,7 +49,7 @@ Nenhuma regra será implementada apenas porque parece intuitiva. Quando houver m
 
 | Item | Tarefa | Prioridade | Status |
 |---|---|---|---|
-| 1 | Formalizar data da movimentação, competência e vencimento | 🔴 | ⏳ |
+| 1 | Formalizar data da movimentação, competência e vencimento | 🔴 | ✅ |
 | 2 | Formalizar regra completa do ciclo financeiro | 🔴 | ⏳ |
 | 3 | Definir modelo de saldo real, pendências e saldo transportado | 🔴 | ⏳ |
 | 4 | Formalizar comportamento de Crédito e pagamento de fatura | 🔴 | ⏳ |
@@ -61,23 +61,57 @@ Nenhuma regra será implementada apenas porque parece intuitiva. Quando houver m
 
 ## 4. Item 1 — Data da movimentação, competência e vencimento
 
-Objetivo:
+**Status: Concluído.**
 
-Definir sem ambiguidade a diferença entre:
+### 4.1 Definições oficiais
 
-- `data_transacao`: quando a operação ocorreu;
-- `mes` + `ano`: ciclo/competência financeira ao qual o lançamento pertence;
-- `vencimento`: dia em que a obrigação deve ser paga, quando aplicável.
+O modelo financeiro passa a tratar três conceitos diferentes:
 
-Regra já estabelecida:
+**`data_transacao`**
+
+Representa a data em que a operação financeira efetivamente aconteceu.
+
+Ela descreve o fato financeiro e não o momento em que o registro foi criado no sistema.
 
 ```text
 data_transacao ≠ criado_em
 ```
 
-`criado_em` representa o momento em que o registro foi criado e não deve ser usado como data da operação financeira.
+`criado_em` continua representando o momento de criação do registro e não deve ser utilizado como substituto da data da operação.
 
-Exemplo já confirmado:
+**`mes` + `ano`**
+
+Representam a competência/ciclo financeiro ao qual o lançamento pertence.
+
+Essa competência é uma informação financeira explícita e não deve ser confundida automaticamente com o mês de `data_transacao`.
+
+**`vencimento`**
+
+Representa o dia em que uma obrigação deve ser paga, quando existir uma obrigação com vencimento aplicável.
+
+Portanto, `vencimento` não é a data em que a operação necessariamente aconteceu.
+
+### 4.2 Regra de separação
+
+```text
+QUANDO aconteceu?
+       ↓
+ data_transacao
+
+EM QUAL ciclo financeiro será considerado?
+       ↓
+ mes + ano
+
+QUANDO a obrigação vence?
+       ↓
+ vencimento
+```
+
+Os três campos possuem semânticas diferentes e não devem ser preenchidos por cópia automática de um para outro sem regra explícita.
+
+### 4.3 Exemplo confirmado
+
+Uma operação realizada em 31/08/2026 pode pertencer ao ciclo financeiro de setembro:
 
 ```text
 31/08/2026
@@ -86,10 +120,51 @@ data_transacao
 
 SETEMBRO/2026
     ↓
-competência financeira
+mes + ano
 ```
 
-A Sprint deverá transformar essa distinção em regra operacional completa.
+O fato de a operação ter ocorrido em agosto não obriga o lançamento a pertencer à competência de agosto.
+
+### 4.4 Regra para vencimento
+
+O sistema não deve inferir o vencimento simplesmente a partir de `data_transacao`.
+
+Quando não existir informação de vencimento aplicável, o campo deverá permanecer ausente/nulo conforme o contrato do fluxo de entrada.
+
+Quando existir um vencimento conhecido, ele deverá ser registrado como o dia da obrigação correspondente.
+
+Para operações de Crédito, o vencimento está associado à obrigação/fatura e não à data em que a compra foi realizada.
+
+### 4.5 Consequência para automações
+
+Uma fonte externa deverá informar ou permitir confirmar separadamente:
+
+- quando a operação ocorreu;
+- em qual competência/ciclo ela deve ser registrada;
+- qual é o vencimento, quando houver.
+
+A automação não deverá preencher silenciosamente esses campos usando uma única data como fonte para todos os significados.
+
+### 4.6 Limites desta decisão
+
+Este item não implementa ainda a regra automática que transforma uma `data_transacao` em `mes` + `ano`.
+
+Também não define a regra completa de fechamento do ciclo, pois essa decisão pertence ao Item 2.
+
+O comportamento específico de Crédito e fatura será aprofundado no Item 4.
+
+### 4.7 Critério de aceite do Item 1
+
+Considera-se o Item 1 concluído quando o sistema e sua documentação reconhecem que:
+
+```text
+data_transacao = fato ocorrido
+mes + ano       = competência/ciclo financeiro
+vencimento      = dia da obrigação, quando aplicável
+criado_em       = momento de criação do registro
+```
+
+Sem utilizar `criado_em` como data financeira e sem assumir que os três conceitos são intercambiáveis.
 
 ---
 
