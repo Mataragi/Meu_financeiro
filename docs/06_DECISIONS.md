@@ -439,7 +439,7 @@ A transferência altera apenas a rota utilizada para executar uma despesa que j�
 
 ### Limite
 
-Não será criado nesta Sprint um domínio completo de contas bancárias, contas do casal ou transferências internas apenas para representar esse comportamento operacional.
+Não será criado nesta Sprint um domínio completo de contas bancárias, contas do casal ou transferências internas apenas para representar esse comportamento.
 
 ---
 
@@ -478,6 +478,94 @@ O controle detalhado de patrimônio, posições, investimentos e contas/corretor
 
 ---
 
+## DEC-024
+### A nomenclatura financeira oficial passa a usar `Receita` e `Despesa`.
+
+Os conceitos anteriormente apresentados na interface e em parte do código como `Entrada` e `Saída` passam a ser denominados oficialmente:
+
+```text
+Entrada → Receita
+Saída   → Despesa
+```
+
+A semântica permanece:
+
+```text
+Receita = dinheiro que entra no patrimônio familiar vindo de fora
+Despesa = dinheiro efetivamente gasto
+```
+
+### Categoria e forma de pagamento
+
+A categoria representa a **finalidade econômica** da movimentação. A forma de pagamento representa **como a movimentação foi paga ou recebida**.
+
+Categorias oficiais:
+
+- Moradia
+- Utilidades
+- Mercado
+- Alimentação
+- Transporte
+- Saúde
+- Educação
+- Família
+- Lazer & Presentes
+- Cuidados pessoais
+- Dívidas
+- Outros
+- Sem categoria
+
+Formas de pagamento:
+
+- PIX
+- Débito
+- Crédito
+- Dinheiro
+- Outro
+
+`Cartão Crédito Luiz` não deverá permanecer como categoria. Informação de cartão pertence ao conceito de forma de pagamento.
+
+### Contrato de lançamentos externos
+
+O contrato externo definitivo deverá separar os seguintes campos:
+
+```text
+descricao
+valor
+tipo
+status
+categoria
+forma_pagamento
+data_transacao
+mes
+ano
+vencimento
+```
+
+Para o contrato oficial:
+
+- `tipo` utiliza `Receita` ou `Despesa`;
+- `status` utiliza `Pago` ou `Pendente`;
+- `mes` + `ano` representam a competência/ciclo financeiro;
+- `data_transacao` representa a data real da operação;
+- `vencimento` é opcional quando não existe obrigação futura;
+- `categoria` não deve carregar a informação de forma de pagamento;
+- dados ausentes ou ambíguos não devem ser inventados pela fonte externa.
+
+Quando a transação for uma compra no `Crédito`, o lançamento deverá respeitar as regras da DEC-014 e DEC-019.
+
+### Justificativa
+
+A nova nomenclatura melhora a linguagem da futura interface e torna o domínio mais claro. A separação entre categoria e forma de pagamento evita categorias híbridas e prepara relatórios, filtros, gráficos e automações confiáveis.
+
+### Impacto
+
+A alteração de nomenclatura não autoriza migração histórica automática. Registros existentes com `Entrada`, `Saída`, `Cartão Crédito Luiz`, `Contas` ou outras classificações antigas deverão ser auditados antes de qualquer migração.
+
+A mudança de código e banco será realizada de forma incremental, preservando compatibilidade durante a transição.
+
+---
+
 # 6. Decisões Futuras
 
 Algumas decisões ainda dependem da evolução do projeto:
@@ -492,7 +580,6 @@ Algumas decisões ainda dependem da evolução do projeto:
 - política de auditoria para registros históricos de `Fechamento`;
 - comportamento de alterações retroativas entre ciclos;
 - contas e transferências entre contas próprias;
-- contrato definitivo de fontes externas;
 - migração histórica da forma de pagamento;
 - múltiplos cartões, caso essa necessidade seja incorporada ao domínio futuramente.
 
