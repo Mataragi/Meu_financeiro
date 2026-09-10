@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 from services import external_transaction_service as registrar
+from components.mobile_helpers import vencimento_seguro
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
 from utils.tipo_transacao import normalizar_tipos_dataframe
 
@@ -97,7 +98,6 @@ def test_leitura_historica_preserva_tipo_desconhecido_sem_interromper_dataframe(
     assert list(dados["tipo"]) == ["Entrada", "Classificação antiga", "Saida"]
 
 
-@pytest.mark.xfail(reason="Vencimento opcional ainda não foi implementado no contrato externo.")
 def test_contrato_externo_aceita_vencimento_ausente_quando_nao_existe_obrigacao():
     payload = {
         "descricao": "Compra PIX",
@@ -115,6 +115,10 @@ def test_contrato_externo_aceita_vencimento_ausente_quando_nao_existe_obrigacao(
     proposta = registrar.preparar_transacao_externa(payload)
 
     assert proposta["payload"]["vencimento"] is None
+
+
+def test_formulario_preserva_ausencia_de_vencimento():
+    assert vencimento_seguro(None) is None
 
 
 def test_credito_permanece_pendente_no_modelo_externo():

@@ -65,8 +65,13 @@ def render_mobile_transaction_form(ano, mes):
         else:
             status = st.selectbox("Status", [STATUS_PENDENTE, STATUS_PAGO])
 
-        vencimento = st.number_input(
-            "Dia do vencimento", min_value=1, max_value=31, value=10, step=1
+        possui_vencimento = st.checkbox("Possui vencimento", value=False)
+        vencimento = (
+            st.number_input(
+                "Dia do vencimento", min_value=1, max_value=31, value=10, step=1
+            )
+            if possui_vencimento
+            else None
         )
         total_parcelas = st.number_input(
             "Quantidade de parcelas", min_value=1, max_value=60, value=1, step=1
@@ -156,13 +161,22 @@ def _render_edicao_inline(registro):
         index=0 if registro.get("status") == STATUS_PENDENTE else 1,
         key=f"edit_status_inline_{registro_id}",
     )
-    novo_vencimento = st.number_input(
-        "Dia do vencimento",
-        min_value=1,
-        max_value=31,
-        value=vencimento_seguro(registro.get("vencimento")),
-        step=1,
-        key=f"edit_vencimento_inline_{registro_id}",
+    possui_vencimento = st.checkbox(
+        "Possui vencimento",
+        value=registro.get("vencimento") is not None,
+        key=f"possui_vencimento_inline_{registro_id}",
+    )
+    novo_vencimento = (
+        st.number_input(
+            "Dia do vencimento",
+            min_value=1,
+            max_value=31,
+            value=vencimento_seguro(registro.get("vencimento")),
+            step=1,
+            key=f"edit_vencimento_inline_{registro_id}",
+        )
+        if possui_vencimento
+        else None
     )
 
     data_existente = _data_transacao_para_formulario(registro)

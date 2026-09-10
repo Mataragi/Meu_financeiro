@@ -122,6 +122,26 @@ def test_duplicar_registro_cria_copia_pendente(transaction_service):
     assert repository.inseridos == [[novo]]
 
 
+def test_duplicar_registro_preserva_vencimento_ausente(transaction_service):
+    service, repository = transaction_service
+
+    registro = {
+        "ano": 2026,
+        "mes": "SETEMBRO",
+        "descricao": "Compra PIX",
+        "valor": 80.0,
+        "tipo": "Despesa",
+        "status": STATUS_PAGO,
+        "categoria": "Mercado",
+        "vencimento": None,
+    }
+
+    novo = service.duplicar_registro(registro, "OUTUBRO", 2026)
+
+    assert novo["vencimento"] is None
+    assert repository.inseridos == [[novo]]
+
+
 def test_duplicar_registro_rejeita_mes_invalido(transaction_service):
     service, repository = transaction_service
 

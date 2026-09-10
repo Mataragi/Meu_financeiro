@@ -85,14 +85,15 @@ def _normalizar_payload(dados):
         raise ValueError("Ano inválido.")
 
     vencimento = dados["vencimento"]
-    if isinstance(vencimento, bool):
-        raise ValueError("Vencimento inválido.")
-    try:
-        vencimento = int(vencimento)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("Vencimento inválido.") from exc
-    if not 1 <= vencimento <= 31 or str(dados["vencimento"]).strip() != str(vencimento):
-        raise ValueError("Vencimento deve estar entre 1 e 31.")
+    if vencimento is not None:
+        if isinstance(vencimento, bool):
+            raise ValueError("Vencimento inválido.")
+        try:
+            vencimento = int(vencimento)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("Vencimento inválido.") from exc
+        if not 1 <= vencimento <= 31 or str(dados["vencimento"]).strip() != str(vencimento):
+            raise ValueError("Vencimento deve estar entre 1 e 31.")
 
     forma_pagamento = normalizar_forma_pagamento(dados["forma_pagamento"])
     data_transacao = transaction_service.normalizar_data_transacao(

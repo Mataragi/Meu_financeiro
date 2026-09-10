@@ -67,6 +67,16 @@ def test_credito_forca_status_pendente(monkeypatch):
     assert fake.inseridos[0][0]["status"] == "Pendente"
 
 
+def test_vencimento_ausente_e_preservado_no_payload_e_na_persistencia(monkeypatch):
+    fake = FakeTransactionService()
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    payload = {**PAYLOAD, "vencimento": None}
+
+    assert registrar.registrar_transacao_externa(payload) is True
+    assert fake.inseridos == [[{**payload, "tipo": "Despesa", "status": "Pago"}]]
+
+
 @pytest.mark.parametrize(
     "alteracao",
     [

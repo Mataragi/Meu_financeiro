@@ -20,10 +20,10 @@ def formatar_data(valor):
 def vencimento_seguro(valor):
     try:
         if pd.isna(valor):
-            return 10
+            return None
         return int(float(valor))
     except (TypeError, ValueError):
-        return 10
+        return None
 
 
 def calcular_metricas(df_base):
