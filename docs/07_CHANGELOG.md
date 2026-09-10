@@ -46,6 +46,9 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Sprint 03 — Item 4 — formalizou a competência das compras no Crédito, o fechamento no dia 05, o parcelamento por competências e o fluxo de pagamento da fatura.
 - Compras no Crédito feitas do dia 01 ao 04 pertencem à fatura do próprio mês; compras feitas do dia 05 em diante pertencem à fatura do mês seguinte.
 - A primeira implementação de fatura será um agrupamento lógico por `tipo`, `forma_pagamento`, `mes` e `ano`, sem tabela física específica de `faturas`.
+- Sprint 03 — Item 5 — formalizou que transferências entre contas do casal usadas apenas como rota de pagamento não serão registradas como novas receitas ou despesas.
+- Movimentações entre a conta familiar e a corretora foram formalmente separadas do fluxo de receitas e despesas, evitando que aportes ou retiradas de patrimônio sejam contabilizados como despesa ou receita.
+- O domínio completo de contas, investimentos e patrimônio permanece como evolução futura, sem criação de infraestrutura específica nesta Sprint.
 
 ## Fixed
 
