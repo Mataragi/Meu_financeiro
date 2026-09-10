@@ -83,7 +83,7 @@ def _render_metrics(df_base):
     coluna_pago, coluna_pendente, coluna_saldo = st.columns(3)
     coluna_pago.metric("Pago", formatar_real(pagos))
     coluna_pendente.metric("Pendente", formatar_real(pendentes))
-    coluna_saldo.metric("Saldo", formatar_real(saldo))
+    coluna_saldo.metric("Saldo calculado", formatar_real(saldo))
 
 
 def render_mobile():

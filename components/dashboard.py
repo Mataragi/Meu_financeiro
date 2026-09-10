@@ -6,7 +6,7 @@ from services.transaction_service import (
     excluir_multiplos_do_mes,
     gerar_backup_transacoes,
 )
-from utils.financeiro import calcular_saldo
+from utils.financeiro import calcular_saldo_real
 from utils.formatacao import colorir_status, formatar_real
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
 from utils.tipo_transacao import TIPO_DESPESA
@@ -40,7 +40,7 @@ def render_dashboard():
     c1,c2,c3 = st.columns(3)
     c1.metric("Pago", f"R$ {pagos:,.2f}")
     c2.metric("Pendente", f"R$ {pend:,.2f}")
-    c3.metric("Saldo", f"R$ {calcular_saldo(df):,.2f}")
+    c3.metric("Saldo calculado", f"R$ {calcular_saldo_real(df, saldo_abertura=0):,.2f}")
 
     df['criado_em'] = pd.to_datetime(df['criado_em']).dt.strftime('%d/%m/%y %H:%M')
 

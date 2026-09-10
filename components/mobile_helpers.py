@@ -3,6 +3,7 @@ from datetime import date, datetime
 import pandas as pd
 
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
+from utils.financeiro import calcular_saldo_real
 from utils.tipo_transacao import TIPO_DESPESA, TIPO_RECEITA, normalizar_tipos_dataframe
 
 
@@ -41,9 +42,7 @@ def calcular_metricas(df_base):
 
     pagos = df[(status == STATUS_PAGO) & saidas]["valor"].sum()
     pendentes = df[(status == STATUS_PENDENTE) & saidas]["valor"].sum()
-    entradas_total = df[entradas]["valor"].sum()
-
-    return pagos, pendentes, entradas_total - pagos
+    return pagos, pendentes, calcular_saldo_real(df, saldo_abertura=0)
 
 
 def filtrar_status(df, status_view):
