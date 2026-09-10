@@ -56,7 +56,7 @@ Nenhuma regra será implementada apenas porque parece intuitiva. Quando houver m
 | 3 | Definir modelo de saldo real, pendências e saldo transportado | 🔴 | ✅ |
 | 4 | Formalizar comportamento de Crédito e pagamento de fatura | 🔴 | ✅ |
 | 5 | Definir tratamento de transferências entre contas próprias | 🟠 | ✅ |
-| 6 | Formalizar contrato definitivo para lançamentos externos | 🟠 | ⏳ |
+| 6 | Formalizar contrato definitivo para lançamentos externos | 🟠 | ✅ |
 | 7 | Criar testes das regras financeiras formalizadas | 🔴 | ⏳ |
 
 ---
@@ -558,31 +558,208 @@ quando representar apenas movimentação de patrimônio já pertencente à famí
 
 ## 9. Item 6 — Contrato definitivo de lançamentos externos
 
-**Status: Pendente.**
+**Status: Concluído.**
 
-O contrato da Sprint 02 é provisório e deverá ser revisado após a formalização das regras financeiras.
+O contrato foi consolidado após a formalização do modelo financeiro e passa a adotar a nomenclatura e as separações de domínio aprovadas.
 
-A revisão deverá tratar especialmente:
+### 9.1 Payload oficial
 
-- forma de pagamento;
-- data da movimentação;
-- competência;
-- vencimento;
-- Crédito;
-- transferências internas;
-- dados ambíguos ou ausentes.
+O lançamento externo deverá ser estruturado com os campos:
 
-A fonte externa não deverá inventar ou completar silenciosamente informações financeiras.
+```text
+descricao
+valor
+tipo
+status
+categoria
+forma_pagamento
+data_transacao
+mes
+ano
+vencimento
+```
+
+### 9.2 Semântica dos campos
+
+```text
+descricao        = o que aconteceu
+valor            = valor positivo da movimentação
+tipo             = Receita ou Despesa
+status           = Pago ou Pendente
+categoria        = finalidade econômica
+forma_pagamento  = como foi pago ou recebido
+data_transacao  = data real da operação
+mes + ano        = competência/ciclo financeiro
+vencimento       = dia da obrigação, quando existir
+```
+
+### 9.3 Regras obrigatórias
+
+- A fonte externa não poderá inventar informações ausentes ou ambíguas.
+- `categoria` não poderá carregar informação de forma de pagamento.
+- `Cartão Crédito Luiz` não é categoria; a informação de crédito pertence a `forma_pagamento`.
+- Compra no `Crédito` inicia como `Pendente` e segue as regras de competência da fatura.
+- `vencimento` é opcional quando não existir obrigação futura.
+- `data_transacao` não será substituída por `criado_em`.
+- O lançamento externo deverá reutilizar o fluxo oficial de validação, duplicidade, confirmação e persistência.
+
+### 9.4 Taxonomia oficial de categorias
+
+```text
+Moradia
+Utilidades
+Mercado
+Alimentação
+Transporte
+Saúde
+Educação
+Família
+Lazer & Presentes
+Cuidados pessoais
+Dívidas
+Outros
+Sem categoria
+```
+
+### 9.5 Formas de pagamento
+
+```text
+PIX
+Débito
+Crédito
+Dinheiro
+Outro
+```
+
+Quando a origem externa não conseguir determinar a forma de pagamento de forma confiável, o sistema poderá usar `Não informado` em vez de inventar um valor.
+
+### 9.6 Nomenclatura do tipo
+
+O domínio adota oficialmente:
+
+```text
+Entrada → Receita
+Saída   → Despesa
+```
+
+A mudança do vocabulário no código e a migração dos registros históricos ocorrerão de forma incremental, com compatibilidade e testes. O Item 6 trata da formalização do contrato e não autoriza migração destrutiva de dados.
+
+### 9.7 Critério de aceite
+
+O Item 6 é considerado concluído quando o contrato externo estiver definido de forma suficiente para que qualquer fonte externa possa produzir uma proposta estruturada sem decidir silenciosamente regras do Financeiro Pro.
 
 ---
 
 ## 10. Item 7 — Testes das regras financeiras
 
-**Status: Pendente.**
+**Status: Em preparação.**
 
-Cada regra formalizada deverá possuir cobertura automatizada antes de alterar o comportamento principal.
+A auditoria inicial da suíte existente identificou cobertura consistente para parcelamentos, normalização de status, duplicidade e fluxo ChatGPT → preparação → confirmação → Transaction Service → Repository, mas ainda não existe cobertura específica suficiente para o novo modelo financeiro formalizado na Sprint 03.
 
-Os testes deverão priorizar casos de borda de ciclo, saldo, Crédito, transferências e dados históricos.
+### 10.1 Problemas identificados
+
+A suíte atual ainda contém expectativas baseadas na nomenclatura legada `Entrada` / `Saída`, enquanto a nomenclatura oficial do domínio passou a ser `Receita` / `Despesa`.
+
+Também foi identificado que o cálculo atual de saldo ainda representa o comportamento legado, sem saldo de abertura e sem saldo projetado formal. Portanto, os testes do novo modelo não devem apenas copiar o comportamento atual: devem proteger explicitamente as regras aprovadas antes de conectá-las ao fluxo de produção.
+
+### 10.2 Estratégia de testes
+
+Os testes serão organizados em blocos:
+
+#### Bloco A — Contrato básico
+
+- `Receita` e `Despesa` como tipos oficiais;
+- `Pago` e `Pendente`;
+- valor positivo;
+- categoria separada de forma de pagamento;
+- `vencimento` opcional;
+- `data_transacao` independente de `criado_em`;
+- competência independente da data civil da operação.
+
+#### Bloco B — Ciclo financeiro
+
+- ciclo iniciado no recebimento principal;
+- término no dia anterior ao próximo recebimento;
+- recebimento no dia 30;
+- recebimento no dia 31;
+- recebimento antecipado;
+- recebimento atrasado;
+- virada de dezembro para janeiro;
+- dia 1 sem reinicialização artificial.
+
+#### Bloco C — Saldos
+
+- saldo de abertura positivo;
+- saldo de abertura negativo;
+- ciclo sem transações;
+- ciclo sem receitas;
+- ciclo sem despesas;
+- receitas pagas e pendentes;
+- despesas pagas e pendentes;
+- saldo real negativo;
+- saldo projetado negativo;
+- saldo transportado positivo;
+- saldo transportado negativo;
+- recálculo de ciclos posteriores após alteração retroativa.
+
+#### Bloco D — Crédito e fatura
+
+- compra no dia 04;
+- compra no dia 05;
+- compra no dia 09;
+- compra parcelada;
+- virada de ano no parcelamento;
+- Crédito iniciando como pendente;
+- pagamento da fatura transformando os lançamentos em pagos;
+- `Pagar Fatura` afetando somente Crédito pendente da competência selecionada.
+
+#### Bloco E — Transferências e patrimônio
+
+- transferência entre contas do casal não gera nova receita/despesa;
+- transferência para corretora não gera despesa;
+- retorno de patrimônio da corretora não gera receita quando for apenas devolução de dinheiro próprio.
+
+#### Bloco F — Automação externa
+
+- payload válido;
+- payload com tipo inválido;
+- payload com forma de pagamento inválida;
+- payload com data inválida;
+- payload sem campo obrigatório do contrato;
+- payload com `vencimento` ausente quando não existir obrigação futura;
+- compra no Crédito forçando o status inicial correto;
+- duplicidade bloqueada na preparação;
+- duplicidade bloqueada novamente na confirmação;
+- alteração da proposta entre preparação e confirmação sendo revalidada;
+- ausência de persistência antes da confirmação.
+
+### 10.3 Compatibilidade histórica
+
+Os testes deverão considerar que registros históricos podem ainda conter nomenclatura ou classificação legadas. A evolução do código deverá preservar compatibilidade durante a transição e não poderá depender de uma migração cega de registros.
+
+### 10.4 Ordem de implementação
+
+A construção dos testes seguirá:
+
+```text
+Teste desejado
+      ↓
+execução contra o comportamento atual
+      ↓
+identificação da divergência
+      ↓
+implementação mínima necessária
+      ↓
+teste verde
+```
+
+Nenhuma migração de dados históricos será realizada como parte automática da criação dos testes.
+
+### 10.5 Critério de aceite
+
+O Item 7 será considerado concluído quando as regras financeiras relevantes da Sprint 03 estiverem cobertas por testes automatizados, incluindo casos normais, casos de borda e comportamentos de segurança contra regressão.
+
+A suíte deverá permanecer verde antes de qualquer alteração posterior de interface ou automação.
 
 ---
 
