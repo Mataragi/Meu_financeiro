@@ -44,7 +44,7 @@ def test_registra_payload_valido_reutilizando_transaction_service(monkeypatch):
     monkeypatch.setattr(registrar, "transaction_service", fake)
 
     assert registrar.registrar_transacao_externa(PAYLOAD) is True
-    assert fake.inseridos == [[{**PAYLOAD, "status": "Pago"}]]
+    assert fake.inseridos == [[{**PAYLOAD, "tipo": "Despesa", "status": "Pago"}]]
 
 
 def test_status_e_normalizado(monkeypatch):
@@ -138,7 +138,10 @@ def test_preparacao_valida_sem_persistir(monkeypatch):
 
     proposta = registrar.preparar_transacao_externa(PAYLOAD)
 
-    assert proposta == {"payload": {**PAYLOAD, "status": "Pago"}, "duplicada": False}
+    assert proposta == {
+        "payload": {**PAYLOAD, "tipo": "Despesa", "status": "Pago"},
+        "duplicada": False,
+    }
     assert fake.inseridos == []
     assert fake.consultas == [("SETEMBRO", 2026)]
 
@@ -161,7 +164,7 @@ def test_confirmacao_registra_proposta_valida(monkeypatch):
     assert fake.inseridos == []
 
     assert registrar.confirmar_transacao_externa(proposta) is True
-    assert fake.inseridos == [[{**PAYLOAD, "status": "Pago"}]]
+    assert fake.inseridos == [[{**PAYLOAD, "tipo": "Despesa", "status": "Pago"}]]
 
 
 def test_confirmacao_revalida_e_impede_duplicidade(monkeypatch):

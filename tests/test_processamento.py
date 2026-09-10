@@ -34,14 +34,14 @@ def test_processar_extrato_identifica_entradas_saidas_e_ignora_linhas_vazias():
             "mes": "ABRIL",
             "descricao": "Mercado",
             "valor": 1234.56,
-            "tipo": "saída",
+            "tipo": "Despesa",
             "status": STATUS_PAGO,
         },
         {
             "mes": "ABRIL",
             "descricao": "Salário",
             "valor": 100.0,
-            "tipo": "entrada",
+            "tipo": "Receita",
             "status": STATUS_PAGO,
         },
     ]
@@ -60,7 +60,7 @@ def test_processar_extrato_ignora_linha_invalida_sem_interromper_processamento()
             "mes": "ABRIL",
             "descricao": "Receita",
             "valor": 50.0,
-            "tipo": "entrada",
+            "tipo": "Receita",
             "status": STATUS_PAGO,
         }
     ]

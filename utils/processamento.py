@@ -1,6 +1,7 @@
 import pandas as pd
 
 from utils.status import STATUS_PAGO
+from utils.tipo_transacao import TIPO_DESPESA, TIPO_RECEITA
 
 
 def tratar_valor(v):
@@ -41,11 +42,11 @@ def processar_extrato(df):
 
             if saida not in ["nan", "0,00", "0", ""]:
                 valor = abs(tratar_valor(saida))
-                tipo = "saída"
+                tipo = TIPO_DESPESA
 
             elif entrada not in ["nan", "0,00", "0", ""]:
                 valor = tratar_valor(entrada)
-                tipo = "entrada"
+                tipo = TIPO_RECEITA
 
             else:
                 continue

@@ -11,10 +11,10 @@ from collections.abc import Mapping
 from services import transaction_service
 from utils.forma_pagamento import normalizar_forma_pagamento
 from utils.status import normalizar_status_para_persistencia, STATUS_PENDENTE
+from utils.tipo_transacao import normalizar_tipo
 
 
 MESES_VALIDOS = frozenset(transaction_service.MESES_ORDEM)
-TIPOS_VALIDOS = {"ENTRADA": "Entrada", "SAÍDA": "Saída", "SAIDA": "Saída"}
 CAMPOS_OBRIGATORIOS = frozenset(
     {
         "descricao",
@@ -68,10 +68,7 @@ def _normalizar_payload(dados):
     if not math.isfinite(valor) or valor <= 0:
         raise ValueError("O valor deve ser um número maior que zero.")
 
-    tipo_bruto = _texto_obrigatorio(dados, "tipo").upper()
-    tipo = TIPOS_VALIDOS.get(tipo_bruto)
-    if tipo is None:
-        raise ValueError("Tipo inválido. Use 'Entrada' ou 'Saída'.")
+    tipo = normalizar_tipo(_texto_obrigatorio(dados, "tipo"))
 
     mes = _texto_obrigatorio(dados, "mes").upper()
     if mes not in MESES_VALIDOS:
@@ -137,7 +134,7 @@ def _chave_deduplicacao(dados):
         elif campo == "valor":
             valor = _valor_comparavel(valor)
         elif campo == "tipo":
-            valor = TIPOS_VALIDOS.get(str(valor).strip().upper(), valor)
+            valor = normalizar_tipo(valor)
         elif campo == "mes":
             valor = str(valor).strip().upper()
         elif campo == "status":

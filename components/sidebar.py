@@ -7,6 +7,7 @@ from services.transaction_service import (
     inserir_dados,
 )
 from utils.processamento import ler_extrato, processar_extrato
+from utils.tipo_transacao import TIPO_DESPESA, TIPO_RECEITA
 
 
 MESES = [
@@ -39,7 +40,7 @@ def render_sidebar():
         if st.session_state.limpar_form:
             st.session_state.desc_input = ""
             st.session_state.valor_input = 0.0
-            st.session_state.tipo_input = "Saída"
+            st.session_state.tipo_input = TIPO_DESPESA
             st.session_state.status_input = "Pendente"
             st.session_state.limpar_form = False
 
@@ -47,7 +48,7 @@ def render_sidebar():
         mes = st.selectbox("Mês", MESES, key="mes_input")
         desc = st.text_input("Descrição", key="desc_input")
         valor = st.number_input("Valor", min_value=0.0, key="valor_input")
-        tipo = st.radio("Tipo", ["Saída", "Entrada"], key="tipo_input")
+        tipo = st.radio("Tipo", [TIPO_DESPESA, TIPO_RECEITA], key="tipo_input")
         status = st.selectbox("Status", ["Pendente", "Pago"], key="status_input")
 
         if st.button("Salvar"):

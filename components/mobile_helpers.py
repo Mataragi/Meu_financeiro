@@ -3,6 +3,7 @@ from datetime import date, datetime
 import pandas as pd
 
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
+from utils.tipo_transacao import TIPO_DESPESA, TIPO_RECEITA, normalizar_tipos_dataframe
 
 
 def formatar_data(valor):
@@ -30,13 +31,13 @@ def calcular_metricas(df_base):
         return 0, 0, 0
 
     df = df_base.copy()
+    df = normalizar_tipos_dataframe(df)
     df["valor"] = df["valor"].astype(float)
 
-    tipo = df["tipo"].astype(str).str.lower()
     status = df["status"]
 
-    saidas = tipo.isin(["saida", "saída"])
-    entradas = tipo == "entrada"
+    saidas = df["tipo"] == TIPO_DESPESA
+    entradas = df["tipo"] == TIPO_RECEITA
 
     pagos = df[(status == STATUS_PAGO) & saidas]["valor"].sum()
     pendentes = df[(status == STATUS_PENDENTE) & saidas]["valor"].sum()

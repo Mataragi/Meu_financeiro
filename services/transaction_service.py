@@ -10,6 +10,7 @@ from utils.status import (
     normalizar_status,
     normalizar_status_para_persistencia,
 )
+from utils.tipo_transacao import normalizar_tipo, normalizar_tipos_dataframe
 
 
 MESES_ORDEM = [
@@ -40,6 +41,9 @@ def normalizar_data_transacao(valor):
 def normalizar_dados_transacao(dados):
     normalizados = dict(dados)
 
+    if "tipo" in normalizados:
+        normalizados["tipo"] = normalizar_tipo(normalizados["tipo"])
+
     if "status" in normalizados:
         normalizados["status"] = normalizar_status_para_persistencia(
             normalizados["status"]
@@ -59,6 +63,7 @@ def normalizar_dados_transacao(dados):
 
 
 def normalizar_transacoes_dataframe(df):
+    df = normalizar_tipos_dataframe(df)
     if "status" in df.columns:
         df["status"] = df["status"].map(normalizar_status)
 
@@ -91,7 +96,7 @@ def duplicar_registro(registro, destino_mes, destino_ano):
         "mes": destino_mes,
         "descricao": registro.get("descricao", ""),
         "valor": registro.get("valor", 0),
-        "tipo": registro.get("tipo", "Saída"),
+        "tipo": registro.get("tipo", "Despesa"),
         "status": STATUS_PENDENTE,
         "categoria": registro.get("categoria", "Sem categoria"),
         "vencimento": registro.get("vencimento"),

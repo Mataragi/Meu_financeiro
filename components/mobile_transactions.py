@@ -19,6 +19,7 @@ from services.transaction_service import (
 from utils.forma_pagamento import FORMAS_PAGAMENTO
 from utils.formatacao import formatar_real
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
+from utils.tipo_transacao import TIPO_DESPESA, TIPO_RECEITA
 
 
 FORMAS_PAGAMENTO_NOVO = list(FORMAS_PAGAMENTO)
@@ -51,7 +52,7 @@ def render_mobile_transaction_form(ano, mes):
         valor = st.number_input("Valor", min_value=0.0)
         categoria = st.selectbox("Categoria", CATEGORIAS)
         forma_pagamento = st.selectbox("Forma de pagamento", FORMAS_PAGAMENTO_NOVO)
-        tipo = st.selectbox("Tipo", ["Saída", "Entrada"])
+        tipo = st.selectbox("Tipo", [TIPO_DESPESA, TIPO_RECEITA])
         data_transacao = st.date_input(
             "Data da transação",
             value=date.today(),

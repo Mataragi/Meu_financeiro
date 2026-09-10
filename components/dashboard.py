@@ -9,6 +9,7 @@ from services.transaction_service import (
 from utils.financeiro import calcular_saldo
 from utils.formatacao import colorir_status, formatar_real
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
+from utils.tipo_transacao import TIPO_DESPESA
 
 MESES = ["TODOS","JANEIRO","FEVEREIRO","MARÇO","ABRIL","MAIO","JUNHO",
          "JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"]
@@ -34,8 +35,8 @@ def render_dashboard():
 
     df['valor'] = pd.to_numeric(df['valor'])
 
-    pagos = df[(df['status'] == STATUS_PAGO) & (df['tipo'].str.lower().isin(['saida','saída']))]['valor'].sum()
-    pend = df[(df['status'] == STATUS_PENDENTE) & (df['tipo'].str.lower().isin(['saida','saída']))]['valor'].sum()
+    pagos = df[(df['status'] == STATUS_PAGO) & (df['tipo'] == TIPO_DESPESA)]['valor'].sum()
+    pend = df[(df['status'] == STATUS_PENDENTE) & (df['tipo'] == TIPO_DESPESA)]['valor'].sum()
     c1,c2,c3 = st.columns(3)
     c1.metric("Pago", f"R$ {pagos:,.2f}")
     c2.metric("Pendente", f"R$ {pend:,.2f}")

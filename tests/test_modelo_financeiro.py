@@ -12,6 +12,7 @@ import pytest
 
 from services import external_transaction_service as registrar
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
+from utils.tipo_transacao import normalizar_tipos_dataframe
 
 
 @pytest.mark.parametrize(
@@ -23,7 +24,6 @@ from utils.status import STATUS_PAGO, STATUS_PENDENTE
         ("DESPESA", "Despesa"),
     ],
 )
-@pytest.mark.xfail(reason="Vocabulário Receita/Despesa ainda será migrado no código de produção.")
 def test_contrato_externo_usa_receita_e_despesa(tipo, esperado):
     payload = {
         "descricao": "Teste",
@@ -33,7 +33,7 @@ def test_contrato_externo_usa_receita_e_despesa(tipo, esperado):
         "mes": "SETEMBRO",
         "ano": 2026,
         "categoria": "Outros",
-        "vencimento": None,
+        "vencimento": 10,
         "forma_pagamento": "PIX",
         "data_transacao": date(2026, 9, 10),
     }
@@ -41,6 +41,60 @@ def test_contrato_externo_usa_receita_e_despesa(tipo, esperado):
     normalizado = registrar._normalizar_payload(payload)
 
     assert normalizado["tipo"] == esperado
+
+
+@pytest.mark.parametrize(
+    ("tipo", "esperado"),
+    [("Entrada", "Receita"), ("Saída", "Despesa"), ("Saida", "Despesa")],
+)
+def test_contrato_externo_preserva_compatibilidade_com_tipos_legados(tipo, esperado):
+    payload = {
+        "descricao": "Histórico",
+        "valor": 100.0,
+        "tipo": tipo,
+        "status": "Pago",
+        "mes": "SETEMBRO",
+        "ano": 2026,
+        "categoria": "Outros",
+        "vencimento": 10,
+        "forma_pagamento": "PIX",
+        "data_transacao": "2026-09-10",
+    }
+
+    assert registrar._normalizar_payload(payload)["tipo"] == esperado
+
+
+def test_contrato_externo_rejeita_tipo_invalido():
+    payload = {
+        "descricao": "Teste",
+        "valor": 100.0,
+        "tipo": "Transferência",
+        "status": "Pago",
+        "mes": "SETEMBRO",
+        "ano": 2026,
+        "categoria": "Outros",
+        "vencimento": 10,
+        "forma_pagamento": "PIX",
+        "data_transacao": "2026-09-10",
+    }
+
+    with pytest.raises(ValueError, match="Tipo inválido"):
+        registrar._normalizar_payload(payload)
+
+
+def test_leitura_historica_preserva_tipo_desconhecido_sem_interromper_dataframe():
+    dados = pd.DataFrame(
+        [
+            {"tipo": "Entrada", "valor": 100.0},
+            {"tipo": "Classificação antiga", "valor": 50.0},
+            {"tipo": "Saida", "valor": 25.0},
+        ]
+    )
+
+    normalizado = normalizar_tipos_dataframe(dados)
+
+    assert list(normalizado["tipo"]) == ["Receita", "Classificação antiga", "Despesa"]
+    assert list(dados["tipo"]) == ["Entrada", "Classificação antiga", "Saida"]
 
 
 @pytest.mark.xfail(reason="Vencimento opcional ainda não foi implementado no contrato externo.")
