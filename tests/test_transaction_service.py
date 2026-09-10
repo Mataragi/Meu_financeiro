@@ -158,6 +158,95 @@ def test_normaliza_data_transacao(transaction_service):
     assert service.normalizar_data_transacao(date(2026, 9, 7)) == "2026-09-07"
 
 
+def test_parcelamento_credito_inicia_na_competencia_calculada(transaction_service):
+    service, repository = transaction_service
+
+    service.inserir_parcelado(
+        ano=2026,
+        mes="SETEMBRO",
+        descricao="Compra Crédito",
+        valor_total=300.0,
+        tipo="Despesa",
+        status=STATUS_PAGO,
+        categoria="Mercado",
+        total_parcelas=3,
+        forma_pagamento="Crédito",
+        data_transacao="2026-09-09",
+    )
+
+    assert [registro["mes"] for registro in repository.inseridos[0]] == [
+        "OUTUBRO", "NOVEMBRO", "DEZEMBRO"
+    ]
+    assert all(registro["ano"] == 2026 for registro in repository.inseridos[0])
+    assert all(registro["status"] == STATUS_PENDENTE for registro in repository.inseridos[0])
+    assert all(registro["data_transacao"] == "2026-09-09" for registro in repository.inseridos[0])
+
+
+def test_parcelamento_credito_antes_do_fechamento_inicia_no_mes_atual(transaction_service):
+    service, repository = transaction_service
+
+    service.inserir_parcelado(
+        ano=2026,
+        mes="SETEMBRO",
+        descricao="Compra Crédito antes do fechamento",
+        valor_total=300.0,
+        tipo="Despesa",
+        status=STATUS_PAGO,
+        categoria="Mercado",
+        total_parcelas=3,
+        forma_pagamento="Crédito",
+        data_transacao="2026-09-04",
+    )
+
+    assert [registro["mes"] for registro in repository.inseridos[0]] == [
+        "SETEMBRO", "OUTUBRO", "NOVEMBRO"
+    ]
+    assert all(registro["ano"] == 2026 for registro in repository.inseridos[0])
+
+
+def test_parcelamento_credito_preserva_competencia_sem_data_da_compra(transaction_service):
+    service, repository = transaction_service
+
+    service.inserir_parcelado(
+        ano=2026,
+        mes="SETEMBRO",
+        descricao="Compra histórica",
+        valor_total=80.0,
+        tipo="Despesa",
+        status=STATUS_PAGO,
+        categoria="Mercado",
+        total_parcelas=1,
+        forma_pagamento="Crédito",
+        data_transacao=None,
+    )
+
+    registro = repository.inseridos[0][0]
+    assert (registro["mes"], registro["ano"]) == ("SETEMBRO", 2026)
+    assert registro["data_transacao"] is None
+    assert registro["status"] == STATUS_PENDENTE
+
+
+def test_parcelamento_nao_credito_preserva_mes_e_ano_informados(transaction_service):
+    service, repository = transaction_service
+
+    service.inserir_parcelado(
+        ano=2026,
+        mes="SETEMBRO",
+        descricao="Compra PIX",
+        valor_total=80.0,
+        tipo="Despesa",
+        status=STATUS_PAGO,
+        categoria="Mercado",
+        total_parcelas=1,
+        forma_pagamento="PIX",
+        data_transacao="2026-09-09",
+    )
+
+    registro = repository.inseridos[0][0]
+    assert (registro["mes"], registro["ano"]) == ("SETEMBRO", 2026)
+    assert registro["status"] == STATUS_PAGO
+
+
 def test_rejeita_data_transacao_invalida(transaction_service):
     service, _ = transaction_service
 

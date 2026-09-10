@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 from services import external_transaction_service as registrar
+from services.transaction_service import calcular_competencia_credito
 from components.mobile_helpers import vencimento_seguro
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
 from utils.tipo_transacao import normalizar_tipos_dataframe
@@ -266,12 +267,18 @@ def test_movimentacao_patrimonial_nao_deve_ser_classificada_como_receita_ou_desp
 @pytest.mark.parametrize(
     ("data_compra", "competencia_esperada"),
     [
-        (4, "SETEMBRO"),
-        (5, "OUTUBRO"),
-        (9, "OUTUBRO"),
+        (1, ("SETEMBRO", 2026)),
+        (4, ("SETEMBRO", 2026)),
+        (5, ("OUTUBRO", 2026)),
+        (9, ("OUTUBRO", 2026)),
+        (30, ("OUTUBRO", 2026)),
+        (date(2026, 10, 31), ("NOVEMBRO", 2026)),
+        (date(2026, 12, 31), ("JANEIRO", 2027)),
+        (date(2027, 1, 1), ("JANEIRO", 2027)),
+        (date(2027, 1, 4), ("JANEIRO", 2027)),
+        (date(2027, 1, 5), ("FEVEREIRO", 2027)),
     ],
 )
-@pytest.mark.xfail(reason="A regra de fechamento do Crédito ainda não possui função de domínio dedicada.")
 def test_fechamento_credito_determina_competencia(data_compra, competencia_esperada):
-    # Especificação: dia 01-04 => próprio mês; dia 05+ => mês seguinte.
-    assert registrar.calcular_competencia_credito(date(2026, 9, data_compra)) == competencia_esperada
+    data = data_compra if isinstance(data_compra, date) else date(2026, 9, data_compra)
+    assert calcular_competencia_credito(data) == competencia_esperada

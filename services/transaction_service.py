@@ -38,6 +38,21 @@ def normalizar_data_transacao(valor):
     raise ValueError("Data da transação inválida.")
 
 
+def calcular_competencia_credito(data_transacao):
+    """Calcula mês e ano da fatura a partir da data real da compra."""
+    data_normalizada = normalizar_data_transacao(data_transacao)
+    if data_normalizada is None:
+        raise ValueError("Data da transação é necessária para calcular a competência do Crédito.")
+
+    data = date.fromisoformat(data_normalizada)
+    incremento = 0 if data.day <= 4 else 1
+    return calcular_mes_ano_parcela(
+        MESES_ORDEM[data.month - 1],
+        data.year,
+        incremento,
+    )
+
+
 def normalizar_dados_transacao(dados):
     normalizados = dict(dados)
 
@@ -148,6 +163,9 @@ def inserir_parcelado(
     )
     data_normalizada = normalizar_data_transacao(data_transacao)
     status_inicial = normalizar_status_para_persistencia(status)
+
+    if forma_normalizada == "Crédito" and data_normalizada is not None:
+        mes, ano = calcular_competencia_credito(data_normalizada)
 
     if forma_normalizada == "Crédito":
         status_inicial = STATUS_PENDENTE
