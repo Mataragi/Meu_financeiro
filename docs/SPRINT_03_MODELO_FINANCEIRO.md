@@ -22,7 +22,7 @@ A Sprint 03 formaliza:
 - saldo projetado;
 - saldo transportado entre ciclos;
 - compras no Crédito;
-- transferências entre contas próprias;
+- transferências internas e movimentações patrimoniais relevantes;
 - comportamento de dados incompletos em automações.
 
 O foco é definir a verdade financeira do sistema antes de automatizá-la.
@@ -55,7 +55,7 @@ Nenhuma regra será implementada apenas porque parece intuitiva. Quando houver m
 | 2 | Formalizar regra completa do ciclo financeiro | 🔴 | ✅ |
 | 3 | Definir modelo de saldo real, pendências e saldo transportado | 🔴 | ✅ |
 | 4 | Formalizar comportamento de Crédito e pagamento de fatura | 🔴 | ✅ |
-| 5 | Definir tratamento de transferências entre contas próprias | 🟠 | ⏳ |
+| 5 | Definir tratamento de transferências entre contas próprias | 🟠 | ✅ |
 | 6 | Formalizar contrato definitivo para lançamentos externos | 🟠 | ⏳ |
 | 7 | Criar testes das regras financeiras formalizadas | 🔴 | ⏳ |
 
@@ -477,19 +477,82 @@ Sem confundir `categoria` com `forma_pagamento` e sem alterar a `data_transacao`
 
 ## 8. Item 5 — Transferências entre contas próprias
 
-**Status: Pendente.**
+**Status: Concluído.**
 
-Objetivo: evitar que transferências entre contas do próprio usuário sejam interpretadas como renda ou despesa.
+### 8.1 Regra mínima
 
-O modelo deverá distinguir, quando aplicável:
+Transferências entre contas do casal utilizadas apenas para viabilizar o pagamento de uma compra não serão registradas como movimentações financeiras independentes.
+
+Exemplo:
 
 ```text
-Entrada real
-Saída real
-Transferência interna
+Sua conta
+   ↓ transferência
+Conta da esposa
+   ↓ PIX
+Compra X
 ```
 
-A criação do domínio completo de contas não faz parte automaticamente desta Sprint. Primeiro será definida a regra mínima necessária para que transferências internas não distorçam o fluxo financeiro.
+O Financeiro Pro registra somente a compra real:
+
+```text
+Descrição: Compra X
+Valor: R$ X
+Tipo: Saída
+Forma de pagamento: PIX
+```
+
+A transferência intermediária não será tratada como Entrada, Saída ou nova despesa.
+
+### 8.2 Justificativa
+
+A transferência altera somente a rota utilizada para executar uma despesa que já ocorreu. Registrá-la criaria duplicidade e poderia distorcer o saldo e os relatórios.
+
+### 8.3 Corretora e patrimônio
+
+Movimentações entre a conta familiar e a corretora possuem tratamento diferente das transferências operacionais entre as contas do casal.
+
+```text
+Conta familiar → Corretora
+R$ 3.000
+```
+
+não é despesa.
+
+```text
+Corretora → Conta familiar
+R$ 3.000
+```
+
+não é receita quando representar apenas retorno de dinheiro já pertencente à família.
+
+Essas movimentações representam alteração de localização patrimonial, não geração ou consumo de recursos.
+
+### 8.4 Limite de escopo
+
+Não será criado nesta Sprint um domínio completo de contas bancárias, contas do casal, investimentos ou patrimônio apenas para representar esses casos.
+
+O controle detalhado de patrimônio, posições, investimentos e contas/corretoras permanece como evolução futura.
+
+### 8.5 Critério de aceite
+
+O Item 5 é considerado formalizado quando o modelo impedir que:
+
+```text
+transferência operacional entre contas do casal
+        ↓
+seja contabilizada como nova despesa/receita
+```
+
+e que:
+
+```text
+conta familiar ↔ corretora
+        ↓
+seja contabilizada como receita/despesa
+```
+
+quando representar apenas movimentação de patrimônio já pertencente à família.
 
 ---
 
