@@ -407,6 +407,77 @@ A baixa em lote reproduz a operação real de pagamento da fatura e elimina a ne
 
 ---
 
+## DEC-022
+### Transferências entre contas do casal usadas apenas como rota de pagamento não serão registradas como movimentações financeiras.
+
+Quando uma transferência entre contas próprias ocorrer apenas para viabilizar o pagamento de uma compra, o Financeiro Pro deverá registrar somente a compra real.
+
+Exemplo:
+
+```text
+Sua conta
+   ↓ transferência
+Conta da esposa
+   ↓ PIX
+Compra X
+```
+
+O registro financeiro será somente:
+
+```text
+Descrição: Compra X
+Valor: R$ X
+Tipo: Saída
+Forma de pagamento: PIX
+```
+
+A transferência intermediária não será tratada como Entrada, Saída ou nova despesa.
+
+### Justificativa
+
+A transferência altera apenas a rota utilizada para executar uma despesa que já ocorreu. Registrá-la criaria duplicidade e distorceria o saldo e os relatórios.
+
+### Limite
+
+Não será criado nesta Sprint um domínio completo de contas bancárias, contas do casal ou transferências internas apenas para representar esse comportamento operacional.
+
+---
+
+## DEC-023
+### Movimentações entre a conta familiar e a corretora não são receita nem despesa.
+
+Valores enviados da conta familiar para a corretora representam movimentação patrimonial/investimento, e não uma despesa.
+
+Valores retornados da corretora para a conta familiar representam retorno de patrimônio, e não uma nova receita, quando forem apenas a devolução de dinheiro já pertencente à família.
+
+Exemplo:
+
+```text
+Conta familiar → Corretora
+R$ 3.000
+
+→ não é despesa
+```
+
+```text
+Corretora → Conta familiar
+R$ 3.000
+
+→ não é receita
+```
+
+O mesmo valor não poderá ser contabilizado simultaneamente como saída e entrada do fluxo financeiro apenas por ter mudado de localização patrimonial.
+
+### Justificativa
+
+Receitas e despesas devem representar geração ou consumo de recursos no fluxo financeiro. Transferências para a corretora alteram a posição patrimonial, mas não representam consumo de recursos da família.
+
+### Limite
+
+O controle detalhado de patrimônio, posições, investimentos e contas/corretoras permanece como evolução futura. Esta decisão apenas impede que essas movimentações distorçam o fluxo financeiro atual.
+
+---
+
 # 6. Decisões Futuras
 
 Algumas decisões ainda dependem da evolução do projeto:
