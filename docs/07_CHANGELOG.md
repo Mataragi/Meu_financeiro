@@ -21,6 +21,7 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Revalidação e nova checagem de duplicidade no momento da confirmação antes da persistência.
 - Teste ponta a ponta do fluxo ChatGPT → preparação → confirmação → Transaction Service → Repository.
 - Formalização da ação futura `Pagar Fatura` como baixa em lote dos lançamentos de Crédito pendentes da competência selecionada.
+- Taxonomia oficial de categorias financeiras para separar finalidade econômica de forma de pagamento e preparar futuras análises e gráficos.
 
 ## Changed
 
@@ -49,6 +50,13 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Sprint 03 — Item 5 — formalizou que transferências entre contas do casal usadas apenas como rota de pagamento não serão registradas como novas receitas ou despesas.
 - Movimentações entre a conta familiar e a corretora foram formalmente separadas do fluxo de receitas e despesas, evitando que aportes ou retiradas de patrimônio sejam contabilizados como despesa ou receita.
 - O domínio completo de contas, investimentos e patrimônio permanece como evolução futura, sem criação de infraestrutura específica nesta Sprint.
+- Sprint 03 — Item 6 — consolidou o contrato externo conceitual: payloads devem separar descrição, valor, tipo, status, categoria, forma de pagamento, data da transação, competência e vencimento.
+- A nomenclatura financeira do domínio passa a usar `Receita` e `Despesa` em lugar de `Entrada` e `Saída`.
+- `Receita` representa dinheiro que entra no patrimônio familiar vindo de fora; `Despesa` representa dinheiro efetivamente gasto.
+- `categoria` representa a finalidade econômica da movimentação, enquanto `forma_pagamento` representa como a movimentação foi paga ou recebida.
+- O contrato externo passa a tratar `vencimento` como opcional quando não existir obrigação futura, evitando datas artificiais em operações já liquidadas.
+- A IA continua responsável por interpretar e propor dados estruturados, enquanto o Financeiro Pro permanece responsável por validar regras, normalizar dados, verificar duplicidade e persistir lançamentos após confirmação.
+- A migração histórica de `Entrada`/`Saída` para `Receita`/`Despesa`, assim como a reorganização histórica das categorias, permanece separada da formalização do contrato para ser executada de forma controlada e testada.
 
 ## Fixed
 
