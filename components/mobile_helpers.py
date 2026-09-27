@@ -27,9 +27,12 @@ def vencimento_seguro(valor):
         return None
 
 
-def calcular_metricas(df_base):
+def calcular_metricas(df_base, saldo_abertura=None):
     if df_base.empty:
-        return 0, 0, 0
+        return 0, 0, calcular_saldo_real(
+            df_base,
+            saldo_abertura=0 if saldo_abertura is None else saldo_abertura,
+        )
 
     df = df_base.copy()
     df = normalizar_tipos_dataframe(df)
@@ -42,7 +45,10 @@ def calcular_metricas(df_base):
 
     pagos = df[(status == STATUS_PAGO) & saidas]["valor"].sum()
     pendentes = df[(status == STATUS_PENDENTE) & saidas]["valor"].sum()
-    return pagos, pendentes, calcular_saldo_real(df, saldo_abertura=0)
+    return pagos, pendentes, calcular_saldo_real(
+        df,
+        saldo_abertura=0 if saldo_abertura is None else saldo_abertura,
+    )
 
 
 def filtrar_status(df, status_view):

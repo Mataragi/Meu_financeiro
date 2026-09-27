@@ -26,6 +26,14 @@ def render_dashboard():
 
     ano = st.selectbox("Ano", ANOS, key="ano_filtro")
     mes = st.selectbox("📅 Mês", MESES, key="mes_filtro")
+    saldo_abertura = st.number_input(
+        "Saldo de abertura",
+        value=None,
+        placeholder="Não informado",
+        step=0.01,
+        format="%.2f",
+        key="saldo_abertura_dashboard",
+    )
 
     df = carregar_dados(mes, ano)
 
@@ -40,7 +48,15 @@ def render_dashboard():
     c1,c2,c3 = st.columns(3)
     c1.metric("Pago", f"R$ {pagos:,.2f}")
     c2.metric("Pendente", f"R$ {pend:,.2f}")
-    c3.metric("Saldo calculado", f"R$ {calcular_saldo_real(df, saldo_abertura=0):,.2f}")
+    rotulo_saldo = (
+        "Saldo calculado (com abertura)"
+        if saldo_abertura is not None
+        else "Saldo calculado (abertura não informada)"
+    )
+    c3.metric(
+        rotulo_saldo,
+        f"R$ {calcular_saldo_real(df, saldo_abertura=saldo_abertura or 0):,.2f}",
+    )
 
     df['criado_em'] = pd.to_datetime(df['criado_em']).dt.strftime('%d/%m/%y %H:%M')
 

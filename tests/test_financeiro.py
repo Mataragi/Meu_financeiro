@@ -1,5 +1,6 @@
 import pandas as pd
 
+from components.mobile_helpers import calcular_metricas
 from utils.financeiro import calcular_saldo, calcular_saldo_projetado, calcular_saldo_real
 
 
@@ -117,3 +118,23 @@ def test_saldo_de_todos_os_meses_mantem_o_ano_do_periodo_consultado():
     todos_2026 = df[df["ano"] == 2026]
 
     assert calcular_saldo_real(todos_2026, saldo_abertura=1000.0) == 1400.0
+
+
+def test_metricas_da_interface_usam_abertura_informada():
+    df = pd.DataFrame(
+        [{"tipo": "Receita", "status": "Pago", "valor": 600.0}]
+    )
+
+    _, _, saldo = calcular_metricas(df, saldo_abertura=1000.0)
+
+    assert saldo == 1600.0
+
+
+def test_metricas_da_interface_deixam_abertura_ausente_como_fallback_tecnico():
+    df = pd.DataFrame(
+        [{"tipo": "Despesa", "status": "Pago", "valor": 300.0}]
+    )
+
+    _, _, saldo = calcular_metricas(df, saldo_abertura=None)
+
+    assert saldo == -300.0

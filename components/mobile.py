@@ -75,23 +75,36 @@ def _render_filters():
         FORMA_PAGAMENTO_VIEW,
         key="forma_pagamento_view_mobile",
     )
-    return ano, mes, status_view, forma_pagamento_view
+    saldo_abertura = st.number_input(
+        "Saldo de abertura",
+        value=None,
+        placeholder="Não informado",
+        step=0.01,
+        format="%.2f",
+        key="saldo_abertura_mobile",
+    )
+    return ano, mes, status_view, forma_pagamento_view, saldo_abertura
 
 
-def _render_metrics(df_base):
-    pagos, pendentes, saldo = calcular_metricas(df_base)
+def _render_metrics(df_base, saldo_abertura):
+    pagos, pendentes, saldo = calcular_metricas(df_base, saldo_abertura)
     coluna_pago, coluna_pendente, coluna_saldo = st.columns(3)
     coluna_pago.metric("Pago", formatar_real(pagos))
     coluna_pendente.metric("Pendente", formatar_real(pendentes))
-    coluna_saldo.metric("Saldo calculado", formatar_real(saldo))
+    rotulo_saldo = (
+        "Saldo calculado (com abertura)"
+        if saldo_abertura is not None
+        else "Saldo calculado (abertura não informada)"
+    )
+    coluna_saldo.metric(rotulo_saldo, formatar_real(saldo))
 
 
 def render_mobile():
     _render_select_style()
-    ano, mes, status_view, forma_pagamento_view = _render_filters()
+    ano, mes, status_view, forma_pagamento_view, saldo_abertura = _render_filters()
     df_base = pd.DataFrame() if mes == "Selecione" else carregar_dados(mes, ano)
 
-    _render_metrics(df_base)
+    _render_metrics(df_base, saldo_abertura)
     st.divider()
     render_mobile_transaction_form(ano, mes)
 
