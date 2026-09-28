@@ -1,8 +1,10 @@
+from datetime import date
+
 import pandas as pd
 import streamlit as st
 
 from components.mobile_actions import render_mobile_transaction_actions
-from components.mobile_constants import ANOS, FORMA_PAGAMENTO_VIEW, MESES, STATUS_VIEW
+from components.mobile_constants import ANOS, MESES
 from components.mobile_debts import render_mobile_debts
 from components.mobile_helpers import calcular_metricas
 from components.mobile_tools import render_mobile_tools
@@ -10,7 +12,7 @@ from components.mobile_transactions import (
     render_mobile_transaction_form,
     render_mobile_transaction_list,
 )
-from services.transaction_service import carregar_dados
+from services.transaction_service import MESES_ORDEM, carregar_dados
 from utils.formatacao import formatar_real
 
 
@@ -68,53 +70,38 @@ def _render_select_style():
 
 def _render_filters():
     ano = st.selectbox("Ano", ANOS, key="ano_mobile")
-    mes = st.selectbox("📅 Mês", MESES, key="mes_mobile")
-    status_view = st.selectbox("Status", STATUS_VIEW, key="status_view_mobile")
-    forma_pagamento_view = st.selectbox(
-        "Forma de pagamento",
-        FORMA_PAGAMENTO_VIEW,
-        key="forma_pagamento_view_mobile",
+    if "mes_mobile" not in st.session_state:
+        mes_atual = MESES_ORDEM[date.today().month - 1]
+        st.session_state.mes_mobile = mes_atual
+
+    mes = st.selectbox(
+        "📅 Mês",
+        MESES,
+        index=MESES.index(st.session_state.mes_mobile),
+        key="mes_mobile",
     )
-    saldo_abertura = st.number_input(
-        "Saldo de abertura",
-        value=None,
-        placeholder="Não informado",
-        step=0.01,
-        format="%.2f",
-        key="saldo_abertura_mobile",
-    )
-    return ano, mes, status_view, forma_pagamento_view, saldo_abertura
+    return ano, mes
 
 
-def _render_metrics(df_base, saldo_abertura):
-    pagos, pendentes, saldo = calcular_metricas(df_base, saldo_abertura)
+def _render_metrics(df_base):
+    pagos, pendentes, saldo = calcular_metricas(df_base)
     coluna_pago, coluna_pendente, coluna_saldo = st.columns(3)
     coluna_pago.metric("Pago", formatar_real(pagos))
     coluna_pendente.metric("Pendente", formatar_real(pendentes))
-    rotulo_saldo = (
-        "Saldo calculado (com abertura)"
-        if saldo_abertura is not None
-        else "Saldo calculado (abertura não informada)"
-    )
-    coluna_saldo.metric(rotulo_saldo, formatar_real(saldo))
+    coluna_saldo.metric("Saldo calculado", formatar_real(saldo))
 
 
 def render_mobile():
     _render_select_style()
-    ano, mes, status_view, forma_pagamento_view, saldo_abertura = _render_filters()
+    ano, mes = _render_filters()
     df_base = pd.DataFrame() if mes == "Selecione" else carregar_dados(mes, ano)
 
-    _render_metrics(df_base, saldo_abertura)
+    _render_metrics(df_base)
     st.divider()
     render_mobile_transaction_form(ano, mes)
 
     st.divider()
-    render_mobile_transaction_list(
-        df_base,
-        mes,
-        status_view,
-        forma_pagamento_view,
-    )
+    render_mobile_transaction_list(df_base, mes)
 
     st.divider()
     render_mobile_transaction_actions(df_base, mes)

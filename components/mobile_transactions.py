@@ -3,7 +3,13 @@ from datetime import date
 import pandas as pd
 import streamlit as st
 
-from components.mobile_constants import ANOS, CATEGORIAS, FORMA_PAGAMENTO_VIEW, MESES
+from components.mobile_constants import (
+    ANOS,
+    CATEGORIAS,
+    FORMA_PAGAMENTO_VIEW,
+    MESES,
+    STATUS_VIEW,
+)
 from components.mobile_helpers import (
     filtrar_forma_pagamento,
     filtrar_status,
@@ -65,17 +71,18 @@ def render_mobile_transaction_form(ano, mes):
         else:
             status = st.selectbox("Status", [STATUS_PENDENTE, STATUS_PAGO])
 
-        possui_vencimento = st.checkbox("Possui vencimento", value=False)
-        vencimento = (
-            st.number_input(
-                "Dia do vencimento", min_value=1, max_value=31, value=10, step=1
+        with st.expander("Opções adicionais"):
+            possui_vencimento = st.checkbox("Possui vencimento", value=False)
+            vencimento = (
+                st.number_input(
+                    "Dia do vencimento", min_value=1, max_value=31, value=10, step=1
+                )
+                if possui_vencimento
+                else None
             )
-            if possui_vencimento
-            else None
-        )
-        total_parcelas = st.number_input(
-            "Quantidade de parcelas", min_value=1, max_value=60, value=1, step=1
-        )
+            total_parcelas = st.number_input(
+                "Quantidade de parcelas", min_value=1, max_value=60, value=1, step=1
+            )
         st.caption("O mês selecionado continua sendo o ciclo financeiro do lançamento. A regra automática de ciclo por data será aplicada em etapa própria.")
 
         salvar = st.form_submit_button("💾 Salvar", use_container_width=True)
@@ -351,16 +358,36 @@ def _render_transaction_actions(registro):
         _render_duplicacao_inline(registro)
 
 
-def render_mobile_transaction_list(df_base, mes, status_view, forma_pagamento_view="Todos"):
+def render_mobile_transaction_list(
+    df_base,
+    mes,
+    status_view=None,
+    forma_pagamento_view=None,
+):
     st.subheader("Transações")
 
-    if mes == "Selecione" or status_view == "Selecione":
-        st.info("Selecione um MÊS e um STATUS para visualizar os registros.")
-        return
+    col_status, col_forma = st.columns(2)
+    with col_status:
+        status_view = st.selectbox(
+            "Status",
+            STATUS_VIEW,
+            key="status_view_mobile",
+        )
+    with col_forma:
+        forma_pagamento_view = st.selectbox(
+            "Forma de pagamento",
+            FORMA_PAGAMENTO_VIEW,
+            key="forma_pagamento_view_mobile",
+        )
 
     busca = st.text_input(
         "🔍 Buscar transação", placeholder="Ex: carro, mercado, claro..."
     ).strip()
+
+    if mes == "Selecione":
+        st.info("Selecione um MÊS para visualizar os registros.")
+        return
+
     df_lista = filtrar_status(df_base.copy(), status_view)
     df_lista = filtrar_forma_pagamento(df_lista, forma_pagamento_view)
 

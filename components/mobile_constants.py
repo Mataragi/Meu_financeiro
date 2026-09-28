@@ -4,7 +4,7 @@ MESES = [
     "OUTUBRO", "NOVEMBRO", "DEZEMBRO",
 ]
 
-STATUS_VIEW = ["Selecione", "Todos", "Pendentes", "Pagos"]
+STATUS_VIEW = ["Todos", "Pendentes", "Pagos"]
 
 CATEGORIAS = [
     "Selecione",
