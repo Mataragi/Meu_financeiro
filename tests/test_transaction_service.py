@@ -1,7 +1,7 @@
 import importlib
 import sys
 import types
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 
@@ -166,6 +166,75 @@ def test_duplicar_registro_omite_forma_pagamento_historica_invalida(transaction_
     assert novo["data_transacao"] == registro["data_transacao"]
     assert repository.inseridos == [[{**novo, "tipo": "Receita"}]]
     assert registro["forma_pagamento"] == "Transferência"
+
+
+@pytest.mark.parametrize(
+    ("data_transacao", "data_esperada"),
+    [
+        ("2026-09-30", "2026-09-30"),
+        (date(2026, 9, 30), "2026-09-30"),
+        (datetime(2026, 9, 30, 15, 45), "2026-09-30"),
+    ],
+)
+def test_duplicar_registro_normaliza_data_transacao(
+    transaction_service, data_transacao, data_esperada
+):
+    service, repository = transaction_service
+    registro = {
+        "descricao": "Receita com data",
+        "valor": 100.0,
+        "tipo": "Entrada",
+        "status": STATUS_PAGO,
+        "categoria": "Outros",
+        "vencimento": None,
+        "forma_pagamento": "PIX",
+        "data_transacao": data_transacao,
+    }
+
+    novo = service.duplicar_registro(registro, "OUTUBRO", 2026)
+
+    assert novo["data_transacao"] == data_esperada
+    assert repository.inseridos == [[{**novo, "tipo": "Receita"}]]
+    assert registro["data_transacao"] == data_transacao
+
+
+def test_duplicar_registro_sem_data_nao_inventa_data(transaction_service):
+    service, repository = transaction_service
+    registro = {
+        "descricao": "Registro histórico",
+        "valor": 100.0,
+        "tipo": "Despesa",
+        "status": STATUS_PAGO,
+        "categoria": "Outros",
+        "data_transacao": None,
+    }
+
+    novo = service.duplicar_registro(registro, "OUTUBRO", 2026)
+
+    assert "data_transacao" not in novo
+    assert repository.inseridos == [[novo]]
+    assert registro["data_transacao"] is None
+
+
+@pytest.mark.parametrize("data_transacao", ["30/09/2026", "data inválida"])
+def test_duplicar_registro_rejeita_data_transacao_invalida(
+    transaction_service, data_transacao
+):
+    service, repository = transaction_service
+    registro = {
+        "descricao": "Registro inválido",
+        "valor": 100.0,
+        "tipo": "Despesa",
+        "status": STATUS_PAGO,
+        "categoria": "Outros",
+        "data_transacao": data_transacao,
+    }
+
+    with pytest.raises(ValueError, match="Data da transação inválida"):
+        service.duplicar_registro(registro, "OUTUBRO", 2026)
+
+    assert repository.inseridos == []
+    assert registro["data_transacao"] == data_transacao
 
 
 def test_duplicar_registro_rejeita_mes_invalido(transaction_service):

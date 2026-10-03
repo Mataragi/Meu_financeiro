@@ -133,8 +133,9 @@ def duplicar_registro(registro, destino_mes, destino_ano):
     forma_pagamento = _forma_pagamento_para_duplicacao(registro)
     if forma_pagamento is not None:
         novo_registro["forma_pagamento"] = forma_pagamento
-    if registro.get("data_transacao") is not None:
-        novo_registro["data_transacao"] = registro.get("data_transacao")
+    data_transacao = normalizar_data_transacao(registro.get("data_transacao"))
+    if data_transacao is not None:
+        novo_registro["data_transacao"] = data_transacao
 
     inserir_dados([novo_registro])
     return novo_registro
