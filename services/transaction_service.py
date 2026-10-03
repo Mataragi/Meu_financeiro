@@ -1,4 +1,5 @@
 from datetime import date, datetime
+import math
 from uuid import uuid4
 
 from services import database
@@ -112,6 +113,43 @@ def _forma_pagamento_para_duplicacao(registro):
         return None
 
 
+def _data_transacao_ausente(valor):
+    if valor is None or valor == "":
+        return True
+
+    try:
+        return bool(valor != valor)
+    except (TypeError, ValueError):
+        return False
+
+
+def _normalizar_vencimento_para_duplicacao(valor):
+    if _data_transacao_ausente(valor):
+        return None
+
+    if isinstance(valor, bool):
+        raise ValueError("Vencimento inválido.")
+
+    if isinstance(valor, str):
+        valor = valor.strip()
+        if not valor:
+            return None
+
+    try:
+        numero = float(valor)
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ValueError("Vencimento inválido.") from exc
+
+    if not math.isfinite(numero) or not numero.is_integer():
+        raise ValueError("Vencimento inválido.")
+
+    vencimento = int(numero)
+    if not 1 <= vencimento <= 31:
+        raise ValueError("Vencimento inválido.")
+
+    return vencimento
+
+
 def duplicar_registro(registro, destino_mes, destino_ano):
     if not registro:
         raise ValueError("Registro obrigatório para duplicação")
@@ -127,15 +165,19 @@ def duplicar_registro(registro, destino_mes, destino_ano):
         "tipo": registro.get("tipo", "Despesa"),
         "status": STATUS_PENDENTE,
         "categoria": registro.get("categoria", "Sem categoria"),
-        "vencimento": registro.get("vencimento"),
+        "vencimento": _normalizar_vencimento_para_duplicacao(
+            registro.get("vencimento")
+        ),
     }
 
     forma_pagamento = _forma_pagamento_para_duplicacao(registro)
     if forma_pagamento is not None:
         novo_registro["forma_pagamento"] = forma_pagamento
-    data_transacao = normalizar_data_transacao(registro.get("data_transacao"))
-    if data_transacao is not None:
-        novo_registro["data_transacao"] = data_transacao
+    valor_data_transacao = registro.get("data_transacao")
+    if not _data_transacao_ausente(valor_data_transacao):
+        data_transacao = normalizar_data_transacao(valor_data_transacao)
+        if data_transacao is not None:
+            novo_registro["data_transacao"] = data_transacao
 
     inserir_dados([novo_registro])
     return novo_registro

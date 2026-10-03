@@ -3,7 +3,9 @@ import sys
 import types
 from datetime import date, datetime
 
+import pandas as pd
 import pytest
+import numpy as np
 
 from utils.status import STATUS_PAGO, STATUS_PENDENTE, normalizar_status
 
@@ -142,6 +144,69 @@ def test_duplicar_registro_preserva_vencimento_ausente(transaction_service):
     assert repository.inseridos == [[novo]]
 
 
+@pytest.mark.parametrize("vencimento", [1, 5, 31, 5.0, np.float64(5.0), "5", "5.0"])
+def test_duplicar_registro_normaliza_vencimento_inteiro(
+    transaction_service, vencimento
+):
+    service, repository = transaction_service
+    registro = {
+        "descricao": "Registro com vencimento",
+        "valor": 100.0,
+        "tipo": "Despesa",
+        "status": STATUS_PAGO,
+        "categoria": "Outros",
+        "vencimento": vencimento,
+    }
+
+    novo = service.duplicar_registro(registro, "OUTUBRO", 2026)
+
+    esperado = int(float(vencimento))
+    assert novo["vencimento"] == esperado
+    assert isinstance(novo["vencimento"], int)
+    assert repository.inseridos == [[novo]]
+    assert registro["vencimento"] == vencimento
+
+
+@pytest.mark.parametrize("vencimento", [0, 32, "dia", 5.5, np.float64(5.5)])
+def test_duplicar_registro_rejeita_vencimento_invalido(
+    transaction_service, vencimento
+):
+    service, repository = transaction_service
+    registro = {
+        "descricao": "Registro com vencimento inválido",
+        "valor": 100.0,
+        "tipo": "Despesa",
+        "status": STATUS_PAGO,
+        "categoria": "Outros",
+        "vencimento": vencimento,
+    }
+
+    with pytest.raises(ValueError, match="Vencimento inválido"):
+        service.duplicar_registro(registro, "OUTUBRO", 2026)
+
+    assert repository.inseridos == []
+    assert registro["vencimento"] == vencimento
+
+
+def test_duplicar_registro_sem_vencimento_nao_inventa_valor(transaction_service):
+    service, repository = transaction_service
+
+    novo = service.duplicar_registro(
+        {
+            "descricao": "Registro sem vencimento",
+            "valor": 100.0,
+            "tipo": "Despesa",
+            "status": STATUS_PAGO,
+            "categoria": "Outros",
+        },
+        "OUTUBRO",
+        2026,
+    )
+
+    assert novo["vencimento"] is None
+    assert repository.inseridos == [[novo]]
+
+
 def test_duplicar_registro_omite_forma_pagamento_historica_invalida(transaction_service):
     service, repository = transaction_service
 
@@ -174,6 +239,7 @@ def test_duplicar_registro_omite_forma_pagamento_historica_invalida(transaction_
         ("2026-09-30", "2026-09-30"),
         (date(2026, 9, 30), "2026-09-30"),
         (datetime(2026, 9, 30, 15, 45), "2026-09-30"),
+        (pd.Timestamp("2026-09-30"), "2026-09-30"),
     ],
 )
 def test_duplicar_registro_normaliza_data_transacao(
@@ -198,7 +264,10 @@ def test_duplicar_registro_normaliza_data_transacao(
     assert registro["data_transacao"] == data_transacao
 
 
-def test_duplicar_registro_sem_data_nao_inventa_data(transaction_service):
+@pytest.mark.parametrize("data_transacao", [None, "", float("nan"), pd.NaT])
+def test_duplicar_registro_sem_data_nao_inventa_data(
+    transaction_service, data_transacao
+):
     service, repository = transaction_service
     registro = {
         "descricao": "Registro histórico",
@@ -206,17 +275,22 @@ def test_duplicar_registro_sem_data_nao_inventa_data(transaction_service):
         "tipo": "Despesa",
         "status": STATUS_PAGO,
         "categoria": "Outros",
-        "data_transacao": None,
+        "data_transacao": data_transacao,
     }
 
     novo = service.duplicar_registro(registro, "OUTUBRO", 2026)
 
     assert "data_transacao" not in novo
     assert repository.inseridos == [[novo]]
-    assert registro["data_transacao"] is None
+    if data_transacao != data_transacao:
+        assert registro["data_transacao"] is data_transacao
+    else:
+        assert registro["data_transacao"] == data_transacao
 
 
-@pytest.mark.parametrize("data_transacao", ["30/09/2026", "data inválida"])
+@pytest.mark.parametrize(
+    "data_transacao", ["30/09/2026", "data inválida", 12345]
+)
 def test_duplicar_registro_rejeita_data_transacao_invalida(
     transaction_service, data_transacao
 ):
