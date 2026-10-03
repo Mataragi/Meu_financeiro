@@ -4,7 +4,7 @@ import pandas as pd
 import streamlit as st
 
 from components.mobile_actions import render_mobile_transaction_actions
-from components.mobile_constants import ANOS, MESES
+from components.mobile_constants import ANOS, MESES, STATUS_VIEW
 from components.mobile_debts import render_mobile_debts
 from components.mobile_helpers import calcular_metricas
 from components.mobile_tools import render_mobile_tools
@@ -68,6 +68,115 @@ def _render_select_style():
     )
 
 
+def _render_mobile_header():
+    st.markdown(
+        """
+        <div class="financeiro-pro-header">
+            <div class="financeiro-pro-logo">💰</div>
+            <div>
+                <div class="financeiro-pro-eyebrow">CONTROLE FINANCEIRO</div>
+                <div class="financeiro-pro-title">Financeiro Pro</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_mobile_styles():
+    st.markdown(
+        """
+        <style>
+        .financeiro-pro-header {
+            align-items: center;
+            background: linear-gradient(135deg, #12372a 0%, #1f6b4d 100%);
+            border-radius: 20px;
+            color: #f6fff9;
+            display: flex;
+            gap: 12px;
+            margin: 0 0 18px;
+            padding: 18px 20px;
+        }
+
+        .financeiro-pro-logo {
+            align-items: center;
+            background: rgba(255, 255, 255, 0.16);
+            border-radius: 14px;
+            display: flex;
+            font-size: 25px;
+            height: 48px;
+            justify-content: center;
+            width: 48px;
+        }
+
+        .financeiro-pro-eyebrow {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            opacity: 0.72;
+        }
+
+        .financeiro-pro-title {
+            font-size: 1.45rem;
+            font-weight: 750;
+            line-height: 1.15;
+        }
+
+        .financeiro-pro-metrics {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            margin: 4px 0 18px;
+        }
+
+        .financeiro-pro-card {
+            background: #ffffff;
+            border: 1px solid #e6ece8;
+            border-radius: 16px;
+            box-shadow: 0 4px 14px rgba(18, 55, 42, 0.06);
+            min-width: 0;
+            padding: 14px 12px;
+        }
+
+        .financeiro-pro-card-label {
+            color: #66736d;
+            font-size: 0.76rem;
+            font-weight: 650;
+            margin-bottom: 7px;
+        }
+
+        .financeiro-pro-card-value {
+            color: #17382a;
+            font-size: clamp(0.9rem, 3.7vw, 1.12rem);
+            font-weight: 750;
+            overflow-wrap: anywhere;
+        }
+
+        @media (max-width: 640px) {
+            .financeiro-pro-header {
+                border-radius: 16px;
+                padding: 15px 16px;
+            }
+
+            .financeiro-pro-title {
+                font-size: 1.25rem;
+            }
+
+            .financeiro-pro-metrics {
+                gap: 7px;
+            }
+
+            .financeiro-pro-card {
+                border-radius: 13px;
+                padding: 11px 9px;
+            }
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def _render_filters():
     ano = st.selectbox("Ano", ANOS, key="ano_mobile")
     if "mes_mobile" not in st.session_state:
@@ -80,20 +189,39 @@ def _render_filters():
         index=MESES.index(st.session_state.mes_mobile),
         key="mes_mobile",
     )
-    return ano, mes
+    status = st.selectbox(
+        "Status",
+        STATUS_VIEW,
+        key="status_view_mobile",
+    )
+    return ano, mes, status
 
 
 def _render_metrics(df_base):
     pagos, pendentes, saldo = calcular_metricas(df_base)
-    coluna_pago, coluna_pendente, coluna_saldo = st.columns(3)
-    coluna_pago.metric("Pago", formatar_real(pagos))
-    coluna_pendente.metric("Pendente", formatar_real(pendentes))
-    coluna_saldo.metric("Saldo calculado", formatar_real(saldo))
+    cards = (
+        ("Pago", formatar_real(pagos)),
+        ("Pendente", formatar_real(pendentes)),
+        ("Saldo calculado", formatar_real(saldo)),
+    )
+    cards_html = "".join(
+        f'<div class="financeiro-pro-card">'
+        f'<div class="financeiro-pro-card-label">{label}</div>'
+        f'<div class="financeiro-pro-card-value">{value}</div>'
+        "</div>"
+        for label, value in cards
+    )
+    st.markdown(
+        f'<div class="financeiro-pro-metrics">{cards_html}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_mobile():
     _render_select_style()
-    ano, mes = _render_filters()
+    _render_mobile_styles()
+    _render_mobile_header()
+    ano, mes, status_view = _render_filters()
     df_base = pd.DataFrame() if mes == "Selecione" else carregar_dados(mes, ano)
 
     _render_metrics(df_base)
@@ -101,7 +229,7 @@ def render_mobile():
     render_mobile_transaction_form(ano, mes)
 
     st.divider()
-    render_mobile_transaction_list(df_base, mes)
+    render_mobile_transaction_list(df_base, mes, status_view=status_view)
 
     st.divider()
     render_mobile_transaction_actions(df_base, mes)

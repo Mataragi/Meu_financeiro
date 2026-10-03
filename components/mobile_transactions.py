@@ -8,7 +8,6 @@ from components.mobile_constants import (
     CATEGORIAS,
     FORMA_PAGAMENTO_VIEW,
     MESES,
-    STATUS_VIEW,
 )
 from components.mobile_helpers import (
     filtrar_forma_pagamento,
@@ -47,7 +46,11 @@ def render_mobile_transaction_form(ano, mes):
     if "show_form" not in st.session_state:
         st.session_state.show_form = False
 
-    if st.button("➕ Nova Transação", use_container_width=True):
+    if st.button(
+        "➕ Nova Transação",
+        type="primary",
+        use_container_width=True,
+    ):
         st.session_state.show_form = not st.session_state.show_form
 
     if not st.session_state.get("show_form", False):
@@ -361,24 +364,16 @@ def _render_transaction_actions(registro):
 def render_mobile_transaction_list(
     df_base,
     mes,
-    status_view=None,
+    status_view="Todos",
     forma_pagamento_view=None,
 ):
     st.subheader("Transações")
 
-    col_status, col_forma = st.columns(2)
-    with col_status:
-        status_view = st.selectbox(
-            "Status",
-            STATUS_VIEW,
-            key="status_view_mobile",
-        )
-    with col_forma:
-        forma_pagamento_view = st.selectbox(
-            "Forma de pagamento",
-            FORMA_PAGAMENTO_VIEW,
-            key="forma_pagamento_view_mobile",
-        )
+    forma_pagamento_view = st.selectbox(
+        "Forma de pagamento",
+        FORMA_PAGAMENTO_VIEW,
+        key="forma_pagamento_view_mobile",
+    )
 
     busca = st.text_input(
         "🔍 Buscar transação", placeholder="Ex: carro, mercado, claro..."
