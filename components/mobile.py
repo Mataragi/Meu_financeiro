@@ -152,6 +152,99 @@ def _render_mobile_styles():
             overflow-wrap: anywhere;
         }
 
+        .financeiro-pro-transactions-title {
+            color: #17382a;
+            font-size: 1.2rem;
+            font-weight: 750;
+            margin: 8px 0 4px;
+        }
+
+        .financeiro-pro-transaction-search {
+            margin-bottom: 12px;
+        }
+
+        .financeiro-pro-transaction-detail {
+            align-items: flex-start;
+            background: #fbfdfc;
+            border: 1px solid #e6ece8;
+            border-radius: 14px;
+            display: flex;
+            gap: 12px;
+            margin: 8px 0 12px;
+            padding: 12px;
+        }
+
+        .financeiro-pro-transaction-icon {
+            align-items: center;
+            background: #e8f3ed;
+            border-radius: 12px;
+            display: flex;
+            flex: 0 0 40px;
+            font-size: 20px;
+            height: 40px;
+            justify-content: center;
+        }
+
+        .financeiro-pro-transaction-main {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .financeiro-pro-transaction-description {
+            color: #17382a;
+            font-size: 1rem;
+            font-weight: 700;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+
+        .financeiro-pro-transaction-meta {
+            color: #66736d;
+            font-size: 0.78rem;
+            line-height: 1.35;
+            margin-top: 4px;
+        }
+
+        .financeiro-pro-transaction-side {
+            align-items: flex-end;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: right;
+        }
+
+        .financeiro-pro-status {
+            border-radius: 999px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            white-space: nowrap;
+        }
+
+        .financeiro-pro-status-pago {
+            background: #e2f4e9;
+            color: #1d7446;
+        }
+
+        .financeiro-pro-status-pendente {
+            background: #fff1d9;
+            color: #996313;
+        }
+
+        .financeiro-pro-transaction-value {
+            font-size: 0.95rem;
+            font-weight: 750;
+            white-space: nowrap;
+        }
+
+        .financeiro-pro-value-receita {
+            color: #1d7446;
+        }
+
+        .financeiro-pro-value-despesa {
+            color: #b04a45;
+        }
+
         @media (max-width: 640px) {
             .financeiro-pro-header {
                 border-radius: 16px;
@@ -169,6 +262,19 @@ def _render_mobile_styles():
             .financeiro-pro-card {
                 border-radius: 13px;
                 padding: 11px 9px;
+            }
+
+            .financeiro-pro-transaction-detail {
+                gap: 9px;
+                padding: 10px;
+            }
+
+            .financeiro-pro-transaction-side {
+                gap: 4px;
+            }
+
+            .financeiro-pro-transaction-value {
+                font-size: 0.84rem;
             }
         }
         </style>

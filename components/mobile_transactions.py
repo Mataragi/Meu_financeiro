@@ -1,4 +1,5 @@
 from datetime import date
+from html import escape
 
 import pandas as pd
 import streamlit as st
@@ -29,6 +30,80 @@ from utils.tipo_transacao import TIPO_DESPESA, TIPO_RECEITA
 
 FORMAS_PAGAMENTO_NOVO = list(FORMAS_PAGAMENTO)
 FORMAS_PAGAMENTO_EDICAO = ["Não informado", *FORMAS_PAGAMENTO_NOVO]
+
+ICONS_BY_CATEGORY = {
+    "Moradia": "🏠",
+    "Utilidades": "💡",
+    "Mercado": "🛒",
+    "Alimentação": "🍽️",
+    "Transporte": "🚗",
+    "Saúde": "🩺",
+    "Educação": "📚",
+    "Família": "👨‍👩‍👧",
+    "Lazer & Presentes": "🎁",
+    "Cuidados pessoais": "✨",
+    "Dívidas": "🧾",
+    "Outros": "📌",
+    "Sem categoria": "📁",
+}
+
+
+def _forma_pagamento_para_exibicao(valor):
+    if valor is None:
+        return "Não informado"
+
+    try:
+        if pd.isna(valor):
+            return "Não informado"
+    except (TypeError, ValueError):
+        pass
+
+    return str(valor)
+
+
+def _render_transaction_summary(registro):
+    categoria = str(registro.get("categoria") or "Sem categoria")
+    descricao = str(registro.get("descricao") or "Sem descrição")
+    data = formatar_data(registro.get("data_transacao")) or "Data não informada"
+    forma_pagamento = _forma_pagamento_para_exibicao(
+        registro.get("forma_pagamento")
+    )
+    status = str(registro.get("status") or "Pendente")
+    tipo = str(registro.get("tipo") or TIPO_DESPESA)
+    valor = formatar_real(float(registro.get("valor", 0)))
+    status_class = (
+        "financeiro-pro-status-pago"
+        if status == STATUS_PAGO
+        else "financeiro-pro-status-pendente"
+    )
+    value_class = (
+        "financeiro-pro-value-receita"
+        if tipo == TIPO_RECEITA
+        else "financeiro-pro-value-despesa"
+    )
+    value_prefix = "+ " if tipo == TIPO_RECEITA else "− "
+    icon = ICONS_BY_CATEGORY.get(categoria, "📌")
+
+    st.markdown(
+        f"""
+        <div class="financeiro-pro-transaction-detail">
+            <div class="financeiro-pro-transaction-icon">{icon}</div>
+            <div class="financeiro-pro-transaction-main">
+                <div class="financeiro-pro-transaction-description">{escape(descricao)}</div>
+                <div class="financeiro-pro-transaction-meta">
+                    {escape(categoria)} · {escape(data)} · {escape(forma_pagamento)}
+                </div>
+            </div>
+            <div class="financeiro-pro-transaction-side">
+                <span class="financeiro-pro-status {status_class}">{escape(status)}</span>
+                <span class="financeiro-pro-transaction-value {value_class}">
+                    {value_prefix}{escape(valor)}
+                </span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _data_transacao_para_formulario(registro):
@@ -367,7 +442,10 @@ def render_mobile_transaction_list(
     status_view="Todos",
     forma_pagamento_view=None,
 ):
-    st.subheader("Transações")
+    st.markdown(
+        '<div class="financeiro-pro-transactions-title">Transações</div>',
+        unsafe_allow_html=True,
+    )
 
     forma_pagamento_view = st.selectbox(
         "Forma de pagamento",
@@ -408,15 +486,18 @@ def render_mobile_transaction_list(
         titulo = str(registro.get("descricao", "Sem descrição"))
         valor = formatar_real(float(registro.get("valor", 0)))
         status = str(registro.get("status", ""))
-        categoria = str(registro.get("categoria", "Sem categoria"))
-        forma_pagamento = str(registro.get("forma_pagamento") or "Não informado")
-        data = formatar_data(registro.get("data_transacao")) or "Data não informada"
+        tipo = str(registro.get("tipo") or TIPO_DESPESA)
+        icon = ICONS_BY_CATEGORY.get(
+            str(registro.get("categoria") or "Sem categoria"),
+            "📌",
+        )
+        valor_prefixo = "+ " if tipo == TIPO_RECEITA else "− "
 
         transacao = st.expander(
-            f"{titulo}  ·  {valor}  ·  {status}",
+            f"{icon}  {titulo}  ·  {valor_prefixo}{valor}  ·  {status}",
             key=f"transacao_expander_{registro_id}",
             on_change="rerun",
         )
         with transacao:
-            st.caption(f"{categoria}  •  {forma_pagamento}  •  {data}")
+            _render_transaction_summary(registro)
             _render_transaction_actions(registro)
