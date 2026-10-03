@@ -8,19 +8,19 @@ STATUS_VIEW = ["Todos", "Pendentes", "Pagos"]
 
 CATEGORIAS = [
     "Selecione",
-    "Sem categoria",
+    "Moradia",
+    "Utilidades",
     "Mercado",
-    "Casa",
-    "Contas",
-    "Transporte",
     "Alimentação",
+    "Transporte",
     "Saúde",
     "Educação",
-    "Lazer",
     "Família",
-    "Cartão Crédito Luiz",
-    "Dívida",
+    "Lazer & Presentes",
+    "Cuidados pessoais",
+    "Dívidas",
     "Outros",
+    "Sem categoria",
 ]
 
 FORMA_PAGAMENTO_VIEW = [

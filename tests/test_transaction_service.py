@@ -142,6 +142,32 @@ def test_duplicar_registro_preserva_vencimento_ausente(transaction_service):
     assert repository.inseridos == [[novo]]
 
 
+def test_duplicar_registro_omite_forma_pagamento_historica_invalida(transaction_service):
+    service, repository = transaction_service
+
+    registro = {
+        "id": 1729,
+        "descricao": "Salário",
+        "valor": 1959.58,
+        "tipo": "Entrada",
+        "status": STATUS_PAGO,
+        "categoria": "Outros",
+        "vencimento": None,
+        "forma_pagamento": "Transferência",
+        "data_transacao": "2026-09-30",
+    }
+
+    novo = service.duplicar_registro(registro, "OUTUBRO", 2026)
+
+    assert "forma_pagamento" not in novo
+    assert novo["status"] == STATUS_PENDENTE
+    assert novo["categoria"] == registro["categoria"]
+    assert novo["vencimento"] == registro["vencimento"]
+    assert novo["data_transacao"] == registro["data_transacao"]
+    assert repository.inseridos == [[{**novo, "tipo": "Receita"}]]
+    assert registro["forma_pagamento"] == "Transferência"
+
+
 def test_duplicar_registro_rejeita_mes_invalido(transaction_service):
     service, repository = transaction_service
 
