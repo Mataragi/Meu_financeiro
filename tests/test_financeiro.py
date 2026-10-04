@@ -138,3 +138,15 @@ def test_metricas_da_interface_deixam_abertura_ausente_como_fallback_tecnico():
     _, _, saldo = calcular_metricas(df, saldo_abertura=None)
 
     assert saldo == -300.0
+
+
+def test_valor_nulo_nao_altera_saldos_numericamente():
+    df = pd.DataFrame(
+        [
+            {"tipo": "Despesa", "status": "Pendente", "valor": None},
+            {"tipo": "Receita", "status": "Pendente", "valor": None},
+        ]
+    )
+
+    assert calcular_saldo_real(df, saldo_abertura=1000.0) == 1000.0
+    assert calcular_saldo_projetado(df, saldo_abertura=1000.0) == 1000.0

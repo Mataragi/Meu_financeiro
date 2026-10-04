@@ -12,6 +12,7 @@ from components.mobile_transactions import (
     render_mobile_transaction_form,
     render_mobile_transaction_list,
 )
+from services import recurrence_service
 from services.transaction_service import MESES_ORDEM, carregar_dados
 from utils.formatacao import formatar_real
 
@@ -333,12 +334,26 @@ def _render_metrics(df_base):
     )
 
 
+def _competencia_mobile_valida(ano, mes):
+    return ano in ANOS and mes in MESES_ORDEM
+
+
+def _carregar_dados_da_competencia(ano, mes):
+    if _competencia_mobile_valida(ano, mes):
+        recurrence_service.sincronizar_recorrencias(ano, mes)
+
+    if mes == "Selecione" or mes not in MESES:
+        return pd.DataFrame()
+
+    return carregar_dados(mes, ano)
+
+
 def render_mobile():
     _render_select_style()
     _render_mobile_styles()
     _render_mobile_header()
     ano, mes, status_view = _render_filters()
-    df_base = pd.DataFrame() if mes == "Selecione" else carregar_dados(mes, ano)
+    df_base = _carregar_dados_da_competencia(ano, mes)
 
     _render_metrics(df_base)
     st.divider()

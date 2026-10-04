@@ -22,6 +22,7 @@ from utils.recorrencia import (
     STATUS_RECORRENCIA_PAUSADA,
     STATUS_RECORRENCIA_VALIDOS,
 )
+from utils.status import STATUS_PENDENTE
 from utils.tipo_transacao import normalizar_tipo
 
 
@@ -318,6 +319,44 @@ def _data_programada_no_periodo(recorrencia, periodo):
     return date(periodo.year, periodo.month, dia)
 
 
+def _normalizar_competencia_mensal(ano, mes):
+    if isinstance(ano, bool):
+        raise ValueError("Ano inválido.")
+    try:
+        ano_normalizado = int(ano)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Ano inválido.") from exc
+
+    if isinstance(mes, bool):
+        raise ValueError("Mês inválido.")
+
+    if isinstance(mes, int):
+        numero_mes = mes
+    else:
+        mes_normalizado = str(mes).strip().upper()
+        try:
+            numero_mes = transaction_service.MESES_ORDEM.index(mes_normalizado) + 1
+        except ValueError as exc:
+            raise ValueError("Mês inválido.") from exc
+
+    try:
+        return date(ano_normalizado, numero_mes, 1)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Competência mensal inválida.") from exc
+
+
+def _id_recorrencia(recorrencia):
+    if not isinstance(recorrencia, Mapping) or "id" not in recorrencia:
+        raise ValueError("Recorrência persistida deve possuir id.")
+    id_recorrencia = recorrencia["id"]
+    if id_recorrencia is None or isinstance(id_recorrencia, bool):
+        raise ValueError("recorrencia_id inválido.")
+    try:
+        return int(id_recorrencia)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("recorrencia_id inválido.") from exc
+
+
 def elegivel_para_competencia(recorrencia, competencia_ocorrencia):
     """Verifica elegibilidade básica sem criar transação.
 
@@ -351,3 +390,85 @@ def elegivel_para_competencia(recorrencia, competencia_ocorrencia):
     return data_programada >= data_inicio and (
         data_fim is None or data_programada <= data_fim
     )
+
+
+def materializar_recorrencia(recorrencia, ano, mes):
+    """Materializa uma recorrência em uma competência mensal específica."""
+    periodo = _normalizar_competencia_mensal(ano, mes)
+    recorrencia_id = _id_recorrencia(recorrencia)
+    normalizada = normalizar_dados_recorrencia(recorrencia)
+
+    if not elegivel_para_competencia(normalizada, periodo):
+        return {
+            "elegivel": False,
+            "materializada": False,
+            "criada": False,
+            "existente": False,
+            "recorrencia_id": recorrencia_id,
+            "competencia_ocorrencia": periodo,
+        }
+
+    data_programada = _data_programada_no_periodo(normalizada, periodo)
+    forma_pagamento = normalizada["forma_pagamento"]
+    if forma_pagamento == "Crédito":
+        mes_financeiro, ano_financeiro = (
+            transaction_service.calcular_competencia_credito(data_programada)
+        )
+    else:
+        mes_financeiro = transaction_service.MESES_ORDEM[data_programada.month - 1]
+        ano_financeiro = data_programada.year
+
+    payload = {
+        "recorrencia_id": recorrencia_id,
+        "competencia_ocorrencia": periodo,
+        "descricao": normalizada["descricao"],
+        "valor": normalizada["valor"],
+        "tipo": normalizada["tipo"],
+        "status": STATUS_PENDENTE,
+        "categoria": normalizada["categoria"],
+        "forma_pagamento": forma_pagamento,
+        "data_transacao": data_programada,
+        "vencimento": normalizada["vencimento"],
+        "mes": mes_financeiro,
+        "ano": ano_financeiro,
+    }
+    resposta = transaction_service.inserir_ocorrencia_recorrencia(payload)
+    dados_resposta = getattr(resposta, "data", None)
+    criada = bool(dados_resposta)
+
+    return {
+        "elegivel": True,
+        "materializada": True,
+        "criada": criada,
+        "existente": not criada,
+        "recorrencia_id": recorrencia_id,
+        "competencia_ocorrencia": periodo,
+        "payload": payload,
+    }
+
+
+def sincronizar_recorrencias(ano, mes):
+    """Materializa as recorrências elegíveis de uma competência mensal."""
+    periodo = _normalizar_competencia_mensal(ano, mes)
+    recorrencias = listar_recorrencias()
+    if hasattr(recorrencias, "to_dict"):
+        recorrencias = recorrencias.to_dict(orient="records")
+
+    resultado = {
+        "criadas": 0,
+        "existentes": 0,
+        "nao_elegiveis": 0,
+    }
+    for recorrencia in recorrencias or []:
+        materializacao = materializar_recorrencia(
+            recorrencia,
+            periodo.year,
+            transaction_service.MESES_ORDEM[periodo.month - 1],
+        )
+        if not materializacao["elegivel"]:
+            resultado["nao_elegiveis"] += 1
+        elif materializacao["criada"]:
+            resultado["criadas"] += 1
+        else:
+            resultado["existentes"] += 1
+    return resultado

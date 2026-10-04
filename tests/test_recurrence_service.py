@@ -258,3 +258,201 @@ def test_repository_configura_upsert_atomico_para_chave_da_ocorrencia(monkeypatc
             "ignore_duplicates": True,
         },
     }
+
+
+def _recorrencia_persistida(**alteracoes):
+    return {"id": 42, **_dados_recorrencia(**alteracoes)}
+
+
+def _capturar_materializacao(monkeypatch, resposta=None):
+    payloads = []
+
+    def inserir(dados):
+        payloads.append(dados)
+        return resposta or SimpleNamespace(data=[dados])
+
+    monkeypatch.setattr(transaction_service, "inserir_ocorrencia_recorrencia", inserir)
+    return payloads
+
+
+@pytest.mark.parametrize(
+    ("ano", "mes", "dia", "data_esperada"),
+    [
+        (2026, "FEVEREIRO", 28, date(2026, 2, 28)),
+        (2028, "FEVEREIRO", 29, date(2028, 2, 29)),
+        (2027, "FEVEREIRO", 29, date(2027, 2, 28)),
+        (2026, "FEVEREIRO", 30, date(2026, 2, 28)),
+        (2026, "ABRIL", 31, date(2026, 4, 30)),
+        (2026, "DEZEMBRO", 31, date(2026, 12, 31)),
+    ],
+)
+def test_materializacao_calcula_data_programada_deterministica(
+    monkeypatch, ano, mes, dia, data_esperada
+):
+    payloads = _capturar_materializacao(monkeypatch)
+
+    resultado = service.materializar_recorrencia(
+        _recorrencia_persistida(dia_programado=dia, data_inicio="2026-01-01"),
+        ano,
+        mes,
+    )
+
+    assert resultado["criada"] is True
+    assert payloads[0]["data_transacao"] == data_esperada
+
+
+@pytest.mark.parametrize(
+    ("status", "ano", "mes"),
+    [
+        ("Pausada", 2026, "OUTUBRO"),
+        ("Cancelada", 2026, "OUTUBRO"),
+        ("Ativa", 2026, "SETEMBRO"),
+        ("Ativa", 2026, "NOVEMBRO"),
+    ],
+)
+def test_materializacao_ignora_recorrencia_nao_elegivel(
+    monkeypatch, status, ano, mes
+):
+    payloads = _capturar_materializacao(monkeypatch)
+    dados = {"status_recorrencia": status}
+    if mes == "SETEMBRO":
+        dados["data_inicio"] = "2026-10-10"
+    if mes == "NOVEMBRO":
+        dados["data_fim"] = "2026-10-10"
+
+    resultado = service.materializar_recorrencia(
+        _recorrencia_persistida(**dados), ano, mes
+    )
+
+    assert resultado["elegivel"] is False
+    assert resultado["materializada"] is False
+    assert payloads == []
+
+
+@pytest.mark.parametrize(
+    ("tipo", "forma_pagamento"),
+    [
+        ("Receita", "PIX"),
+        ("Despesa", "Débito"),
+        ("Despesa", "Crédito"),
+    ],
+)
+def test_materializacao_monta_payload_pendente(monkeypatch, tipo, forma_pagamento):
+    payloads = _capturar_materializacao(monkeypatch)
+
+    resultado = service.materializar_recorrencia(
+        _recorrencia_persistida(
+            tipo=tipo,
+            forma_pagamento=forma_pagamento,
+            valor=125.5,
+            vencimento=15,
+        ),
+        2026,
+        "OUTUBRO",
+    )
+
+    payload = payloads[0]
+    assert resultado["criada"] is True
+    assert payload["recorrencia_id"] == 42
+    assert payload["competencia_ocorrencia"] == date(2026, 10, 1)
+    assert payload["descricao"] == "Internet"
+    assert payload["valor"] == 125.5
+    assert payload["tipo"] == tipo
+    assert payload["status"] == STATUS_PENDENTE
+    assert payload["categoria"] == "Utilidades"
+    assert payload["forma_pagamento"] == forma_pagamento
+    assert payload["data_transacao"] == date(2026, 10, 10)
+    assert payload["vencimento"] == 15
+    assert payload["mes"] == "NOVEMBRO" if forma_pagamento == "Crédito" else "OUTUBRO"
+    assert payload["ano"] == 2026
+
+
+def test_materializacao_preserva_valor_desconhecido(monkeypatch):
+    payloads = _capturar_materializacao(monkeypatch)
+
+    service.materializar_recorrencia(
+        _recorrencia_persistida(valor=None), 2026, "OUTUBRO"
+    )
+
+    assert payloads[0]["valor"] is None
+    assert payloads[0]["status"] == STATUS_PENDENTE
+
+
+@pytest.mark.parametrize(
+    ("dia", "mes", "ano", "mes_esperado", "ano_esperado"),
+    [
+        (1, "OUTUBRO", 2026, "OUTUBRO", 2026),
+        (4, "OUTUBRO", 2026, "OUTUBRO", 2026),
+        (5, "OUTUBRO", 2026, "NOVEMBRO", 2026),
+        (5, "DEZEMBRO", 2026, "JANEIRO", 2027),
+    ],
+)
+def test_materializacao_reutiliza_competencia_de_credito(
+    monkeypatch, dia, mes, ano, mes_esperado, ano_esperado
+):
+    payloads = _capturar_materializacao(monkeypatch)
+
+    service.materializar_recorrencia(
+        _recorrencia_persistida(
+            dia_programado=dia,
+            forma_pagamento="Crédito",
+            data_inicio="2026-01-01",
+        ),
+        ano,
+        mes,
+    )
+
+    assert payloads[0]["mes"] == mes_esperado
+    assert payloads[0]["ano"] == ano_esperado
+    assert payloads[0]["competencia_ocorrencia"] == date(ano, 10 if mes == "OUTUBRO" else 12, 1)
+
+
+def test_materializacao_repetida_e_idempotente(monkeypatch):
+    registros = {}
+
+    def inserir(dados):
+        chave = (dados["recorrencia_id"], dados["competencia_ocorrencia"])
+        if chave in registros:
+            return SimpleNamespace(data=[])
+        registros[chave] = dados
+        return SimpleNamespace(data=[dados])
+
+    monkeypatch.setattr(transaction_service, "inserir_ocorrencia_recorrencia", inserir)
+    recorrencia = _recorrencia_persistida()
+
+    primeira = service.materializar_recorrencia(recorrencia, 2026, "OUTUBRO")
+    segunda = service.materializar_recorrencia(recorrencia, 2026, "OUTUBRO")
+
+    assert primeira["criada"] is True
+    assert segunda["criada"] is False
+    assert segunda["existente"] is True
+    assert len(registros) == 1
+
+
+def test_sincronizar_recorrencias_retorna_resumo_minimo(monkeypatch):
+    registros = {}
+
+    def inserir(dados):
+        chave = (dados["recorrencia_id"], dados["competencia_ocorrencia"])
+        if chave in registros:
+            return SimpleNamespace(data=[])
+        registros[chave] = dados
+        return SimpleNamespace(data=[dados])
+
+    monkeypatch.setattr(
+        service,
+        "listar_recorrencias",
+        lambda: pd.DataFrame(
+            [
+                _recorrencia_persistida(id=42),
+                _recorrencia_persistida(id=43, status_recorrencia="Pausada"),
+            ]
+        ),
+    )
+    monkeypatch.setattr(transaction_service, "inserir_ocorrencia_recorrencia", inserir)
+
+    primeira = service.sincronizar_recorrencias(2026, "OUTUBRO")
+    segunda = service.sincronizar_recorrencias(2026, "OUTUBRO")
+
+    assert primeira == {"criadas": 1, "existentes": 0, "nao_elegiveis": 1}
+    assert segunda == {"criadas": 0, "existentes": 1, "nao_elegiveis": 1}
