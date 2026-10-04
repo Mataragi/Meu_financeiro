@@ -305,7 +305,7 @@ Seu único objetivo é transportar dados.
 
 # 9. Banco de Dados
 
-Atualmente o sistema possui duas entidades principais.
+Atualmente o sistema possui três entidades principais.
 
 ```
 transacoes
@@ -323,7 +323,16 @@ dividas_informais
 Controle de dívidas pessoais
 ```
 
-No futuro poderão existir novas entidades sem alterar o conceito principal da arquitetura.
+```
+recorrencias
+
+↓
+
+Regras de geração futura
+```
+
+Recorrências possuem regras próprias em `recurrence_service.py`, mas os
+lançamentos concretos continuam pertencendo a `transacoes`.
 
 ---
 

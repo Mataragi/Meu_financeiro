@@ -22,6 +22,7 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Teste ponta a ponta do fluxo ChatGPT → preparação → confirmação → Transaction Service → Repository.
 - Formalização da ação futura `Pagar Fatura` como baixa em lote dos lançamentos de Crédito pendentes da competência selecionada.
 - Taxonomia oficial de categorias financeiras para separar finalidade econômica de forma de pagamento e preparar futuras análises e gráficos.
+- Fundação persistente de Recorrências com regra mensal, valor opcional, lifecycle separado e identidade de ocorrência preparada para idempotência.
 
 ## Changed
 
@@ -59,6 +60,7 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - A migração histórica de `Entrada`/`Saída` para `Receita`/`Despesa`, assim como a reorganização histórica das categorias, permanece separada da formalização do contrato para ser executada de forma controlada e testada.
 - Sprint 03 — Item 7 — iniciou a auditoria da suíte de testes e registrou as lacunas de cobertura do novo modelo financeiro antes da implementação das regras em produção.
 - A estratégia de testes passou a priorizar ciclos financeiros, saldos de abertura e projetado, Crédito e fatura, transferências/patrimônio, contrato externo e compatibilidade histórica.
+- Recorrências permanecem separadas de Parcelamentos; esta etapa não implementa UI, sincronização automática, scheduler, materialização ou integração externa.
 
 ## Fixed
 

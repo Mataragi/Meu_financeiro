@@ -1,3 +1,6 @@
+from utils.categoria import CATEGORIAS_OFICIAIS
+
+
 MESES = [
     "Selecione", "TODOS", "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL",
     "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO",
@@ -8,19 +11,7 @@ STATUS_VIEW = ["Todos", "Pendentes", "Pagos"]
 
 CATEGORIAS = [
     "Selecione",
-    "Moradia",
-    "Utilidades",
-    "Mercado",
-    "Alimentação",
-    "Transporte",
-    "Saúde",
-    "Educação",
-    "Família",
-    "Lazer & Presentes",
-    "Cuidados pessoais",
-    "Dívidas",
-    "Outros",
-    "Sem categoria",
+    *CATEGORIAS_OFICIAIS,
 ]
 
 FORMA_PAGAMENTO_VIEW = [

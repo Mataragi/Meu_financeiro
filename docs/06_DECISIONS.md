@@ -566,6 +566,37 @@ A mudança de código e banco será realizada de forma incremental, preservando 
 
 ---
 
+## DEC-023
+### A fundação de Recorrências é um domínio separado de Parcelamentos.
+
+Recorrência representa uma regra mensal. Parcelamento continua representando
+uma compra dividida em parcelas independentes.
+
+Nesta etapa foi criada a tabela `recorrencias`, com periodicidade inicial
+`Mensal`, data de início obrigatória, data final opcional e inclusiva, valor
+fixo ou nulo quando desconhecido e lifecycle próprio:
+
+```text
+Ativa → Pausada → Ativa
+Ativa/Pausada → Cancelada
+```
+
+Uma recorrência não utiliza `grupo_parcelamento`, `parcela_atual` ou
+`total_parcelas`.
+
+As transações futuras continuarão em `transacoes`. A identidade preparada para
+cada ocorrência é `(recorrencia_id, competencia_ocorrencia)`, protegida por
+restrição única no banco. Os dois campos permanecem nulos para transações
+manuais.
+
+`dia_programado` foi mantido separado de `vencimento`, pois `vencimento`
+continua significando o dia da obrigação financeira.
+
+Esta decisão não implementa UI, sincronização automática, scheduler,
+materialização ou integração com ChatGPT.
+
+---
+
 # 6. Decisões Futuras
 
 Algumas decisões ainda dependem da evolução do projeto:

@@ -38,6 +38,59 @@ def inserir_dados(dados):
     supabase.table("transacoes").insert(dados).execute()
 
 
+def inserir_transacao_recorrencia(dados):
+    """Insere uma ocorrência sem substituir outra ocorrência existente."""
+    return (
+        supabase
+        .table("transacoes")
+        .upsert(
+            dados,
+            on_conflict="recorrencia_id,competencia_ocorrencia",
+            ignore_duplicates=True,
+        )
+        .execute()
+    )
+
+
+def inserir_recorrencia(dados):
+    res = supabase.table("recorrencias").insert(dados).execute()
+    return res.data[0] if res.data else None
+
+
+def carregar_recorrencias():
+    res = (
+        supabase
+        .table("recorrencias")
+        .select("*")
+        .order("criado_em", desc=True)
+        .execute()
+    )
+    return pd.DataFrame(res.data)
+
+
+def carregar_recorrencia(id_recorrencia):
+    res = (
+        supabase
+        .table("recorrencias")
+        .select("*")
+        .eq("id", id_recorrencia)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def atualizar_recorrencia(id_recorrencia, dados):
+    res = (
+        supabase
+        .table("recorrencias")
+        .update(dados)
+        .eq("id", id_recorrencia)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
 def gerar_backup_transacoes():
     res = supabase.table("transacoes").select("*").execute()
 

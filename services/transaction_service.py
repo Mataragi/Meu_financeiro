@@ -100,6 +100,39 @@ def inserir_dados(dados):
         invalidar_cache_consultas()
 
 
+def inserir_ocorrencia_recorrencia(dados):
+    """Persiste uma transação vinculada a uma ocorrência idempotente."""
+    if not isinstance(dados, dict):
+        raise ValueError("Dados da ocorrência inválidos.")
+
+    recorrencia_id = dados.get("recorrencia_id")
+    competencia_ocorrencia = dados.get("competencia_ocorrencia")
+    if recorrencia_id is None or competencia_ocorrencia is None:
+        raise ValueError(
+            "recorrencia_id e competencia_ocorrencia são obrigatórios."
+        )
+
+    if isinstance(recorrencia_id, bool):
+        raise ValueError("recorrencia_id inválido.")
+
+    try:
+        recorrencia_id = int(recorrencia_id)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("recorrencia_id inválido.") from exc
+
+    competencia_normalizada = normalizar_data_transacao(competencia_ocorrencia)
+    if competencia_normalizada is None:
+        raise ValueError("competencia_ocorrencia inválida.")
+
+    dados_normalizados = normalizar_dados_transacao(dados)
+    dados_normalizados["recorrencia_id"] = recorrencia_id
+    dados_normalizados["competencia_ocorrencia"] = competencia_normalizada
+
+    resposta = database.inserir_transacao_recorrencia(dados_normalizados)
+    invalidar_cache_consultas()
+    return resposta
+
+
 def _forma_pagamento_para_duplicacao(registro):
     forma_pagamento = registro.get("forma_pagamento")
     if forma_pagamento is None:
