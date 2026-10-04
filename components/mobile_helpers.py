@@ -27,6 +27,15 @@ def vencimento_seguro(valor):
         return None
 
 
+def valor_seguro(valor):
+    try:
+        if pd.isna(valor):
+            return None
+        return float(valor)
+    except (TypeError, ValueError):
+        return None
+
+
 def calcular_metricas(df_base, saldo_abertura=None):
     if df_base.empty:
         return 0, 0, calcular_saldo_real(

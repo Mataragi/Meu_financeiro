@@ -133,6 +133,46 @@ def inserir_ocorrencia_recorrencia(dados):
     return resposta
 
 
+def _valor_ausente(valor):
+    if valor is None:
+        return True
+
+    try:
+        return math.isnan(valor)
+    except (TypeError, ValueError):
+        return False
+
+
+def _recorrencia_informada(registro):
+    return isinstance(registro, dict) and not _valor_ausente(
+        registro.get("recorrencia_id")
+    )
+
+
+def _carregar_transacoes_por_ids(ids):
+    ids_validos = [id_registro for id_registro in ids if id_registro]
+    if not ids_validos:
+        return []
+    return database.carregar_transacoes_por_ids(ids_validos)
+
+
+def _validar_baixa(valor, status):
+    if status == STATUS_PAGO and _valor_ausente(valor):
+        raise ValueError("Transações sem valor não podem ser marcadas como pagas.")
+
+
+def _validar_baixa_em_registros(registros):
+    for registro in registros:
+        _validar_baixa(registro.get("valor"), STATUS_PAGO)
+
+
+def _validar_exclusao(registros):
+    if any(_recorrencia_informada(registro) for registro in registros):
+        raise ValueError(
+            "Ocorrências recorrentes não podem ser excluídas manualmente."
+        )
+
+
 def _forma_pagamento_para_duplicacao(registro):
     forma_pagamento = registro.get("forma_pagamento")
     if forma_pagamento is None:
@@ -304,59 +344,97 @@ def inserir_parcelado(
 
 def atualizar_registro(id_registro, dados):
     if id_registro and dados:
+        campos_identidade = {"recorrencia_id", "competencia_ocorrencia"}
+        if campos_identidade.intersection(dados):
+            raise ValueError(
+                "A identidade da ocorrência recorrente não pode ser alterada."
+            )
+
+        registros = _carregar_transacoes_por_ids([id_registro])
+        atual = registros[0] if registros else {}
+        dados_normalizados = normalizar_dados_transacao(dados)
+        status_final = dados_normalizados.get("status", atual.get("status"))
+        valor_final = dados_normalizados.get("valor", atual.get("valor"))
+        status_final = normalizar_status(status_final)
+        _validar_baixa(valor_final, status_final)
+
+        if (
+            _recorrencia_informada(atual)
+            and _valor_ausente(atual.get("valor"))
+            and not _valor_ausente(valor_final)
+            and status_final == STATUS_PAGO
+        ):
+            raise ValueError(
+                "Ocorrências recorrentes devem permanecer pendentes após informar o valor."
+            )
+
         database.atualizar_registro(
             id_registro,
-            normalizar_dados_transacao(dados),
+            dados_normalizados,
         )
         invalidar_cache_consultas()
 
 
 def dar_baixa_registro(id_registro):
     if id_registro:
+        _validar_baixa_em_registros(_carregar_transacoes_por_ids([id_registro]))
         database.atualizar_status_registro(id_registro, STATUS_PAGO)
         invalidar_cache_consultas()
 
 
 def dar_baixa_multiplos(ids):
     if ids:
+        _validar_baixa_em_registros(_carregar_transacoes_por_ids(ids))
         database.atualizar_status_multiplos(ids, STATUS_PAGO)
         invalidar_cache_consultas()
 
 
 def atualizar_status_multiplos(ids, status):
     if ids:
+        status_normalizado = normalizar_status_para_persistencia(status)
+        if status_normalizado == STATUS_PAGO:
+            _validar_baixa_em_registros(_carregar_transacoes_por_ids(ids))
         database.atualizar_status_multiplos(
             ids,
-            normalizar_status_para_persistencia(status),
+            status_normalizado,
         )
         invalidar_cache_consultas()
 
 
 def excluir_registro(id_registro):
     if id_registro:
+        _validar_exclusao(_carregar_transacoes_por_ids([id_registro]))
         database.excluir_registro(id_registro)
         invalidar_cache_consultas()
 
 
 def excluir_multiplos(ids):
     if ids:
+        _validar_exclusao(_carregar_transacoes_por_ids(ids))
         database.excluir_multiplos(ids)
         invalidar_cache_consultas()
 
 
 def excluir_multiplos_do_mes(ids, mes):
     if ids:
+        _validar_exclusao(_carregar_transacoes_por_ids(ids))
         database.excluir_multiplos_do_mes(ids, mes)
         invalidar_cache_consultas()
 
 
 def excluir_grupo_parcelamento(grupo_id):
     if grupo_id:
+        _validar_exclusao(
+            database.carregar_transacoes_por_grupo_parcelamento(grupo_id)
+        )
         database.excluir_grupo_parcelamento(grupo_id)
         invalidar_cache_consultas()
 
 
 def excluir_mes(mes, ano):
+    _validar_exclusao(
+        database.carregar_dados(mes, ano).to_dict(orient="records")
+    )
     database.excluir_mes(mes, ano)
     invalidar_cache_consultas()
 

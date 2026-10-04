@@ -14,6 +14,7 @@ from components.mobile_helpers import (
     filtrar_forma_pagamento,
     filtrar_status,
     formatar_data,
+    valor_seguro,
     vencimento_seguro,
 )
 from services.transaction_service import (
@@ -23,7 +24,7 @@ from services.transaction_service import (
     inserir_parcelado,
 )
 from utils.forma_pagamento import FORMAS_PAGAMENTO
-from utils.formatacao import formatar_real
+from utils.formatacao import formatar_valor_exibicao
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
 from utils.tipo_transacao import TIPO_DESPESA, TIPO_RECEITA
 
@@ -70,7 +71,7 @@ def _render_transaction_summary(registro):
     )
     status = str(registro.get("status") or "Pendente")
     tipo = str(registro.get("tipo") or TIPO_DESPESA)
-    valor = formatar_real(float(registro.get("valor", 0)))
+    valor = formatar_valor_exibicao(registro.get("valor"))
     status_class = (
         "financeiro-pro-status-pago"
         if status == STATUS_PAGO
@@ -224,10 +225,11 @@ def _render_edicao_inline(registro):
         value=str(registro.get("descricao", "")),
         key=f"edit_desc_inline_{registro_id}",
     )
+    valor_atual = valor_seguro(registro.get("valor"))
     novo_valor = st.number_input(
         "Valor",
         min_value=0.0,
-        value=float(registro.get("valor", 0)),
+        value=valor_atual,
         key=f"edit_valor_inline_{registro_id}",
     )
     categoria_atual = registro.get("categoria", "Sem categoria")
@@ -259,6 +261,9 @@ def _render_edicao_inline(registro):
         index=0 if registro.get("status") == STATUS_PENDENTE else 1,
         key=f"edit_status_inline_{registro_id}",
     )
+    if valor_atual is None:
+        st.info("Valor não informado. Preencha o valor; a ocorrência continuará pendente.")
+        novo_status = STATUS_PENDENTE
     possui_vencimento = st.checkbox(
         "Possui vencimento",
         value=registro.get("vencimento") is not None,
@@ -302,7 +307,9 @@ def _render_edicao_inline(registro):
         ):
             if not nova_descricao.strip():
                 st.error("Informe uma descrição.")
-            elif novo_valor <= 0:
+            elif novo_valor is None and valor_atual is not None:
+                st.error("Informe um valor maior que zero.")
+            elif novo_valor is not None and novo_valor <= 0:
                 st.error("O valor deve ser maior que zero.")
             else:
                 dados_atualizacao = {
@@ -402,7 +409,11 @@ def _render_transaction_actions(registro):
             st.session_state[f"duplicando_transacao_{registro_id}"] = False
 
     with col_excluir:
-        if st.button(
+        if registro.get("recorrencia_id") is not None and not pd.isna(
+            registro.get("recorrencia_id")
+        ):
+            st.caption("Ocorrências recorrentes não podem ser excluídas.")
+        elif st.button(
             "🗑️ Excluir",
             key=f"excluir_transacao_{registro_id}",
             use_container_width=True,
@@ -502,7 +513,7 @@ def render_mobile_transaction_list(
         registro = row.to_dict()
         registro_id = registro.get("id")
         titulo = str(registro.get("descricao", "Sem descrição"))
-        valor = formatar_real(float(registro.get("valor", 0)))
+        valor = formatar_valor_exibicao(registro.get("valor"))
         status = str(registro.get("status", ""))
         tipo = str(registro.get("tipo") or TIPO_DESPESA)
         icon = ICONS_BY_CATEGORY.get(

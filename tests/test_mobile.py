@@ -1,6 +1,9 @@
 import pandas as pd
 
 from components import mobile
+from components import mobile_actions, mobile_transactions
+from components.mobile_helpers import valor_seguro
+from utils.formatacao import formatar_valor_exibicao
 
 
 def test_abrir_mes_especifico_sincroniza_antes_de_carregar(monkeypatch):
@@ -159,3 +162,56 @@ def test_rerender_reutiliza_idempotencia_do_motor(monkeypatch):
     assert len(primeira) == 1
     assert len(segunda) == 1
     assert len(ocorrencias) == 1
+
+
+def test_valor_nulo_e_zero_sao_distintos_na_apresentacao():
+    assert formatar_valor_exibicao(None) == "Valor não informado"
+    assert formatar_valor_exibicao(float("nan")) == "Valor não informado"
+    assert formatar_valor_exibicao(0) == "R$ 0,00"
+    assert valor_seguro(None) is None
+    assert valor_seguro(0) == 0.0
+
+
+def test_resumo_de_ocorrencia_nula_nao_executa_float_none(monkeypatch):
+    exibicoes = []
+    monkeypatch.setattr(
+        mobile_transactions.st,
+        "markdown",
+        lambda conteudo, **_kwargs: exibicoes.append(conteudo),
+    )
+
+    mobile_transactions._render_transaction_summary(
+        {
+            "descricao": "Internet",
+            "valor": None,
+            "tipo": "Despesa",
+            "status": "Pendente",
+        }
+    )
+
+    assert "Valor não informado" in exibicoes[0]
+
+
+def test_acoes_exibem_valor_nulo_sem_excecao():
+    opcoes = mobile_actions._opcoes_registros(
+        pd.DataFrame(
+            [
+                {
+                    "id": 7,
+                    "descricao": "Internet",
+                    "valor": None,
+                    "status": "Pendente",
+                },
+                {
+                    "id": 8,
+                    "descricao": "Taxa",
+                    "valor": 0.0,
+                    "status": "Pendente",
+                },
+            ]
+        ),
+        incluir_status=True,
+    )
+
+    assert any("Valor não informado" in label for label in opcoes)
+    assert any("R$ 0,00" in label for label in opcoes)

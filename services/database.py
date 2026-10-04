@@ -113,6 +113,34 @@ def carregar_dados(mes, ano=None):
     return pd.DataFrame(res.data)
 
 
+def carregar_transacoes_por_ids(ids):
+    if not ids:
+        return []
+
+    res = (
+        supabase
+        .table("transacoes")
+        .select("id, valor, status, recorrencia_id, competencia_ocorrencia")
+        .in_("id", ids)
+        .execute()
+    )
+    return res.data or []
+
+
+def carregar_transacoes_por_grupo_parcelamento(grupo_id):
+    if grupo_id is None:
+        return []
+
+    res = (
+        supabase
+        .table("transacoes")
+        .select("id, valor, status, recorrencia_id, competencia_ocorrencia")
+        .eq("grupo_parcelamento", grupo_id)
+        .execute()
+    )
+    return res.data or []
+
+
 def atualizar_registro(id_registro, dados):
     supabase.table("transacoes").update(dados).eq("id", id_registro).execute()
 

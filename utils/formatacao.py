@@ -1,3 +1,5 @@
+import math
+
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
 
 
@@ -13,3 +15,16 @@ def formatar_real(valor):
         return f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     except:
         return valor
+
+
+def formatar_valor_exibicao(valor):
+    if valor is None:
+        return "Valor não informado"
+
+    try:
+        if math.isnan(valor):
+            return "Valor não informado"
+    except (TypeError, ValueError):
+        pass
+
+    return formatar_real(valor)

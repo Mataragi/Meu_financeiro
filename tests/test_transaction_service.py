@@ -16,6 +16,17 @@ def transaction_service(monkeypatch):
         inseridos=[],
         atualizacoes=[],
         baixas=[],
+        status_multiplos=[],
+        exclusoes=[],
+        transacoes=[
+            {
+                "id": 42,
+                "valor": 100.0,
+                "status": STATUS_PENDENTE,
+                "recorrencia_id": None,
+                "competencia_ocorrencia": None,
+            }
+        ],
     )
     repository.inserir_dados = lambda dados: repository.inseridos.append(dados)
     repository.atualizar_registro = lambda registro_id, dados: repository.atualizacoes.append(
@@ -24,6 +35,31 @@ def transaction_service(monkeypatch):
     repository.atualizar_status_registro = lambda registro_id, status: repository.baixas.append(
         (registro_id, status)
     )
+    repository.atualizar_status_multiplos = lambda ids, status: repository.status_multiplos.append(
+        (ids, status)
+    )
+    repository.excluir_registro = lambda registro_id: repository.exclusoes.append(
+        ("individual", registro_id)
+    )
+    repository.excluir_multiplos = lambda ids: repository.exclusoes.append(
+        ("multiplos", ids)
+    )
+    repository.excluir_multiplos_do_mes = lambda ids, mes: repository.exclusoes.append(
+        ("mes", ids, mes)
+    )
+    repository.excluir_grupo_parcelamento = lambda grupo_id: repository.exclusoes.append(
+        ("grupo", grupo_id)
+    )
+    repository.excluir_mes = lambda mes, ano: repository.exclusoes.append(
+        ("competencia", mes, ano)
+    )
+    repository.carregar_transacoes_por_ids = lambda ids: [
+        dict(registro)
+        for registro in repository.transacoes
+        if registro["id"] in ids
+    ]
+    repository.carregar_transacoes_por_grupo_parcelamento = lambda grupo_id: []
+    repository.carregar_dados = lambda mes, ano=None: pd.DataFrame(repository.transacoes)
 
     cache = types.ModuleType("services.cache")
     cache.cache_data = lambda **_kwargs: lambda func: func
@@ -449,3 +485,182 @@ def test_baixa_persiste_status_pago(transaction_service):
     service.dar_baixa_registro(42)
 
     assert repository.baixas == [(42, STATUS_PAGO)]
+
+
+def test_baixa_rejeita_transacao_sem_valor(transaction_service):
+    service, repository = transaction_service
+    repository.transacoes = [
+        {
+            "id": 7,
+            "valor": None,
+            "status": STATUS_PENDENTE,
+            "recorrencia_id": 11,
+        }
+    ]
+
+    with pytest.raises(ValueError, match="sem valor"):
+        service.dar_baixa_registro(7)
+
+    assert repository.baixas == []
+
+
+def test_baixa_multipla_rejeita_lote_com_valor_nulo(transaction_service):
+    service, repository = transaction_service
+    repository.transacoes = [
+        {"id": 7, "valor": 100.0, "recorrencia_id": None},
+        {"id": 8, "valor": None, "recorrencia_id": 11},
+    ]
+
+    with pytest.raises(ValueError, match="sem valor"):
+        service.dar_baixa_multiplos([7, 8])
+
+    assert repository.status_multiplos == []
+
+
+def test_atualizacao_status_multipla_rejeita_valor_nulo(transaction_service):
+    service, repository = transaction_service
+    repository.transacoes = [
+        {"id": 8, "valor": None, "recorrencia_id": 11}
+    ]
+
+    with pytest.raises(ValueError, match="sem valor"):
+        service.atualizar_status_multiplos([8], STATUS_PAGO)
+
+    assert repository.status_multiplos == []
+
+
+def test_baixa_multipla_continua_funcionando_com_valor_conhecido(
+    transaction_service,
+):
+    service, repository = transaction_service
+    repository.transacoes = [
+        {"id": 8, "valor": 100.0, "recorrencia_id": None}
+    ]
+
+    service.atualizar_status_multiplos([8], STATUS_PAGO)
+
+    assert repository.status_multiplos == [([8], STATUS_PAGO)]
+
+
+def test_atualizacao_direta_rejeita_pago_com_valor_nulo(transaction_service):
+    service, repository = transaction_service
+    repository.transacoes = [
+        {
+            "id": 7,
+            "valor": None,
+            "status": STATUS_PENDENTE,
+            "recorrencia_id": 11,
+        }
+    ]
+
+    with pytest.raises(ValueError, match="sem valor"):
+        service.atualizar_registro(7, {"status": STATUS_PAGO})
+
+    assert repository.atualizacoes == []
+
+
+def test_edicao_de_ocorrencia_nula_preserva_identidade_e_status(transaction_service):
+    service, repository = transaction_service
+    repository.transacoes = [
+        {
+            "id": 7,
+            "valor": None,
+            "status": STATUS_PENDENTE,
+            "recorrencia_id": 11,
+            "competencia_ocorrencia": "2026-10-01",
+        }
+    ]
+
+    service.atualizar_registro(
+        7,
+        {
+            "descricao": "Internet",
+            "valor": 125.0,
+            "status": STATUS_PENDENTE,
+        },
+    )
+
+    assert repository.atualizacoes == [
+        (
+            7,
+            {
+                "descricao": "Internet",
+                "valor": 125.0,
+                "status": STATUS_PENDENTE,
+            },
+        )
+    ]
+    assert repository.transacoes[0]["recorrencia_id"] == 11
+    assert repository.transacoes[0]["competencia_ocorrencia"] == "2026-10-01"
+
+
+def test_edicao_de_ocorrencia_nula_nao_permite_pagar_ao_preencher_valor(
+    transaction_service,
+):
+    service, repository = transaction_service
+    repository.transacoes = [
+        {
+            "id": 7,
+            "valor": None,
+            "status": STATUS_PENDENTE,
+            "recorrencia_id": 11,
+        }
+    ]
+
+    with pytest.raises(ValueError, match="permanecer pendentes"):
+        service.atualizar_registro(
+            7,
+            {"valor": 125.0, "status": STATUS_PAGO},
+        )
+
+    assert repository.atualizacoes == []
+
+
+def test_edicao_nao_permite_alterar_identidade_da_ocorrencia(transaction_service):
+    service, repository = transaction_service
+
+    with pytest.raises(ValueError, match="identidade"):
+        service.atualizar_registro(
+            42,
+            {"recorrencia_id": 99},
+        )
+
+    assert repository.atualizacoes == []
+
+
+def test_exclusao_individual_rejeita_ocorrencia_recorrente(transaction_service):
+    service, repository = transaction_service
+    repository.transacoes = [
+        {"id": 7, "valor": 100.0, "recorrencia_id": 11}
+    ]
+
+    with pytest.raises(ValueError, match="recorrentes"):
+        service.excluir_registro(7)
+
+    assert repository.exclusoes == []
+
+
+def test_exclusao_em_lote_rejeita_lote_misto_sem_exclusao_parcial(
+    transaction_service,
+):
+    service, repository = transaction_service
+    repository.transacoes = [
+        {"id": 7, "valor": 100.0, "recorrencia_id": None},
+        {"id": 8, "valor": 100.0, "recorrencia_id": 11},
+    ]
+
+    with pytest.raises(ValueError, match="recorrentes"):
+        service.excluir_multiplos([7, 8])
+
+    assert repository.exclusoes == []
+
+
+def test_exclusao_manual_continua_funcionando(transaction_service):
+    service, repository = transaction_service
+    repository.transacoes = [
+        {"id": 7, "valor": 100.0, "recorrencia_id": None}
+    ]
+
+    service.excluir_registro(7)
+
+    assert repository.exclusoes == [("individual", 7)]

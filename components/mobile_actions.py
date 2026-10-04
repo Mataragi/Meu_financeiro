@@ -6,7 +6,7 @@ from services.transaction_service import (
     excluir_grupo_parcelamento,
     excluir_multiplos,
 )
-from utils.formatacao import formatar_real
+from utils.formatacao import formatar_valor_exibicao
 from utils.status import STATUS_PENDENTE
 
 
@@ -14,7 +14,7 @@ def _opcoes_registros(df, incluir_status=False):
     opcoes = {}
 
     for _, row in df.iterrows():
-        valor_fmt = formatar_real(float(row.get("valor", 0)))
+        valor_fmt = formatar_valor_exibicao(row.get("valor"))
         label = f"{row.get('descricao', '')} — {valor_fmt}"
         if incluir_status:
             label += f" · {row.get('status', '')}"
@@ -31,11 +31,18 @@ def _render_baixa(df_base, mes):
             st.info("Nenhuma pendência encontrada.")
         else:
             df_pendentes = df_base[df_base["status"] == STATUS_PENDENTE]
-            if df_pendentes.empty:
+            df_pendentes_com_valor = (
+                df_pendentes[df_pendentes["valor"].notna()]
+                if "valor" in df_pendentes.columns
+                else df_pendentes
+            )
+            if len(df_pendentes_com_valor) < len(df_pendentes):
+                st.info("Transações sem valor não podem ser marcadas como pagas.")
+            if df_pendentes_com_valor.empty:
                 st.info("Nenhuma pendência encontrada.")
                 return
 
-            opcoes = _opcoes_registros(df_pendentes)
+            opcoes = _opcoes_registros(df_pendentes_com_valor)
             selecionados = st.multiselect(
                 "Selecionar pendentes",
                 list(opcoes.keys()),
@@ -65,6 +72,10 @@ def _render_exclusao(df_base, mes):
                 if "grupo_parcelamento" not in df_base.columns
                 else df_base[df_base["grupo_parcelamento"].notna()]
             )
+            if "recorrencia_id" in df_parcelados.columns:
+                df_parcelados = df_parcelados[
+                    df_parcelados["recorrencia_id"].isna()
+                ]
 
             if df_parcelados.empty:
                 st.info("Nenhum parcelamento encontrado neste filtro.")
@@ -89,7 +100,14 @@ def _render_exclusao(df_base, mes):
                     st.rerun()
 
             st.markdown("### 🧾 Excluir registros selecionados")
-            opcoes = _opcoes_registros(df_base, incluir_status=True)
+            df_excluiveis = df_base
+            if "recorrencia_id" in df_base.columns:
+                ocorrencias_recorrentes = df_base["recorrencia_id"].notna().sum()
+                if ocorrencias_recorrentes:
+                    st.info("Ocorrências recorrentes não podem ser excluídas.")
+                df_excluiveis = df_base[df_base["recorrencia_id"].isna()]
+
+            opcoes = _opcoes_registros(df_excluiveis, incluir_status=True)
             selecionados = st.multiselect(
                 "Selecionar registros",
                 list(opcoes.keys()),

@@ -7,7 +7,7 @@ from services.transaction_service import (
     gerar_backup_transacoes,
 )
 from utils.financeiro import calcular_saldo_real
-from utils.formatacao import colorir_status, formatar_real
+from utils.formatacao import colorir_status, formatar_valor_exibicao
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
 from utils.tipo_transacao import TIPO_DESPESA
 
@@ -33,7 +33,7 @@ def render_dashboard():
         st.info("Nada ainda")
         return
 
-    df['valor'] = pd.to_numeric(df['valor'])
+    df['valor'] = pd.to_numeric(df['valor'], errors="coerce")
 
     pagos = df[(df['status'] == STATUS_PAGO) & (df['tipo'] == TIPO_DESPESA)]['valor'].sum()
     pend = df[(df['status'] == STATUS_PENDENTE) & (df['tipo'] == TIPO_DESPESA)]['valor'].sum()
@@ -50,7 +50,7 @@ def render_dashboard():
     st.dataframe(
         df.drop(columns=['id'])
         .style.map(colorir_status, subset=['status'])
-        .format({"valor": formatar_real}),
+        .format({"valor": formatar_valor_exibicao}),
         use_container_width=True,
         hide_index=True
     )
@@ -64,10 +64,13 @@ def render_dashboard():
         with st.expander("💸 Dar Baixa"):
 
             pend_df = df[df['status'] == STATUS_PENDENTE]
-            pend_df = pend_df.sort_values(by="criado_em", ascending=False)
+            pend_df_com_valor = pend_df[pend_df["valor"].notna()]
+            if len(pend_df_com_valor) < len(pend_df):
+                st.info("Transações sem valor não podem ser marcadas como pagas.")
+            pend_df = pend_df_com_valor.sort_values(by="criado_em", ascending=False)
 
             opcoes = {
-                f"{r['descricao']} | {formatar_real(r['valor'])} | {r['criado_em']}": r['id']
+                f"{r['descricao']} | {formatar_valor_exibicao(r['valor'])} | {r['criado_em']}": r['id']
                 for _, r in pend_df.iterrows()
             }
 
@@ -90,9 +93,16 @@ def render_dashboard():
             if mes == "TODOS":
                 st.warning("Selecione um mês específico")
             else:
+                df_excluiveis = df
+                if "recorrencia_id" in df.columns:
+                    ocorrencias_recorrentes = df["recorrencia_id"].notna().sum()
+                    if ocorrencias_recorrentes:
+                        st.info("Ocorrências recorrentes não podem ser excluídas.")
+                    df_excluiveis = df[df["recorrencia_id"].isna()]
+
                 opcoes = {
-                    f"{r['descricao']} | {formatar_real(r['valor'])} | {r['criado_em']}": r['id']
-                    for _, r in df.iterrows()
+                    f"{r['descricao']} | {formatar_valor_exibicao(r['valor'])} | {r['criado_em']}": r['id']
+                    for _, r in df_excluiveis.iterrows()
                 }
 
                 sel = st.multiselect(
