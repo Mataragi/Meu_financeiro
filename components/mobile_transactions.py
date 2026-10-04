@@ -83,6 +83,19 @@ def _render_transaction_summary(registro):
     )
     value_prefix = "+ " if tipo == TIPO_RECEITA else "− "
     icon = ICONS_BY_CATEGORY.get(categoria, "📌")
+    parcela_atual = registro.get("parcela_atual")
+    total_parcelas = registro.get("total_parcelas")
+    parcela = ""
+    try:
+        if (
+            parcela_atual is not None
+            and total_parcelas is not None
+            and not pd.isna(parcela_atual)
+            and not pd.isna(total_parcelas)
+        ):
+            parcela = f" · {int(parcela_atual)}/{int(total_parcelas)}x"
+    except (TypeError, ValueError, OverflowError):
+        parcela = ""
 
     st.markdown(
         f"""
@@ -91,7 +104,7 @@ def _render_transaction_summary(registro):
             <div class="financeiro-pro-transaction-main">
                 <div class="financeiro-pro-transaction-description">{escape(descricao)}</div>
                 <div class="financeiro-pro-transaction-meta">
-                    {escape(categoria)} · {escape(data)} · {escape(forma_pagamento)}
+                    {escape(categoria)}{escape(parcela)} · {escape(data)} · {escape(forma_pagamento)}
                 </div>
             </div>
             <div class="financeiro-pro-transaction-side">
@@ -372,7 +385,11 @@ def _render_duplicacao_inline(registro):
 
 def _render_transaction_actions(registro):
     registro_id = registro.get("id")
-    col_editar, col_excluir, col_duplicar = st.columns(3)
+    st.markdown(
+        '<div class="financeiro-pro-action-label">Ações</div>',
+        unsafe_allow_html=True,
+    )
+    col_editar, col_excluir = st.columns(2)
 
     with col_editar:
         if st.button(
@@ -394,10 +411,11 @@ def _render_transaction_actions(registro):
             st.session_state[f"editando_transacao_{registro_id}"] = False
             st.session_state[f"duplicando_transacao_{registro_id}"] = False
 
-    with col_duplicar:
+    with st.container():
         if st.button(
             "📋 Duplicar",
             key=f"duplicar_transacao_{registro_id}",
+            type="secondary",
             use_container_width=True,
         ):
             st.session_state[f"duplicando_transacao_{registro_id}"] = True

@@ -88,7 +88,6 @@ def _render_exclusao(df_base, mes):
                     st.warning("Parcelamento excluído 🗑️")
                     st.rerun()
 
-            st.divider()
             st.markdown("### 🧾 Excluir registros selecionados")
             opcoes = _opcoes_registros(df_base, incluir_status=True)
             selecionados = st.multiselect(
@@ -108,6 +107,5 @@ def _render_exclusao(df_base, mes):
 
 
 def render_mobile_transaction_actions(df_base, mes):
-    st.subheader("Ações (em lote)")
     _render_baixa(df_base, mes)
     _render_exclusao(df_base, mes)

@@ -12,7 +12,6 @@ from services.debt_service import (
 
 
 def render_mobile_debts():
-    st.divider()
     st.subheader("🤝 Dívidas informais")
 
     with st.expander("➕ Nova dívida informal"):

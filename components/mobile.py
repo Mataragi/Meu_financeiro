@@ -237,6 +237,16 @@ def _render_mobile_styles():
             white-space: nowrap;
         }
 
+        .financeiro-pro-action-label,
+        .financeiro-pro-actions-title {
+            color: #66736d;
+            font-size: 0.76rem;
+            font-weight: 750;
+            letter-spacing: 0.04em;
+            margin: 10px 0 6px;
+            text-transform: uppercase;
+        }
+
         .financeiro-pro-value-receita {
             color: #1d7446;
         }
@@ -337,12 +347,12 @@ def render_mobile():
     st.divider()
     render_mobile_transaction_list(df_base, mes, status_view=status_view)
 
-    st.divider()
-    render_mobile_transaction_actions(df_base, mes)
-
-    st.divider()
-    render_mobile_tools()
-
-    st.divider()
-    with st.expander("🤝 Dívidas informais"):
-        render_mobile_debts()
+    with st.container(border=True):
+        st.markdown(
+            '<div class="financeiro-pro-actions-title">Ações</div>',
+            unsafe_allow_html=True,
+        )
+        render_mobile_transaction_actions(df_base, mes)
+        render_mobile_tools()
+        with st.expander("🤝 Dívidas informais"):
+            render_mobile_debts()
