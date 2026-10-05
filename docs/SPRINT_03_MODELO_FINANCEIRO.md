@@ -2,7 +2,7 @@
 
 # Sprint 03 — Formalização do Modelo Financeiro
 
-**Status:** Em desenvolvimento
+**Status:** Concluída
 
 **Objetivo:** transformar as regras financeiras já identificadas durante as Sprints 01 e 02 em um modelo explícito, consistente e testável antes de novas automações ou alterações estruturais no banco.
 
@@ -57,7 +57,7 @@ Nenhuma regra será implementada apenas porque parece intuitiva. Quando houver m
 | 4 | Formalizar comportamento de Crédito e pagamento de fatura | 🔴 | ✅ |
 | 5 | Definir tratamento de transferências entre contas próprias | 🟠 | ✅ |
 | 6 | Formalizar contrato definitivo para lançamentos externos | 🟠 | ✅ |
-| 7 | Criar testes das regras financeiras formalizadas | 🔴 | ⏳ |
+| 7 | Criar testes das regras financeiras formalizadas | 🔴 | ✅ |
 
 ---
 
@@ -652,19 +652,19 @@ O Item 6 é considerado concluído quando o contrato externo estiver definido de
 
 ## 10. Item 7 — Testes das regras financeiras
 
-**Status: Em preparação.**
+**Status: Concluído.**
 
-A auditoria inicial da suíte existente identificou cobertura consistente para parcelamentos, normalização de status, duplicidade e fluxo ChatGPT → preparação → confirmação → Transaction Service → Repository, mas ainda não existe cobertura específica suficiente para o novo modelo financeiro formalizado na Sprint 03.
+A suíte dedicada às regras formalizadas na Sprint 03 foi consolidada e validada. Ela cobre contrato externo, nomenclatura oficial e compatibilidade legada, vencimento opcional, data da operação, comportamento inicial do Crédito, saldo real e projetado, pagamento lógico de fatura, movimentações patrimoniais e competência do Crédito.
 
-### 10.1 Problemas identificados
+### 10.1 Validação
 
-A suíte atual ainda contém expectativas baseadas na nomenclatura legada `Entrada` / `Saída`, enquanto a nomenclatura oficial do domínio passou a ser `Receita` / `Despesa`.
+A suíte focada em `tests/test_modelo_financeiro.py` e `tests/test_financeiro.py` apresentou **43 testes aprovados**. A suíte completa do projeto permanece verde, com **242 testes aprovados** na validação da etapa.
 
-Também foi identificado que o cálculo atual de saldo ainda representa o comportamento legado, sem saldo de abertura e sem saldo projetado formal. Portanto, os testes do novo modelo não devem apenas copiar o comportamento atual: devem proteger explicitamente as regras aprovadas antes de conectá-las ao fluxo de produção.
+Os testes continuam separados das migrações históricas e não alteram dados de produção.
 
-### 10.2 Estratégia de testes
+### 10.2 Cobertura dos testes
 
-Os testes serão organizados em blocos:
+A cobertura dos testes foi organizada nos seguintes blocos:
 
 #### Bloco A — Contrato básico
 
@@ -757,7 +757,7 @@ Nenhuma migração de dados históricos será realizada como parte automática d
 
 ### 10.5 Critério de aceite
 
-O Item 7 será considerado concluído quando as regras financeiras relevantes da Sprint 03 estiverem cobertas por testes automatizados, incluindo casos normais, casos de borda e comportamentos de segurança contra regressão.
+O Item 7 foi considerado concluído após a cobertura das regras relevantes da Sprint 03 por testes automatizados e a validação da suíte focada e da suíte completa.
 
 A suíte deverá permanecer verde antes de qualquer alteração posterior de interface ou automação.
 
@@ -765,7 +765,7 @@ A suíte deverá permanecer verde antes de qualquer alteração posterior de int
 
 ## 11. Critério de encerramento da Sprint
 
-A Sprint 03 será concluída quando as regras dos sete itens estiverem formalizadas, testadas e implementadas somente onde houver decisão suficiente para isso.
+A Sprint 03 foi concluída após as regras dos sete itens estarem formalizadas, testadas e implementadas somente onde havia decisão suficiente para isso.
 
 A ordem oficial permanece:
 
