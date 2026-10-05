@@ -136,7 +136,9 @@ def render_mobile_recurrence_form():
     if not st.session_state.get("recurrence_form_open", False):
         return
 
-    with st.form("recurrence_form"):
+    # O checkbox fica fora do st.form para que a mudança provoque rerun
+    # imediato e revele/oculte o campo de dia do vencimento.
+    with st.container(border=True):
         descricao = st.text_input("Descrição")
         valor_nao_informado = st.checkbox("Valor não informado")
         valor = st.number_input(
@@ -163,47 +165,49 @@ def render_mobile_recurrence_form():
             else None
         )
 
-        periodicidade = st.selectbox(
-            "Periodicidade",
-            [PERIODICIDADE_MENSAL],
-            disabled=True,
-        )
-        dia_programado = st.number_input(
-            "Dia programado",
-            min_value=1,
-            max_value=31,
-            value=1,
-            step=1,
-        )
-        st.caption(
-            "Dia programado indica quando a ocorrência será gerada. "
-            "Dias 29, 30 e 31 usam o último dia válido do mês."
-        )
+        with st.form("recurrence_form"):
+            periodicidade = st.selectbox(
+                "Periodicidade",
+                [PERIODICIDADE_MENSAL],
+                disabled=True,
+            )
+            dia_programado = st.number_input(
+                "Dia programado",
+                min_value=1,
+                max_value=31,
+                value=1,
+                step=1,
+            )
+            st.caption(
+                "Dia programado indica quando a ocorrência será gerada. "
+                "Dias 29, 30 e 31 usam o último dia válido do mês."
+            )
 
-        data_inicio = st.date_input(
-            "Data inicial",
-            value=date.today(),
-            format="DD/MM/YYYY",
-        )
-        sem_data_fim = st.checkbox("Sem data final", value=True)
-        data_fim = (
-            None
-            if sem_data_fim
-            else st.date_input(
-                "Data final",
-                value=data_inicio,
+            data_inicio = st.date_input(
+                "Data inicial",
+                value=date.today(),
                 format="DD/MM/YYYY",
             )
-        )
-        st.caption(
-            "Vencimento é o dia da obrigação financeira e é independente do dia programado."
-        )
+            sem_data_fim = st.checkbox("Sem data final", value=True)
+            data_fim = (
+                None
+                if sem_data_fim
+                else st.date_input(
+                    "Data final",
+                    value=data_inicio,
+                    format="DD/MM/YYYY",
+                )
+            )
+            st.caption(
+                "O vencimento indica quando a obrigação deve ser paga. "
+                "O dia programado indica quando a ocorrência será gerada."
+            )
 
-        col_criar, col_cancelar = st.columns(2)
-        with col_criar:
-            salvar = st.form_submit_button("💾 Criar", use_container_width=True)
-        with col_cancelar:
-            cancelar = st.form_submit_button("Cancelar", use_container_width=True)
+            col_criar, col_cancelar = st.columns(2)
+            with col_criar:
+                salvar = st.form_submit_button("💾 Criar", use_container_width=True)
+            with col_cancelar:
+                cancelar = st.form_submit_button("Cancelar", use_container_width=True)
 
     if cancelar:
         _limpar_estado_formulario()
