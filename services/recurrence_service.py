@@ -450,6 +450,15 @@ def materializar_recorrencia(recorrencia, ano, mes):
 def sincronizar_recorrencias(ano, mes):
     """Materializa as recorrências elegíveis de uma competência mensal."""
     periodo = _normalizar_competencia_mensal(ano, mes)
+    hoje = date.today()
+    periodo_atual = date(hoje.year, hoje.month, 1)
+    if periodo != periodo_atual:
+        return {
+            "criadas": 0,
+            "existentes": 0,
+            "nao_elegiveis": 0,
+        }
+
     recorrencias = listar_recorrencias()
     if hasattr(recorrencias, "to_dict"):
         recorrencias = recorrencias.to_dict(orient="records")
@@ -460,6 +469,11 @@ def sincronizar_recorrencias(ano, mes):
         "nao_elegiveis": 0,
     }
     for recorrencia in recorrencias or []:
+        data_programada = _data_programada_no_periodo(recorrencia, periodo)
+        if data_programada > hoje:
+            resultado["nao_elegiveis"] += 1
+            continue
+
         materializacao = materializar_recorrencia(
             recorrencia,
             periodo.year,

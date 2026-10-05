@@ -79,12 +79,37 @@ def test_recorrencia_aceita_tipos_oficiais(recurrence_repository, tipo):
     assert criada["tipo"] == tipo
 
 
+@pytest.mark.parametrize("descricao", ["", "   ", None])
+def test_recorrencia_rejeita_descricao_ausente(descricao):
+    with pytest.raises(ValueError, match="Descrição"):
+        service.normalizar_dados_recorrencia(
+            _dados_recorrencia(descricao=descricao)
+        )
+
+
+@pytest.mark.parametrize("dia_programado", [1, 31])
+def test_recorrencia_aceita_limites_do_dia_programado(
+    recurrence_repository, dia_programado
+):
+    criada = service.criar_recorrencia(
+        _dados_recorrencia(dia_programado=dia_programado)
+    )
+
+    assert criada["dia_programado"] == dia_programado
+
+
 def test_recorrencia_aceita_valor_ausente_sem_transformar_em_zero():
     normalizada = service.normalizar_dados_recorrencia(
         _dados_recorrencia(valor=None)
     )
 
     assert normalizada["valor"] is None
+
+
+def test_recorrencia_aceita_data_final_ausente():
+    normalizada = service.normalizar_dados_recorrencia(_dados_recorrencia())
+
+    assert normalizada["data_fim"] is None
 
 
 def test_recorrencia_mensal_e_data_final_inclusiva():
@@ -122,6 +147,7 @@ def test_data_fim_nao_pode_ser_anterior_ao_inicio():
         ("dia_programado", 0),
         ("vencimento", 32),
         ("valor", 0),
+        ("valor", -1),
     ],
 )
 def test_rejeita_campos_invalidos(campo, valor):
@@ -148,12 +174,45 @@ def test_recorrencia_pausada_pode_ser_reativada(recurrence_repository):
     assert reativada["status_recorrencia"] == "Ativa"
 
 
+def test_recorrencia_ativa_pode_ser_pausada_e_cancelada(recurrence_repository):
+    criada = service.criar_recorrencia(_dados_recorrencia())
+
+    pausada = service.pausar_recorrencia(criada["id"])
+    assert pausada["status_recorrencia"] == "Pausada"
+
+    cancelada = service.cancelar_recorrencia(criada["id"])
+
+    assert cancelada["status_recorrencia"] == "Cancelada"
+    assert len(recurrence_repository.registros) == 1
+    assert recurrence_repository.registros[0]["id"] == criada["id"]
+
+
+def test_recorrencia_ativa_pode_ser_cancelada(recurrence_repository):
+    criada = service.criar_recorrencia(_dados_recorrencia())
+
+    cancelada = service.cancelar_recorrencia(criada["id"])
+
+    assert cancelada["status_recorrencia"] == "Cancelada"
+    assert len(recurrence_repository.registros) == 1
+
+
 def test_recorrencia_cancelada_nao_volta_para_ativa(recurrence_repository):
     criada = service.criar_recorrencia(_dados_recorrencia())
     service.cancelar_recorrencia(criada["id"])
 
     with pytest.raises(ValueError, match="cancelada"):
         service.reativar_recorrencia(criada["id"])
+
+
+def test_recorrencia_cancelada_nao_pode_ser_editada(recurrence_repository):
+    criada = service.criar_recorrencia(
+        _dados_recorrencia(status_recorrencia="Cancelada")
+    )
+
+    with pytest.raises(ValueError, match="Transição"):
+        service.editar_recorrencia(criada["id"], {"descricao": "Nova regra"})
+
+    assert recurrence_repository.atualizacoes == []
 
 
 def test_recorrencia_pausada_nao_elegivel_e_cancelada_nao_elegivel():
@@ -273,6 +332,75 @@ def _capturar_materializacao(monkeypatch, resposta=None):
 
     monkeypatch.setattr(transaction_service, "inserir_ocorrencia_recorrencia", inserir)
     return payloads
+
+
+def _fixar_hoje(monkeypatch, ano, mes, dia):
+    class DataAtual(date):
+        @classmethod
+        def today(cls):
+            return cls(ano, mes, dia)
+
+    monkeypatch.setattr(service, "date", DataAtual)
+
+
+def test_edicao_de_recorrencia_altera_dados_validos(recurrence_repository):
+    criada = service.criar_recorrencia(_dados_recorrencia())
+
+    atualizada = service.editar_recorrencia(
+        criada["id"],
+        {
+            "descricao": "Internet atualizada",
+            "dia_programado": 15,
+            "data_fim": "2026-12-31",
+        },
+    )
+
+    assert atualizada["descricao"] == "Internet atualizada"
+    assert atualizada["dia_programado"] == 15
+    assert atualizada["data_fim"] == "2026-12-31"
+
+
+def test_edicao_permite_mudar_valor_conhecido_para_null_e_depois_informa_lo(
+    recurrence_repository,
+):
+    criada = service.criar_recorrencia(_dados_recorrencia())
+
+    sem_valor = service.editar_recorrencia(criada["id"], {"valor": None})
+    assert sem_valor["valor"] is None
+
+    com_valor = service.editar_recorrencia(criada["id"], {"valor": 250.0})
+
+    assert com_valor["valor"] == 250.0
+
+
+def test_edicao_rejeita_campos_desconhecidos_sem_persistir(
+    recurrence_repository,
+):
+    criada = service.criar_recorrencia(_dados_recorrencia())
+
+    with pytest.raises(ValueError, match="não editáveis"):
+        service.editar_recorrencia(criada["id"], {"recorrencia_id": 99})
+
+    assert recurrence_repository.atualizacoes == []
+    assert recurrence_repository.registros[0]["descricao"] == "Internet"
+
+
+def test_edicao_nao_altera_ocorrencia_ja_materializada(
+    monkeypatch, recurrence_repository
+):
+    payloads = _capturar_materializacao(monkeypatch)
+    criada = service.criar_recorrencia(_dados_recorrencia())
+
+    service.materializar_recorrencia(criada, 2026, "OUTUBRO")
+    service.editar_recorrencia(
+        criada["id"],
+        {"descricao": "Internet atualizada", "valor": 250.0},
+    )
+
+    assert payloads[0]["descricao"] == "Internet"
+    assert payloads[0]["valor"] == 100.0
+    assert recurrence_repository.registros[0]["descricao"] == "Internet atualizada"
+    assert recurrence_repository.registros[0]["valor"] == 250.0
 
 
 @pytest.mark.parametrize(
@@ -430,6 +558,7 @@ def test_materializacao_repetida_e_idempotente(monkeypatch):
 
 
 def test_sincronizar_recorrencias_retorna_resumo_minimo(monkeypatch):
+    _fixar_hoje(monkeypatch, 2026, 10, 20)
     registros = {}
 
     def inserir(dados):
@@ -456,3 +585,89 @@ def test_sincronizar_recorrencias_retorna_resumo_minimo(monkeypatch):
 
     assert primeira == {"criadas": 1, "existentes": 0, "nao_elegiveis": 1}
     assert segunda == {"criadas": 0, "existentes": 1, "nao_elegiveis": 1}
+
+
+def test_sincronizacao_ignora_dia_programado_futuro(monkeypatch):
+    _fixar_hoje(monkeypatch, 2026, 10, 20)
+    payloads = _capturar_materializacao(monkeypatch)
+    monkeypatch.setattr(
+        service,
+        "listar_recorrencias",
+        lambda: pd.DataFrame(
+            [_recorrencia_persistida(dia_programado=25, data_inicio="2026-10-01")]
+        ),
+    )
+
+    resultado = service.sincronizar_recorrencias(2026, "OUTUBRO")
+
+    assert resultado == {"criadas": 0, "existentes": 0, "nao_elegiveis": 1}
+    assert payloads == []
+
+
+@pytest.mark.parametrize("mes", ["SETEMBRO", "NOVEMBRO"])
+def test_sincronizacao_ignora_competencia_fora_do_mes_atual(monkeypatch, mes):
+    _fixar_hoje(monkeypatch, 2026, 10, 20)
+    payloads = _capturar_materializacao(monkeypatch)
+    monkeypatch.setattr(
+        service,
+        "listar_recorrencias",
+        lambda: pd.DataFrame([_recorrencia_persistida(data_inicio="2026-01-01")]),
+    )
+
+    resultado = service.sincronizar_recorrencias(2026, mes)
+
+    assert resultado == {"criadas": 0, "existentes": 0, "nao_elegiveis": 0}
+    assert payloads == []
+
+
+@pytest.mark.parametrize(
+    ("data_inicio", "dia_programado"),
+    [
+        ("2026-10-25", 10),
+        ("2026-10-20", 10),
+    ],
+)
+def test_sincronizacao_respeita_data_inicio_no_mes_atual(
+    monkeypatch, data_inicio, dia_programado
+):
+    _fixar_hoje(monkeypatch, 2026, 10, 20)
+    payloads = _capturar_materializacao(monkeypatch)
+    monkeypatch.setattr(
+        service,
+        "listar_recorrencias",
+        lambda: pd.DataFrame(
+            [
+                _recorrencia_persistida(
+                    data_inicio=data_inicio,
+                    dia_programado=dia_programado,
+                )
+            ]
+        ),
+    )
+
+    resultado = service.sincronizar_recorrencias(2026, "OUTUBRO")
+
+    assert resultado == {"criadas": 0, "existentes": 0, "nao_elegiveis": 1}
+    assert payloads == []
+
+
+def test_sincronizacao_preserva_ultimo_dia_valido_do_mes(monkeypatch):
+    _fixar_hoje(monkeypatch, 2026, 2, 28)
+    payloads = _capturar_materializacao(monkeypatch)
+    monkeypatch.setattr(
+        service,
+        "listar_recorrencias",
+        lambda: pd.DataFrame(
+            [
+                _recorrencia_persistida(
+                    dia_programado=31,
+                    data_inicio="2026-01-01",
+                )
+            ]
+        ),
+    )
+
+    resultado = service.sincronizar_recorrencias(2026, "FEVEREIRO")
+
+    assert resultado == {"criadas": 1, "existentes": 0, "nao_elegiveis": 0}
+    assert payloads[0]["data_transacao"] == date(2026, 2, 28)
