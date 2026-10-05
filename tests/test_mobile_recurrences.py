@@ -163,6 +163,42 @@ def test_data_inicial_e_final_sao_enviadas(monkeypatch):
     assert chamadas[0]["data_fim"] == date.today()
 
 
+def test_possui_vencimento_envia_dia(monkeypatch):
+    chamadas = []
+    monkeypatch.setattr(
+        component.recurrence_service,
+        "criar_recorrencia",
+        lambda dados: chamadas.append(dados),
+    )
+
+    app = _app_formulario().run()
+    app.button("recurrence_toggle_form").click().run()
+    app.text_input[0].set_value("Internet").run()
+    app.number_input[0].set_value(100.0).run()
+    app.checkbox[1].check().run()
+    app.number_input[1].set_value(15).run()
+    app.button[1].click().run()
+
+    assert chamadas[0]["vencimento"] == 15
+
+
+def test_sem_vencimento_envia_none(monkeypatch):
+    chamadas = []
+    monkeypatch.setattr(
+        component.recurrence_service,
+        "criar_recorrencia",
+        lambda dados: chamadas.append(dados),
+    )
+
+    app = _app_formulario().run()
+    app.button("recurrence_toggle_form").click().run()
+    app.text_input[0].set_value("Internet").run()
+    app.number_input[0].set_value(100.0).run()
+    app.button[1].click().run()
+
+    assert chamadas[0]["vencimento"] is None
+
+
 def test_filtro_por_status():
     registros = [
         _recorrencia(status_recorrencia=STATUS_RECORRENCIA_ATIVA),
@@ -217,6 +253,18 @@ def test_ordenacao_prioriza_status_e_depois_dia():
     assert [registro["id"] for registro in ordenadas] == [3, 2, 4, 1]
 
 
+def test_formatacao_de_dia_exibe_inteiro():
+    assert component._formatar_dia_exibicao(10) == "10"
+    assert component._formatar_dia_exibicao(10.0) == "10"
+
+
+def test_formatacao_de_vencimento_exibe_sem_nan():
+    assert component._formatar_vencimento_exibicao(10) == "dia 10"
+    assert component._formatar_vencimento_exibicao(10.0) == "dia 10"
+    assert component._formatar_vencimento_exibicao(None) == "sem vencimento"
+    assert component._formatar_vencimento_exibicao(float("nan")) == "sem vencimento"
+
+
 def test_listagem_usa_service_e_exibe_valor_nao_informado(monkeypatch):
     exibicoes = []
     monkeypatch.setattr(
@@ -235,3 +283,24 @@ def test_listagem_usa_service_e_exibe_valor_nao_informado(monkeypatch):
     component.render_mobile_recurrence_list()
 
     assert any("Valor não informado" in texto for texto in exibicoes)
+
+
+def test_card_nao_exibe_nan_nem_decimal_no_dia(monkeypatch):
+    captions = []
+    monkeypatch.setattr(component.st, "markdown", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        component.st,
+        "caption",
+        lambda texto, **_kwargs: captions.append(texto),
+    )
+
+    component._render_recorrencia_card(
+        _recorrencia(
+            dia_programado=10.0,
+            vencimento=None,
+        )
+    )
+
+    assert any("Dia 10" in texto for texto in captions)
+    assert any("Vencimento: sem vencimento" in texto for texto in captions)
+    assert all("10.0" not in texto and "nan" not in texto.casefold() for texto in captions)

@@ -7,6 +7,10 @@ from components.mobile_actions import render_mobile_transaction_actions
 from components.mobile_constants import ANOS, MESES, STATUS_VIEW
 from components.mobile_debts import render_mobile_debts
 from components.mobile_helpers import calcular_metricas
+from components.mobile_recurrences import (
+    render_mobile_recurrence_form,
+    render_mobile_recurrence_list,
+)
 from components.mobile_tools import render_mobile_tools
 from components.mobile_transactions import (
     render_mobile_transaction_form,
@@ -358,9 +362,13 @@ def render_mobile():
     _render_metrics(df_base)
     st.divider()
     render_mobile_transaction_form(ano, mes)
+    render_mobile_recurrence_form()
 
     st.divider()
     render_mobile_transaction_list(df_base, mes, status_view=status_view)
+
+    st.divider()
+    render_mobile_recurrence_list()
 
     with st.container(border=True):
         st.markdown(

@@ -98,18 +98,54 @@ def test_recorrencia_aceita_limites_do_dia_programado(
     assert criada["dia_programado"] == dia_programado
 
 
-def test_recorrencia_aceita_valor_ausente_sem_transformar_em_zero():
+@pytest.mark.parametrize(
+    ("valor", "esperado"),
+    [
+        (None, None),
+        (float("nan"), None),
+        (125.5, 125.5),
+    ],
+)
+def test_recorrencia_normaliza_valor_sem_inventar_zero(valor, esperado):
     normalizada = service.normalizar_dados_recorrencia(
-        _dados_recorrencia(valor=None)
+        _dados_recorrencia(valor=valor)
     )
 
-    assert normalizada["valor"] is None
+    assert normalizada["valor"] == esperado
 
 
-def test_recorrencia_aceita_data_final_ausente():
-    normalizada = service.normalizar_dados_recorrencia(_dados_recorrencia())
+@pytest.mark.parametrize(
+    ("vencimento", "esperado"),
+    [
+        (None, None),
+        (float("nan"), None),
+        (15, 15),
+    ],
+)
+def test_recorrencia_normaliza_vencimento_opcional(vencimento, esperado):
+    normalizada = service.normalizar_dados_recorrencia(
+        _dados_recorrencia(vencimento=vencimento)
+    )
 
-    assert normalizada["data_fim"] is None
+    assert normalizada["vencimento"] == esperado
+
+
+@pytest.mark.parametrize(
+    ("data_fim", "esperado"),
+    [
+        (None, None),
+        ("", None),
+        ("   ", None),
+        (float("nan"), None),
+        ("2026-12-10", "2026-12-10"),
+    ],
+)
+def test_recorrencia_normaliza_data_fim_opcional(data_fim, esperado):
+    normalizada = service.normalizar_dados_recorrencia(
+        _dados_recorrencia(data_fim=data_fim)
+    )
+
+    assert normalizada["data_fim"] == esperado
 
 
 def test_recorrencia_mensal_e_data_final_inclusiva():
@@ -130,10 +166,25 @@ def test_data_inicio_e_obrigatoria():
         service.normalizar_dados_recorrencia(dados)
 
 
+def test_dia_programado_e_obrigatorio():
+    dados = _dados_recorrencia()
+    del dados["dia_programado"]
+
+    with pytest.raises(ValueError, match="dia_programado"):
+        service.normalizar_dados_recorrencia(dados)
+
+
 def test_data_fim_nao_pode_ser_anterior_ao_inicio():
     with pytest.raises(ValueError, match="data_fim"):
         service.normalizar_dados_recorrencia(
             _dados_recorrencia(data_fim="2026-10-09")
+        )
+
+
+def test_data_fim_invalida_nao_vazia_continua_rejeitada():
+    with pytest.raises(ValueError, match="data_fim"):
+        service.normalizar_dados_recorrencia(
+            _dados_recorrencia(data_fim="data inválida")
         )
 
 
@@ -145,9 +196,12 @@ def test_data_fim_nao_pode_ser_anterior_ao_inicio():
         ("categoria", "Categoria inexistente"),
         ("periodicidade", "Semanal"),
         ("dia_programado", 0),
+        ("vencimento", 0),
         ("vencimento", 32),
+        ("vencimento", "invalido"),
         ("valor", 0),
         ("valor", -1),
+        ("valor", "invalido"),
     ],
 )
 def test_rejeita_campos_invalidos(campo, valor):
@@ -649,6 +703,35 @@ def test_sincronizacao_respeita_data_inicio_no_mes_atual(
 
     assert resultado == {"criadas": 0, "existentes": 0, "nao_elegiveis": 1}
     assert payloads == []
+
+
+@pytest.mark.parametrize("data_fim", ["   ", float("nan")])
+@pytest.mark.parametrize("vencimento", [None, float("nan")])
+@pytest.mark.parametrize("valor", [None, float("nan")])
+def test_sincronizacao_aceita_opcionais_ausentes(
+    monkeypatch, data_fim, vencimento, valor
+):
+    _fixar_hoje(monkeypatch, 2026, 10, 20)
+    payloads = _capturar_materializacao(monkeypatch)
+    monkeypatch.setattr(
+        service,
+        "listar_recorrencias",
+        lambda: pd.DataFrame(
+            [
+                _recorrencia_persistida(
+                    data_fim=data_fim,
+                    data_inicio="2026-01-01",
+                    vencimento=vencimento,
+                    valor=valor,
+                )
+            ]
+        ),
+    )
+
+    resultado = service.sincronizar_recorrencias(2026, "OUTUBRO")
+
+    assert resultado == {"criadas": 1, "existentes": 0, "nao_elegiveis": 0}
+    assert payloads[0]["recorrencia_id"] == 42
 
 
 def test_sincronizacao_preserva_ultimo_dia_valido_do_mes(monkeypatch):

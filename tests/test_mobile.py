@@ -1,9 +1,99 @@
+from contextlib import nullcontext
+
 import pandas as pd
 
 from components import mobile
 from components import mobile_actions, mobile_transactions
 from components.mobile_helpers import valor_seguro
 from utils.formatacao import formatar_valor_exibicao
+
+
+def test_mobile_compose_recorrencias_uma_vez_na_ordem_aprovada(monkeypatch):
+    eventos = []
+
+    monkeypatch.setattr(mobile, "_render_select_style", lambda: None)
+    monkeypatch.setattr(mobile, "_render_mobile_styles", lambda: None)
+    monkeypatch.setattr(mobile, "_render_mobile_header", lambda: None)
+    monkeypatch.setattr(
+        mobile,
+        "_render_filters",
+        lambda: eventos.append("filtros") or (2026, "OUTUBRO", "Todos"),
+    )
+    monkeypatch.setattr(
+        mobile.recurrence_service,
+        "sincronizar_recorrencias",
+        lambda ano, mes: eventos.append(("sincronizar", ano, mes)),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "carregar_dados",
+        lambda mes, ano: eventos.append(("carregar", mes, ano))
+        or pd.DataFrame(),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "_render_metrics",
+        lambda _df: eventos.append("metricas"),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "render_mobile_transaction_form",
+        lambda ano, mes: eventos.append(("nova_transacao", ano, mes)),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "render_mobile_recurrence_form",
+        lambda: eventos.append("nova_recorrencia"),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "render_mobile_transaction_list",
+        lambda df, mes, status_view: eventos.append(
+            ("transacoes", mes, status_view)
+        ),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "render_mobile_recurrence_list",
+        lambda: eventos.append("recorrencias"),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "render_mobile_transaction_actions",
+        lambda df, mes: eventos.append(("acoes", mes)),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "render_mobile_tools",
+        lambda: eventos.append("ferramentas"),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "render_mobile_debts",
+        lambda: eventos.append("dividas"),
+    )
+    monkeypatch.setattr(mobile.st, "divider", lambda: None)
+    monkeypatch.setattr(mobile.st, "markdown", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(mobile.st, "container", lambda **_kwargs: nullcontext())
+
+    mobile.render_mobile()
+
+    assert eventos == [
+        "filtros",
+        ("sincronizar", 2026, "OUTUBRO"),
+        ("carregar", "OUTUBRO", 2026),
+        "metricas",
+        ("nova_transacao", 2026, "OUTUBRO"),
+        "nova_recorrencia",
+        ("transacoes", "OUTUBRO", "Todos"),
+        "recorrencias",
+        ("acoes", "OUTUBRO"),
+        "ferramentas",
+        "dividas",
+    ]
+    assert eventos.count("nova_recorrencia") == 1
+    assert eventos.count("recorrencias") == 1
+    assert sum(1 for evento in eventos if isinstance(evento, tuple) and evento[0] == "sincronizar") == 1
 
 
 def test_abrir_mes_especifico_sincroniza_antes_de_carregar(monkeypatch):

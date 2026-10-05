@@ -47,6 +47,8 @@ def _normalizar_descricao(valor):
 
 
 def _normalizar_valor(valor):
+    if isinstance(valor, float) and math.isnan(valor):
+        valor = None
     if valor is None or valor == "":
         return None
     if isinstance(valor, bool):
@@ -81,6 +83,11 @@ def _normalizar_dia(valor, campo):
 
 
 def _normalizar_data(valor, campo, obrigatoria=False):
+    if isinstance(valor, float) and math.isnan(valor):
+        valor = None
+    elif isinstance(valor, str) and not valor.strip():
+        valor = None
+
     try:
         normalizada = transaction_service.normalizar_data_transacao(valor)
     except ValueError as exc:
@@ -151,7 +158,9 @@ def normalizar_dados_recorrencia(dados):
         raise ValueError("data_fim não pode ser anterior a data_inicio.")
 
     vencimento = dados.get("vencimento")
-    if vencimento is not None:
+    if isinstance(vencimento, float) and math.isnan(vencimento):
+        vencimento = None
+    elif vencimento is not None:
         vencimento = _normalizar_dia(vencimento, "vencimento")
 
     normalizados = {
