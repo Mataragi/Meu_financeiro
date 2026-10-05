@@ -76,6 +76,23 @@ def _dia_para_ordenacao(registro):
         return 32
 
 
+def _formatar_dia_exibicao(valor):
+    try:
+        return str(int(valor))
+    except (TypeError, ValueError):
+        return str(valor or "")
+
+
+def _formatar_vencimento_exibicao(valor):
+    if valor is None:
+        return "sem vencimento"
+
+    try:
+        return f"dia {int(valor)}"
+    except (TypeError, ValueError):
+        return "sem vencimento"
+
+
 def _ordenar_recorrencias(registros):
     return sorted(
         registros,
@@ -228,7 +245,9 @@ def _render_recorrencia_card(registro):
     tipo = escape(str(registro.get("tipo") or ""))
     categoria = escape(str(registro.get("categoria") or ""))
     periodicidade = escape(str(registro.get("periodicidade") or ""))
-    dia_programado = escape(str(registro.get("dia_programado") or ""))
+    dia_programado = escape(
+        _formatar_dia_exibicao(registro.get("dia_programado"))
+    )
 
     with st.container(border=True):
         st.markdown(f"**{descricao}**")
@@ -238,10 +257,9 @@ def _render_recorrencia_card(registro):
         )
 
         forma_pagamento = registro.get("forma_pagamento") or "Não informado"
-        vencimento = registro.get("vencimento")
+        vencimento = _formatar_vencimento_exibicao(registro.get("vencimento"))
         detalhes = [f"Pagamento: {forma_pagamento}"]
-        if vencimento is not None:
-            detalhes.append(f"Vencimento: dia {vencimento}")
+        detalhes.append(f"Vencimento: {vencimento}")
 
         data_inicio = formatar_data(registro.get("data_inicio")) or "não informada"
         data_fim = formatar_data(registro.get("data_fim")) or "sem data final"
