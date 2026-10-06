@@ -145,21 +145,6 @@ def render_mobile_transaction_form(ano, mes):
     if not st.session_state.get("show_form", False):
         return
 
-    # O vencimento fica fora do st.form para que marcar/desmarcar a opção
-    # atualize a interface imediatamente e revele/oculte o dia do vencimento.
-    with st.expander("Opções adicionais"):
-        possui_vencimento = st.checkbox("Possui vencimento", value=False)
-        vencimento = (
-            st.number_input(
-                "Dia do vencimento", min_value=1, max_value=31, value=10, step=1
-            )
-            if possui_vencimento
-            else None
-        )
-        total_parcelas = st.number_input(
-            "Quantidade de parcelas", min_value=1, max_value=60, value=1, step=1
-        )
-
     with st.form("nova_transacao"):
         desc = st.text_input("Descrição")
         valor = st.number_input("Valor", min_value=0.0)
@@ -178,6 +163,18 @@ def render_mobile_transaction_form(ano, mes):
         else:
             status = st.selectbox("Status", [STATUS_PENDENTE, STATUS_PAGO])
 
+        with st.expander("Opções adicionais"):
+            possui_vencimento = st.checkbox("Possui vencimento", value=False)
+            vencimento = (
+                st.number_input(
+                    "Dia do vencimento", min_value=1, max_value=31, value=10, step=1
+                )
+                if possui_vencimento
+                else None
+            )
+            total_parcelas = st.number_input(
+                "Quantidade de parcelas", min_value=1, max_value=60, value=1, step=1
+            )
         st.caption("O mês selecionado continua sendo o ciclo financeiro do lançamento. A regra automática de ciclo por data será aplicada em etapa própria.")
 
         salvar = st.form_submit_button("💾 Salvar", use_container_width=True)
