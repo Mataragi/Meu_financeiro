@@ -157,6 +157,42 @@ def _render_mobile_styles():
             overflow-wrap: anywhere;
         }
 
+        .financeiro-pro-card-pago {
+            background: #edf8f1;
+            border-color: #c9e8d4;
+        }
+
+        .financeiro-pro-card-pago .financeiro-pro-card-value {
+            color: #1d7446;
+        }
+
+        .financeiro-pro-card-pendente {
+            background: #fff7e8;
+            border-color: #f0ddb5;
+        }
+
+        .financeiro-pro-card-pendente .financeiro-pro-card-value {
+            color: #9a6a1b;
+        }
+
+        .financeiro-pro-card-saldo-positivo {
+            background: #edf8f1;
+            border-color: #c9e8d4;
+        }
+
+        .financeiro-pro-card-saldo-positivo .financeiro-pro-card-value {
+            color: #1d7446;
+        }
+
+        .financeiro-pro-card-saldo-negativo {
+            background: #fff0f0;
+            border-color: #efc8c8;
+        }
+
+        .financeiro-pro-card-saldo-negativo .financeiro-pro-card-value {
+            color: #b04a45;
+        }
+
         .financeiro-pro-transactions-title {
             color: #17382a;
             font-size: 1.2rem;
@@ -320,17 +356,18 @@ def _render_filters():
 
 def _render_metrics(df_base):
     pagos, pendentes, saldo = calcular_metricas(df_base)
+    saldo_class = "positivo" if saldo >= 0 else "negativo"
     cards = (
-        ("Pago", formatar_real(pagos)),
-        ("Pendente", formatar_real(pendentes)),
-        ("Saldo calculado", formatar_real(saldo)),
+        ("Pago", formatar_real(pagos), "pago"),
+        ("Pendente", formatar_real(pendentes), "pendente"),
+        ("Saldo calculado", formatar_real(saldo), f"saldo {saldo_class}"),
     )
     cards_html = "".join(
-        f'<div class="financeiro-pro-card">'
+        f'<div class="financeiro-pro-card financeiro-pro-card-{card_class}">'
         f'<div class="financeiro-pro-card-label">{label}</div>'
         f'<div class="financeiro-pro-card-value">{value}</div>'
         "</div>"
-        for label, value in cards
+        for label, value, card_class in cards
     )
     st.markdown(
         f'<div class="financeiro-pro-metrics">{cards_html}</div>',
@@ -352,14 +389,31 @@ def _carregar_dados_da_competencia(ano, mes):
     return carregar_dados(mes, ano)
 
 
+def _render_mobile_sidebar_actions(df_base, mes):
+    with st.sidebar:
+        st.markdown("## ⚙️ Ações")
+        render_mobile_transaction_actions(df_base, mes)
+        with st.expander("⚙️ Ferramentas"):
+            render_mobile_tools()
+        with st.expander("🤝 Dívidas informais"):
+            render_mobile_debts()
+
+
 def render_mobile():
     _render_select_style()
     _render_mobile_styles()
+
+    # O placeholder mantém os indicadores acima do cabeçalho verde,
+    # embora dependam dos filtros renderizados logo depois dele.
+    metrics_placeholder = st.empty()
+
     _render_mobile_header()
     ano, mes, status_view = _render_filters()
     df_base = _carregar_dados_da_competencia(ano, mes)
 
-    _render_metrics(df_base)
+    with metrics_placeholder.container():
+        _render_metrics(df_base)
+
     st.divider()
     render_mobile_transaction_form(ano, mes)
     render_mobile_recurrence_form()
@@ -370,12 +424,4 @@ def render_mobile():
     st.divider()
     render_mobile_recurrence_list()
 
-    with st.container(border=True):
-        st.markdown(
-            '<div class="financeiro-pro-actions-title">Ações</div>',
-            unsafe_allow_html=True,
-        )
-        render_mobile_transaction_actions(df_base, mes)
-        render_mobile_tools()
-        with st.expander("🤝 Dívidas informais"):
-            render_mobile_debts()
+    _render_mobile_sidebar_actions(df_base, mes)
