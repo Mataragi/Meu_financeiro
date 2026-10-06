@@ -165,13 +165,10 @@ def render_mobile_transaction_form(ano, mes):
 
         with st.expander("Opções adicionais"):
             possui_vencimento = st.checkbox("Possui vencimento", value=False)
-            vencimento = (
-                st.number_input(
-                    "Dia do vencimento", min_value=1, max_value=31, value=10, step=1
-                )
-                if possui_vencimento
-                else None
+            dia_vencimento = st.number_input(
+                "Dia do vencimento", min_value=1, max_value=31, value=10, step=1
             )
+            vencimento = int(dia_vencimento) if possui_vencimento else None
             total_parcelas = st.number_input(
                 "Quantidade de parcelas", min_value=1, max_value=60, value=1, step=1
             )
