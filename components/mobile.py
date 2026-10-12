@@ -393,8 +393,7 @@ def _render_mobile_sidebar_actions(df_base, mes):
     with st.sidebar:
         st.markdown("## ⚙️ Ações")
         render_mobile_transaction_actions(df_base, mes)
-        with st.expander("⚙️ Ferramentas"):
-            render_mobile_tools()
+        render_mobile_tools()
         with st.expander("🤝 Dívidas informais"):
             render_mobile_debts()
 
