@@ -200,6 +200,9 @@ def _render_mobile_styles():
             margin: 8px 0 4px;
         }
 
+        /* A navegação usa o layout nativo do Streamlit, sem sobrescrever
+           a estrutura interna dos radios e causar sobreposição de rótulos. */
+
         .financeiro-pro-transaction-search {
             margin-bottom: 12px;
         }
@@ -327,6 +330,22 @@ def _render_mobile_styles():
             .financeiro-pro-transaction-value {
                 font-size: 0.84rem;
             }
+
+            /* Mantém os filtros em colunas no celular, sem empilhamento automático. */
+            div[data-testid="stHorizontalBlock"] {
+                flex-wrap: nowrap !important;
+                align-items: flex-end;
+                gap: 0.5rem !important;
+            }
+
+            div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+                min-width: 0 !important;
+                flex: 1 1 0% !important;
+            }
+
+            div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] label {
+                font-size: 0.72rem;
+            }
         }
         </style>
         """,
@@ -335,22 +354,22 @@ def _render_mobile_styles():
 
 
 def _render_filters():
-    ano = st.selectbox("Ano", ANOS, key="ano_mobile")
     if "mes_mobile" not in st.session_state:
         mes_atual = MESES_ORDEM[date.today().month - 1]
         st.session_state.mes_mobile = mes_atual
 
-    mes = st.selectbox(
-        "📅 Mês",
-        MESES,
-        index=MESES.index(st.session_state.mes_mobile),
-        key="mes_mobile",
-    )
-    status = st.selectbox(
-        "Status",
-        STATUS_VIEW,
-        key="status_view_mobile",
-    )
+    col_ano, col_mes, col_status = st.columns(3, gap="small")
+    with col_ano:
+        ano = st.selectbox("Ano", ANOS, key="ano_mobile")
+    with col_mes:
+        mes = st.selectbox(
+            "📅 Mês",
+            MESES,
+            index=MESES.index(st.session_state.mes_mobile),
+            key="mes_mobile",
+        )
+    with col_status:
+        status = st.selectbox("Status", STATUS_VIEW, key="status_view_mobile")
     return ano, mes, status
 
 
@@ -414,13 +433,48 @@ def render_mobile():
         _render_metrics(df_base)
 
     st.divider()
-    render_mobile_transaction_form(ano, mes)
-    render_mobile_recurrence_form()
 
-    st.divider()
-    render_mobile_transaction_list(df_base, mes, status_view=status_view)
+    # Botões reais em colunas iguais: evita depender do layout interno de st.radio.
+    if "mobile_fluxo_ativo" not in st.session_state:
+        st.session_state["mobile_fluxo_ativo"] = "Transações"
 
-    st.divider()
-    render_mobile_recurrence_list()
+    col_transacoes, col_recorrencias = st.columns(2, gap="small")
+    with col_transacoes:
+        if st.button(
+            "☷  Transações",
+            key="mobile_btn_transacoes",
+            use_container_width=True,
+            type=(
+                "primary"
+                if st.session_state["mobile_fluxo_ativo"] == "Transações"
+                else "secondary"
+            ),
+        ):
+            st.session_state["mobile_fluxo_ativo"] = "Transações"
+            st.rerun()
+
+    with col_recorrencias:
+        if st.button(
+            "🔄  Recorrências",
+            key="mobile_btn_recorrencias",
+            use_container_width=True,
+            type=(
+                "primary"
+                if st.session_state["mobile_fluxo_ativo"] == "Recorrências"
+                else "secondary"
+            ),
+        ):
+            st.session_state["mobile_fluxo_ativo"] = "Recorrências"
+            st.rerun()
+
+    fluxo_ativo = st.session_state["mobile_fluxo_ativo"]
+
+    if fluxo_ativo == "Transações":
+        render_mobile_transaction_form(ano, mes)
+        st.divider()
+        render_mobile_transaction_list(df_base, mes, status_view=status_view)
+    else:
+        render_mobile_recurrence_form()
+        render_mobile_recurrence_list()
 
     _render_mobile_sidebar_actions(df_base, mes)

@@ -75,6 +75,11 @@ def test_mobile_compose_recorrencias_uma_vez_na_ordem_aprovada(monkeypatch):
     monkeypatch.setattr(mobile.st, "divider", lambda: None)
     monkeypatch.setattr(mobile.st, "markdown", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(mobile.st, "container", lambda **_kwargs: nullcontext())
+    monkeypatch.setattr(
+        mobile.st,
+        "radio",
+        lambda *_args, **_kwargs: "Transações",
+    )
 
     mobile.render_mobile()
 
@@ -84,16 +89,81 @@ def test_mobile_compose_recorrencias_uma_vez_na_ordem_aprovada(monkeypatch):
         ("carregar", "OUTUBRO", 2026),
         "metricas",
         ("nova_transacao", 2026, "OUTUBRO"),
-        "nova_recorrencia",
         ("transacoes", "OUTUBRO", "Todos"),
-        "recorrencias",
         ("acoes", "OUTUBRO"),
         "ferramentas",
         "dividas",
     ]
-    assert eventos.count("nova_recorrencia") == 1
-    assert eventos.count("recorrencias") == 1
+    assert "nova_recorrencia" not in eventos
+    assert "recorrencias" not in eventos
     assert sum(1 for evento in eventos if isinstance(evento, tuple) and evento[0] == "sincronizar") == 1
+
+
+def test_fluxo_recorrencias_exibe_apenas_gestao_de_regras(monkeypatch):
+    eventos = []
+
+    monkeypatch.setattr(mobile, "_render_select_style", lambda: None)
+    monkeypatch.setattr(mobile, "_render_mobile_styles", lambda: None)
+    monkeypatch.setattr(mobile, "_render_mobile_header", lambda: None)
+    monkeypatch.setattr(
+        mobile,
+        "_render_filters",
+        lambda: (2026, "OUTUBRO", "Todos"),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "_carregar_dados_da_competencia",
+        lambda ano, mes: pd.DataFrame(),
+    )
+    monkeypatch.setattr(mobile, "_render_metrics", lambda _df: None)
+    monkeypatch.setattr(
+        mobile,
+        "render_mobile_transaction_form",
+        lambda *_args: eventos.append("form_transacao"),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "render_mobile_transaction_list",
+        lambda *_args, **_kwargs: eventos.append("lista_transacoes"),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "render_mobile_recurrence_form",
+        lambda: eventos.append("form_recorrencia"),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "render_mobile_recurrence_list",
+        lambda: eventos.append("lista_recorrencias"),
+    )
+    monkeypatch.setattr(
+        mobile,
+        "_render_mobile_sidebar_actions",
+        lambda *_args: None,
+    )
+    class ColunaFalsa:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+    monkeypatch.setattr(
+        mobile.st,
+        "session_state",
+        {"mobile_fluxo_ativo": "Recorrências"},
+    )
+    monkeypatch.setattr(
+        mobile.st,
+        "columns",
+        lambda *_args, **_kwargs: (ColunaFalsa(), ColunaFalsa()),
+    )
+    monkeypatch.setattr(mobile.st, "button", lambda *_args, **_kwargs: False)
+    monkeypatch.setattr(mobile.st, "divider", lambda: None)
+
+    mobile.render_mobile()
+
+    assert eventos == ["form_recorrencia", "lista_recorrencias"]
 
 
 def test_abrir_mes_especifico_sincroniza_antes_de_carregar(monkeypatch):
@@ -280,6 +350,37 @@ def test_resumo_de_ocorrencia_nula_nao_executa_float_none(monkeypatch):
     )
 
     assert "Valor não informado" in exibicoes[0]
+
+
+def test_resumo_identifica_origem_recorrente_sem_marcar_transacao_comum(monkeypatch):
+    exibicoes = []
+    monkeypatch.setattr(
+        mobile_transactions.st,
+        "markdown",
+        lambda conteudo, **_kwargs: exibicoes.append(conteudo),
+    )
+
+    mobile_transactions._render_transaction_summary(
+        {
+            "descricao": "Aluguel",
+            "valor": 1200,
+            "tipo": "Despesa",
+            "status": "Pendente",
+            "recorrencia_id": 42,
+        }
+    )
+    mobile_transactions._render_transaction_summary(
+        {
+            "descricao": "Mercado",
+            "valor": 286.40,
+            "tipo": "Despesa",
+            "status": "Pago",
+            "recorrencia_id": None,
+        }
+    )
+
+    assert "🔁 Recorrência" in exibicoes[0]
+    assert "🔁 Recorrência" not in exibicoes[1]
 
 
 def test_acoes_exibem_valor_nulo_sem_excecao():

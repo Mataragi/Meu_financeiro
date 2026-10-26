@@ -84,6 +84,14 @@ def _render_transaction_summary(registro):
     )
     value_prefix = "+ " if tipo == TIPO_RECEITA else "− "
     icon = ICONS_BY_CATEGORY.get(categoria, "📌")
+    recorrencia_id = registro.get("recorrencia_id")
+    marcador_recorrencia = ""
+    if recorrencia_id is not None:
+        try:
+            if not pd.isna(recorrencia_id):
+                marcador_recorrencia = " · 🔁 Recorrência"
+        except (TypeError, ValueError):
+            marcador_recorrencia = " · 🔁 Recorrência"
     parcela_atual = registro.get("parcela_atual")
     total_parcelas = registro.get("total_parcelas")
     parcela = ""
@@ -105,7 +113,7 @@ def _render_transaction_summary(registro):
             <div class="financeiro-pro-transaction-main">
                 <div class="financeiro-pro-transaction-description">{escape(descricao)}</div>
                 <div class="financeiro-pro-transaction-meta">
-                    {escape(categoria)}{escape(parcela)} · {escape(data)} · {escape(forma_pagamento)}
+                    {escape(categoria)}{escape(parcela)} · {escape(data)} · {escape(forma_pagamento)}{escape(marcador_recorrencia)}
                 </div>
             </div>
             <div class="financeiro-pro-transaction-side">
@@ -393,7 +401,7 @@ def _render_transaction_actions(registro):
         '<div class="financeiro-pro-action-label">Ações</div>',
         unsafe_allow_html=True,
     )
-    col_editar, col_excluir = st.columns(2)
+    col_editar, col_excluir, col_duplicar = st.columns(3, gap="small")
 
     with col_editar:
         if st.button(
@@ -406,10 +414,20 @@ def _render_transaction_actions(registro):
             st.session_state[f"duplicando_transacao_{registro_id}"] = False
 
     with col_excluir:
-        if registro.get("recorrencia_id") is not None and not pd.isna(
-            registro.get("recorrencia_id")
-        ):
-            st.caption("Ocorrências recorrentes não podem ser excluídas.")
+        recorrencia_id = registro.get("recorrencia_id")
+        eh_recorrencia = recorrencia_id is not None
+        try:
+            eh_recorrencia = eh_recorrencia and not pd.isna(recorrencia_id)
+        except (TypeError, ValueError):
+            pass
+        if eh_recorrencia:
+            st.button(
+                "🗑️ Excluir",
+                key=f"excluir_transacao_{registro_id}",
+                use_container_width=True,
+                disabled=True,
+                help="Preserve a ocorrência vinculada à regra de recorrência.",
+            )
         elif st.button(
             "🗑️ Excluir",
             key=f"excluir_transacao_{registro_id}",
@@ -419,7 +437,7 @@ def _render_transaction_actions(registro):
             st.session_state[f"editando_transacao_{registro_id}"] = False
             st.session_state[f"duplicando_transacao_{registro_id}"] = False
 
-    with st.container():
+    with col_duplicar:
         if st.button(
             "📋 Duplicar",
             key=f"duplicar_transacao_{registro_id}",
@@ -473,15 +491,20 @@ def render_mobile_transaction_list(
         unsafe_allow_html=True,
     )
 
-    forma_pagamento_view = st.selectbox(
-        "Forma de pagamento",
-        FORMA_PAGAMENTO_VIEW,
-        key="forma_pagamento_view_mobile",
-    )
+    col_pagamento, col_busca = st.columns(2, gap="small")
+    with col_pagamento:
+        forma_pagamento_view = st.selectbox(
+            "Forma de pagamento",
+            FORMA_PAGAMENTO_VIEW,
+            key="forma_pagamento_view_mobile",
+        )
 
-    busca = st.text_input(
-        "🔍 Buscar transação", placeholder="Ex: carro, mercado, claro..."
-    ).strip()
+    with col_busca:
+        busca = st.text_input(
+            "🔍 Buscar transação",
+            placeholder="Ex: carro, mercado...",
+            key="busca_transacao_mobile",
+        ).strip()
 
     if mes == "Selecione":
         st.info("Selecione um MÊS para visualizar os registros.")
