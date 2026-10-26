@@ -241,6 +241,79 @@ def render_mobile_recurrence_form():
     )
 
 
+def _render_edicao_recorrencia(registro):
+    recorrencia_id = registro["id"]
+    with st.form(f"editar_recorrencia_{recorrencia_id}"):
+        descricao = st.text_input("Descrição", value=str(registro.get("descricao") or ""), key=f"rec_ed_desc_{recorrencia_id}")
+        valor_atual = registro.get("valor")
+        valor_none = st.checkbox("Valor não informado", value=valor_atual is None, key=f"rec_ed_none_{recorrencia_id}")
+        try:
+            valor_inicial = float(valor_atual) if valor_atual is not None else 0.0
+        except (TypeError, ValueError):
+            valor_inicial = 0.0
+        valor = st.number_input("Valor", min_value=0.0, value=valor_inicial, step=0.01, disabled=valor_none, key=f"rec_ed_valor_{recorrencia_id}")
+        tipo_opcoes = [TIPO_RECEITA, TIPO_DESPESA]
+        tipo_atual = registro.get("tipo") if registro.get("tipo") in tipo_opcoes else TIPO_DESPESA
+        tipo = st.selectbox("Tipo", tipo_opcoes, index=tipo_opcoes.index(tipo_atual), key=f"rec_ed_tipo_{recorrencia_id}")
+        categoria_atual = registro.get("categoria") if registro.get("categoria") in CATEGORIAS_OFICIAIS else CATEGORIAS_OFICIAIS[0]
+        categoria = st.selectbox("Categoria", CATEGORIAS_OFICIAIS, index=CATEGORIAS_OFICIAIS.index(categoria_atual), key=f"rec_ed_categoria_{recorrencia_id}")
+        forma_atual = registro.get("forma_pagamento") if registro.get("forma_pagamento") in FORMAS_PAGAMENTO else FORMAS_PAGAMENTO[0]
+        forma = st.selectbox("Forma de pagamento", FORMAS_PAGAMENTO, index=FORMAS_PAGAMENTO.index(forma_atual), key=f"rec_ed_forma_{recorrencia_id}")
+        dia_atual = _dia_para_ordenacao(registro)
+        dia = st.number_input("Dia programado", min_value=1, max_value=31, value=min(31, max(1, dia_atual)), step=1, key=f"rec_ed_dia_{recorrencia_id}")
+        venc_atual = registro.get("vencimento")
+        tem_vencimento = st.checkbox("Possui vencimento", value=venc_atual is not None, key=f"rec_ed_tem_venc_{recorrencia_id}")
+        try:
+            vencimento = min(31, max(1, int(venc_atual))) if venc_atual is not None else 10
+        except (TypeError, ValueError):
+            vencimento = 10
+        vencimento = st.number_input("Dia do vencimento", min_value=1, max_value=31, value=vencimento, disabled=not tem_vencimento, key=f"rec_ed_venc_{recorrencia_id}")
+        try:
+            data_inicio_atual = date.fromisoformat(str(registro.get("data_inicio"))[:10])
+        except (TypeError, ValueError):
+            data_inicio_atual = date.today()
+        data_inicio = st.date_input("Data inicial", value=data_inicio_atual, format="DD/MM/YYYY", key=f"rec_ed_inicio_{recorrencia_id}")
+        data_fim_atual = registro.get("data_fim")
+        sem_data_fim = st.checkbox("Sem data final", value=data_fim_atual is None or str(data_fim_atual).strip() == "", key=f"rec_ed_sem_fim_{recorrencia_id}")
+        try:
+            data_fim_inicial = date.fromisoformat(str(data_fim_atual)[:10]) if data_fim_atual else data_inicio
+        except (TypeError, ValueError):
+            data_fim_inicial = data_inicio
+        data_fim = st.date_input("Data final", value=data_fim_inicial, format="DD/MM/YYYY", disabled=sem_data_fim, key=f"rec_ed_fim_{recorrencia_id}")
+        salvar = st.form_submit_button("Salvar edição")
+        descartar = st.form_submit_button("Descartar")
+    if descartar:
+        st.session_state.pop("editando_recorrencia_id", None)
+        st.rerun()
+    if not salvar:
+        return
+    if not descricao.strip():
+        st.error("Informe uma descrição.")
+        return
+    if not valor_none and valor <= 0:
+        st.error("O valor deve ser maior que zero ou não informado.")
+        return
+    dados = {
+        "descricao": descricao.strip(),
+        "valor": None if valor_none else valor,
+        "tipo": tipo,
+        "categoria": categoria,
+        "forma_pagamento": forma,
+        "dia_programado": int(dia),
+        "vencimento": int(vencimento) if tem_vencimento else None,
+        "data_inicio": data_inicio,
+        "data_fim": None if sem_data_fim else data_fim,
+    }
+    try:
+        recurrence_service.editar_recorrencia(recorrencia_id, dados)
+    except ValueError as exc:
+        st.error(str(exc))
+        return
+    st.session_state.pop("editando_recorrencia_id", None)
+    st.success("Recorrência atualizada.")
+    st.rerun()
+
+
 def _render_recorrencia_card(registro):
     descricao = escape(str(registro.get("descricao") or "Sem descrição"))
     valor = escape(str(formatar_valor_exibicao(registro.get("valor"))))
@@ -253,7 +326,11 @@ def _render_recorrencia_card(registro):
         _formatar_dia_exibicao(registro.get("dia_programado"))
     )
 
-    with st.container(border=True):
+    titulo_card = (
+        f"{status_visual} {descricao} · {valor} · "
+        f"{escape(status)} · Dia {dia_programado}"
+    )
+    with st.expander(titulo_card, expanded=False):
         st.markdown(f"**{descricao}**")
         st.markdown(f"**{valor}** · {status_visual} {escape(status)}")
         st.caption(
@@ -269,6 +346,31 @@ def _render_recorrencia_card(registro):
         data_fim = formatar_data(registro.get("data_fim")) or "sem data final"
         detalhes.append(f"Vigência: {data_inicio} até {data_fim}")
         st.caption(" · ".join(str(detalhe) for detalhe in detalhes))
+
+        recorrencia_id = registro.get("id")
+        if st.button("✏️ Editar", key=f"editar_recorrencia_{recorrencia_id}", disabled=status == STATUS_RECORRENCIA_CANCELADA):
+            st.session_state["editando_recorrencia_id"] = recorrencia_id
+            st.rerun()
+        if status == STATUS_RECORRENCIA_ATIVA:
+            if st.button("⏸️ Pausar", key=f"pausar_recorrencia_{recorrencia_id}"):
+                recurrence_service.pausar_recorrencia(recorrencia_id)
+                st.rerun()
+        elif status == STATUS_RECORRENCIA_PAUSADA:
+            if st.button("▶️ Reativar", key=f"reativar_recorrencia_{recorrencia_id}"):
+                recurrence_service.reativar_recorrencia(recorrencia_id)
+                st.rerun()
+        if status != STATUS_RECORRENCIA_CANCELADA:
+            if st.button("Cancelar recorrência", key=f"cancelar_recorrencia_{recorrencia_id}"):
+                st.session_state["confirmar_cancelar_recorrencia_id"] = recorrencia_id
+        if st.session_state.get("confirmar_cancelar_recorrencia_id") == recorrencia_id:
+            st.warning("Novas ocorrências serão interrompidas; lançamentos existentes serão preservados.")
+            if st.button("Confirmar cancelamento", key=f"confirmar_cancelar_rec_{recorrencia_id}"):
+                recurrence_service.cancelar_recorrencia(recorrencia_id)
+                st.session_state.pop("confirmar_cancelar_recorrencia_id", None)
+                st.rerun()
+
+        if st.session_state.get("editando_recorrencia_id") == recorrencia_id:
+            _render_edicao_recorrencia(registro)
 
 
 def render_mobile_recurrence_list():
