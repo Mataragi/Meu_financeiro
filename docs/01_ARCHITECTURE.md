@@ -367,7 +367,7 @@ Responsável por manter o cliente Supabase.
 
 Responsável pelas consultas.
 
-Sempre que ocorrer uma alteração no banco, o cache deverá ser invalidado.
+Quando uma escrita altera dados consultados por uma função cacheada, deve-se invalidar o cache dessa função por meio de `invalidar_cache(funcao_cacheada)`. Evite limpar globalmente todos os dados em cache quando apenas uma consulta foi afetada. A invalidação deve ocorrer depois da operação de persistência bem-sucedida.
 
 ---
 

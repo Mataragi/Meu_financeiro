@@ -11,7 +11,6 @@ from datetime import date, datetime, timezone
 import math
 
 from services import database, transaction_service
-from services.cache import invalidar_cache_consultas
 from utils.categoria import CATEGORIAS_OFICIAIS
 from utils.forma_pagamento import normalizar_forma_pagamento
 from utils.recorrencia import (
@@ -225,7 +224,6 @@ def _obter_recorrencia(id_recorrencia):
 def criar_recorrencia(dados):
     normalizados = normalizar_dados_recorrencia(dados)
     recorrencia = database.inserir_recorrencia(normalizados)
-    invalidar_cache_consultas()
     return recorrencia or normalizados
 
 
@@ -243,7 +241,6 @@ def editar_recorrencia(id_recorrencia, dados):
     )
     normalizados["atualizado_em"] = datetime.now(timezone.utc).isoformat()
     atualizada = database.atualizar_recorrencia(id_normalizado, normalizados)
-    invalidar_cache_consultas()
     return atualizada or {"id": id_normalizado, **normalizados}
 
 
@@ -278,7 +275,6 @@ def alterar_status_recorrencia(id_recorrencia, status_recorrencia):
         "atualizado_em": datetime.now(timezone.utc).isoformat(),
     }
     atualizada = database.atualizar_recorrencia(id_normalizado, dados)
-    invalidar_cache_consultas()
     return atualizada or {"id": id_normalizado, **atual, **dados}
 
 

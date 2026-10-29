@@ -29,6 +29,7 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Aplicação principal passou a iniciar exclusivamente a interface Mobile.
 - A lista de transações do Mobile deixou de usar tabela para apresentar registros em cartões expansíveis, mantendo as ações individuais ocultas até a interação do usuário.
 - `database.py` foi consolidado como Repository de persistência, sem acoplamento com Streamlit.
+- A invalidação de cache passou a limpar apenas a função cacheada afetada, evitando a limpeza global desnecessária de todos os dados em cache.
 - Regras de transações foram centralizadas em `transaction_service.py` e a infraestrutura de cache foi isolada.
 - Components passaram a acessar transações e dívidas por meio dos Services correspondentes.
 - A documentação funcional passou a separar categoria de forma de pagamento e registrar o tratamento específico das compras no Crédito.

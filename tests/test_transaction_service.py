@@ -63,7 +63,7 @@ def transaction_service(monkeypatch):
 
     cache = types.ModuleType("services.cache")
     cache.cache_data = lambda **_kwargs: lambda func: func
-    cache.invalidar_cache_consultas = lambda: None
+    cache.invalidar_cache = lambda *_args: None
 
     import services
 

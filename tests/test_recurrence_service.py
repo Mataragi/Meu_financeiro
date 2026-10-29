@@ -58,7 +58,6 @@ class FakeRecurrenceRepository:
 def recurrence_repository(monkeypatch):
     repository = FakeRecurrenceRepository()
     monkeypatch.setattr(service, "database", repository)
-    monkeypatch.setattr(service, "invalidar_cache_consultas", lambda: None)
     return repository
 
 
@@ -318,7 +317,7 @@ def test_persistencia_de_ocorrencia_ignora_conflito(monkeypatch):
         inserir_transacao_recorrencia=inserir_transacao_recorrencia
     )
     monkeypatch.setattr(transaction_service, "database", repository)
-    monkeypatch.setattr(transaction_service, "invalidar_cache_consultas", lambda: None)
+    monkeypatch.setattr(transaction_service, "invalidar_cache", lambda *_args: None)
 
     dados = {
         "recorrencia_id": 42,

@@ -3,7 +3,7 @@ import math
 from uuid import uuid4
 
 from services import database
-from services.cache import cache_data, invalidar_cache_consultas
+from services.cache import cache_data, invalidar_cache
 from utils.forma_pagamento import normalizar_forma_pagamento
 from utils.status import (
     STATUS_PAGO,
@@ -97,7 +97,7 @@ def inserir_dados(dados):
             normalizar_dados_transacao(dado) for dado in dados
         ]
         database.inserir_dados(dados_normalizados)
-        invalidar_cache_consultas()
+        invalidar_cache(carregar_dados)
 
 
 def inserir_ocorrencia_recorrencia(dados):
@@ -129,7 +129,7 @@ def inserir_ocorrencia_recorrencia(dados):
     dados_normalizados["competencia_ocorrencia"] = competencia_normalizada
 
     resposta = database.inserir_transacao_recorrencia(dados_normalizados)
-    invalidar_cache_consultas()
+    invalidar_cache(carregar_dados)
     return resposta
 
 
@@ -372,21 +372,21 @@ def atualizar_registro(id_registro, dados):
             id_registro,
             dados_normalizados,
         )
-        invalidar_cache_consultas()
+        invalidar_cache(carregar_dados)
 
 
 def dar_baixa_registro(id_registro):
     if id_registro:
         _validar_baixa_em_registros(_carregar_transacoes_por_ids([id_registro]))
         database.atualizar_status_registro(id_registro, STATUS_PAGO)
-        invalidar_cache_consultas()
+        invalidar_cache(carregar_dados)
 
 
 def dar_baixa_multiplos(ids):
     if ids:
         _validar_baixa_em_registros(_carregar_transacoes_por_ids(ids))
         database.atualizar_status_multiplos(ids, STATUS_PAGO)
-        invalidar_cache_consultas()
+        invalidar_cache(carregar_dados)
 
 
 def atualizar_status_multiplos(ids, status):
@@ -398,28 +398,28 @@ def atualizar_status_multiplos(ids, status):
             ids,
             status_normalizado,
         )
-        invalidar_cache_consultas()
+        invalidar_cache(carregar_dados)
 
 
 def excluir_registro(id_registro):
     if id_registro:
         _validar_exclusao(_carregar_transacoes_por_ids([id_registro]))
         database.excluir_registro(id_registro)
-        invalidar_cache_consultas()
+        invalidar_cache(carregar_dados)
 
 
 def excluir_multiplos(ids):
     if ids:
         _validar_exclusao(_carregar_transacoes_por_ids(ids))
         database.excluir_multiplos(ids)
-        invalidar_cache_consultas()
+        invalidar_cache(carregar_dados)
 
 
 def excluir_multiplos_do_mes(ids, mes):
     if ids:
         _validar_exclusao(_carregar_transacoes_por_ids(ids))
         database.excluir_multiplos_do_mes(ids, mes)
-        invalidar_cache_consultas()
+        invalidar_cache(carregar_dados)
 
 
 def excluir_grupo_parcelamento(grupo_id):
@@ -428,7 +428,7 @@ def excluir_grupo_parcelamento(grupo_id):
             database.carregar_transacoes_por_grupo_parcelamento(grupo_id)
         )
         database.excluir_grupo_parcelamento(grupo_id)
-        invalidar_cache_consultas()
+        invalidar_cache(carregar_dados)
 
 
 def excluir_mes(mes, ano):
@@ -436,7 +436,7 @@ def excluir_mes(mes, ano):
         database.carregar_dados(mes, ano).to_dict(orient="records")
     )
     database.excluir_mes(mes, ano)
-    invalidar_cache_consultas()
+    invalidar_cache(carregar_dados)
 
 
 def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):
