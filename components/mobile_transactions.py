@@ -484,7 +484,7 @@ def _render_transaction_actions(registro):
         _render_duplicacao_inline(registro)
 
 
-def _render_category_pie_chart(df_lista, categoria_view):
+def _render_category_expense_chart(df_lista, categoria_view):
     dados_grafico = preparar_dados_grafico_categorias(df_lista)
     if dados_grafico.empty:
         st.info("Não há despesas com valores para compor o gráfico.")
@@ -499,18 +499,33 @@ def _render_category_pie_chart(df_lista, categoria_view):
     st.markdown(f"**{titulo}**")
     st.metric("Total de despesas no filtro", formatar_valor_exibicao(total))
 
+    altura = max(240, min(560, len(dados_grafico) * 30))
     grafico = (
         alt.Chart(dados_grafico)
-        .mark_arc(outerRadius=115, innerRadius=48)
+        .mark_bar(cornerRadiusEnd=5, height=18)
         .encode(
-            theta=alt.Theta("valor:Q", stack=True),
-            color=alt.Color("categoria:N", title="Categoria"),
+            x=alt.X(
+                "valor:Q",
+                title="Valor gasto",
+                axis=alt.Axis(format="$,.0f", grid=True),
+            ),
+            y=alt.Y(
+                "categoria:N",
+                title=None,
+                sort="-x",
+                axis=alt.Axis(labelLimit=150),
+            ),
+            color=alt.Color(
+                "categoria:N",
+                legend=None,
+                scale=alt.Scale(scheme="tableau20"),
+            ),
             tooltip=[
                 alt.Tooltip("categoria:N", title="Categoria"),
                 alt.Tooltip("valor:Q", title="Total", format="$,.2f"),
             ],
         )
-        .properties(height=280)
+        .properties(height=altura)
     )
     st.altair_chart(grafico, use_container_width=True)
 
@@ -566,7 +581,7 @@ def render_mobile_transaction_list(
         st.info("Nenhum registro encontrado para esse filtro.")
         return
 
-    _render_category_pie_chart(df_lista, categoria_view)
+    _render_category_expense_chart(df_lista, categoria_view)
 
     if "categoria" not in df_lista.columns:
         df_lista["categoria"] = "Sem categoria"
