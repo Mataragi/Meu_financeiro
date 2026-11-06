@@ -1,18 +1,22 @@
 from datetime import date
 from html import escape
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
 from components.mobile_constants import (
     ANOS,
     CATEGORIAS,
+    CATEGORIA_VIEW,
     FORMA_PAGAMENTO_VIEW,
     MESES,
 )
 from components.mobile_helpers import (
+    filtrar_categoria,
     filtrar_forma_pagamento,
     filtrar_status,
+    preparar_dados_grafico_categorias,
     formatar_data,
     valor_seguro,
     vencimento_seguro,
@@ -480,6 +484,37 @@ def _render_transaction_actions(registro):
         _render_duplicacao_inline(registro)
 
 
+def _render_category_pie_chart(df_lista, categoria_view):
+    dados_grafico = preparar_dados_grafico_categorias(df_lista)
+    if dados_grafico.empty:
+        st.info("Não há despesas com valores para compor o gráfico.")
+        return
+
+    total = dados_grafico["valor"].sum()
+    titulo = (
+        f"Despesas por categoria · {categoria_view}"
+        if categoria_view != "Todas"
+        else "Distribuição das despesas por categoria"
+    )
+    st.markdown(f"**{titulo}**")
+    st.metric("Total de despesas no filtro", formatar_valor_exibicao(total))
+
+    grafico = (
+        alt.Chart(dados_grafico)
+        .mark_arc(outerRadius=115, innerRadius=48)
+        .encode(
+            theta=alt.Theta("valor:Q", stack=True),
+            color=alt.Color("categoria:N", title="Categoria"),
+            tooltip=[
+                alt.Tooltip("categoria:N", title="Categoria"),
+                alt.Tooltip("valor:Q", title="Total", format="$,.2f"),
+            ],
+        )
+        .properties(height=280)
+    )
+    st.altair_chart(grafico, use_container_width=True)
+
+
 def render_mobile_transaction_list(
     df_base,
     mes,
@@ -491,7 +526,14 @@ def render_mobile_transaction_list(
         unsafe_allow_html=True,
     )
 
-    col_pagamento, col_busca = st.columns(2, gap="small")
+    col_categoria, col_pagamento = st.columns(2, gap="small")
+    with col_categoria:
+        categoria_view = st.selectbox(
+            "Categoria",
+            CATEGORIA_VIEW,
+            key="categoria_view_mobile",
+        )
+
     with col_pagamento:
         forma_pagamento_view = st.selectbox(
             "Forma de pagamento",
@@ -499,18 +541,18 @@ def render_mobile_transaction_list(
             key="forma_pagamento_view_mobile",
         )
 
-    with col_busca:
-        busca = st.text_input(
-            "🔍 Buscar transação",
-            placeholder="Ex: carro, mercado...",
-            key="busca_transacao_mobile",
-        ).strip()
+    busca = st.text_input(
+        "🔍 Buscar transação",
+        placeholder="Ex: carro, mercado...",
+        key="busca_transacao_mobile",
+    ).strip()
 
     if mes == "Selecione":
         st.info("Selecione um MÊS para visualizar os registros.")
         return
 
     df_lista = filtrar_status(df_base.copy(), status_view)
+    df_lista = filtrar_categoria(df_lista, categoria_view)
     df_lista = filtrar_forma_pagamento(df_lista, forma_pagamento_view)
 
     if busca:
@@ -523,6 +565,8 @@ def render_mobile_transaction_list(
     if df_lista.empty:
         st.info("Nenhum registro encontrado para esse filtro.")
         return
+
+    _render_category_pie_chart(df_lista, categoria_view)
 
     if "categoria" not in df_lista.columns:
         df_lista["categoria"] = "Sem categoria"

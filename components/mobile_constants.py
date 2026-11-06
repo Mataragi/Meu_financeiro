@@ -14,6 +14,11 @@ CATEGORIAS = [
     *CATEGORIAS_OFICIAIS,
 ]
 
+CATEGORIA_VIEW = [
+    "Todas",
+    *CATEGORIAS_OFICIAIS,
+]
+
 FORMA_PAGAMENTO_VIEW = [
     "Todos",
     "Não informado",

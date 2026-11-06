@@ -86,3 +86,41 @@ def filtrar_forma_pagamento(df, forma_pagamento_view):
         return df.iloc[0:0]
 
     return df[df["forma_pagamento"] == forma_pagamento_view]
+
+
+def filtrar_categoria(df, categoria_view):
+    if df.empty or categoria_view == "Todas":
+        return df
+
+    if "categoria" not in df.columns:
+        return df.iloc[0:0]
+
+    if categoria_view == "Sem categoria":
+        return df[df["categoria"].isna() | (df["categoria"] == "Sem categoria")]
+
+    return df[df["categoria"] == categoria_view]
+
+
+def preparar_dados_grafico_categorias(df):
+    """Agrupa o valor das despesas por categoria para o gráfico de pizza."""
+    if df.empty or "valor" not in df.columns:
+        return pd.DataFrame(columns=["categoria", "valor"])
+
+    dados = df.copy()
+    if "tipo" in dados.columns:
+        dados = dados[dados["tipo"] == TIPO_DESPESA]
+
+    if dados.empty:
+        return pd.DataFrame(columns=["categoria", "valor"])
+
+    dados["categoria"] = dados.get("categoria", pd.Series(index=dados.index, dtype="object"))
+    dados["categoria"] = dados["categoria"].fillna("Sem categoria")
+    dados["valor"] = pd.to_numeric(dados["valor"], errors="coerce").fillna(0)
+    dados = dados[dados["valor"] > 0]
+
+    return (
+        dados.groupby("categoria", as_index=False)["valor"]
+        .sum()
+        .sort_values("valor", ascending=False)
+        .reset_index(drop=True)
+    )
