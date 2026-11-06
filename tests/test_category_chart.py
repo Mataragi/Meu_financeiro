@@ -39,3 +39,32 @@ def test_grafico_vazio_quando_nao_ha_despesas():
     ])
 
     assert preparar_dados_grafico_categorias(df).empty
+
+
+def test_categorias_antigas_ou_desconhecidas_sao_consolidadas_em_outros():
+    df = pd.DataFrame([
+        {"categoria": "Cartão Crédito Luiz", "valor": 120, "tipo": "Despesa"},
+        {"categoria": "Cartão", "valor": 80, "tipo": "Despesa"},
+        {"categoria": "Compras", "valor": 50, "tipo": "Despesa"},
+        {"categoria": "Mercado", "valor": 30, "tipo": "Despesa"},
+    ])
+
+    resultado = preparar_dados_grafico_categorias(df)
+
+    assert resultado.to_dict("records") == [
+        {"categoria": "Outros", "valor": 250},
+        {"categoria": "Mercado", "valor": 30},
+    ]
+
+
+def test_categoria_oficial_com_emoji_antigo_e_normalizada():
+    df = pd.DataFrame([
+        {"categoria": "🍔 Alimentação", "valor": 45, "tipo": "Despesa"},
+        {"categoria": "Alimentação", "valor": 55, "tipo": "Despesa"},
+    ])
+
+    resultado = preparar_dados_grafico_categorias(df)
+
+    assert resultado.to_dict("records") == [
+        {"categoria": "Alimentação", "valor": 100}
+    ]

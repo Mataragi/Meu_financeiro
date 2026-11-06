@@ -4,6 +4,7 @@ import pandas as pd
 
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
 from utils.financeiro import calcular_saldo_real
+from utils.categoria import CATEGORIAS_OFICIAIS
 from utils.tipo_transacao import TIPO_DESPESA, TIPO_RECEITA, normalizar_tipos_dataframe
 
 
@@ -102,7 +103,7 @@ def filtrar_categoria(df, categoria_view):
 
 
 def preparar_dados_grafico_categorias(df):
-    """Agrupa o valor das despesas por categoria para o gráfico de pizza."""
+    """Agrupa despesas usando exclusivamente a taxonomia oficial atual."""
     if df.empty or "valor" not in df.columns:
         return pd.DataFrame(columns=["categoria", "valor"])
 
@@ -113,8 +114,28 @@ def preparar_dados_grafico_categorias(df):
     if dados.empty:
         return pd.DataFrame(columns=["categoria", "valor"])
 
+    categorias_validas = set(CATEGORIAS_OFICIAIS)
+
+    def normalizar_categoria_grafico(valor):
+        if pd.isna(valor) or not str(valor).strip():
+            return "Sem categoria"
+
+        categoria = str(valor).strip()
+        if categoria in categorias_validas:
+            return categoria
+
+        # Preserva categorias oficiais que receberam emojis em versões antigas.
+        categoria_sem_prefixo = categoria.lstrip()
+        while categoria_sem_prefixo and not categoria_sem_prefixo[0].isalnum():
+            categoria_sem_prefixo = categoria_sem_prefixo[1:].lstrip()
+        if categoria_sem_prefixo in categorias_validas:
+            return categoria_sem_prefixo
+
+        # Categorias removidas/desconhecidas não devem reaparecer no gráfico.
+        return "Outros"
+
     dados["categoria"] = dados.get("categoria", pd.Series(index=dados.index, dtype="object"))
-    dados["categoria"] = dados["categoria"].fillna("Sem categoria")
+    dados["categoria"] = dados["categoria"].map(normalizar_categoria_grafico)
     dados["valor"] = pd.to_numeric(dados["valor"], errors="coerce").fillna(0)
     dados = dados[dados["valor"] > 0]
 
