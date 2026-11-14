@@ -13,6 +13,7 @@ from components.mobile_constants import (
     MESES,
 )
 from components.mobile_helpers import (
+    filtrar_busca,
     filtrar_categoria,
     filtrar_forma_pagamento,
     filtrar_status,
@@ -26,6 +27,7 @@ from services.transaction_service import (
     duplicar_registro,
     excluir_multiplos,
     inserir_parcelado,
+    prever_parcelas,
 )
 from utils.forma_pagamento import FORMAS_PAGAMENTO
 from utils.formatacao import formatar_valor_exibicao
@@ -143,6 +145,34 @@ def _data_transacao_para_formulario(registro):
         return None
 
 
+def _render_preview_parcelas(previsao):
+    """Renderiza uma prévia compacta e rolável das parcelas calculadas pelo serviço."""
+    linhas = []
+    for parcela in previsao:
+        competencia = f"{parcela['mes'].title()}/{parcela['ano']}"
+        valor = formatar_valor_exibicao(parcela["valor"])
+        linhas.append(
+            "<tr>"
+            f"<td>Parcela {parcela['parcela_atual']}/{parcela['total_parcelas']}</td>"
+            f"<td>{escape(competencia)}</td>"
+            f"<td class='valor'>{escape(valor)}</td>"
+            "</tr>"
+        )
+
+    html = (
+        "<style>"
+        ".fp-preview-table{width:100%;border-collapse:collapse;font-size:.82rem;}"
+        ".fp-preview-table td{padding:.38rem .45rem;border-bottom:1px solid rgba(128,128,128,.18);}"
+        ".fp-preview-table tr:last-child td{border-bottom:0;}"
+        ".fp-preview-table .valor{text-align:right;font-weight:650;white-space:nowrap;}"
+        "</style>"
+        "<table class='fp-preview-table'><tbody>"
+        + "".join(linhas)
+        + "</tbody></table>"
+    )
+    st.markdown(html, unsafe_allow_html=True)
+
+
 def render_mobile_transaction_form(ano, mes):
     if "show_form" not in st.session_state:
         st.session_state.show_form = False
@@ -157,65 +187,175 @@ def render_mobile_transaction_form(ano, mes):
     if not st.session_state.get("show_form", False):
         return
 
-    with st.form("nova_transacao"):
-        desc = st.text_input("Descrição")
-        valor = st.number_input("Valor", min_value=0.0)
-        categoria = st.selectbox("Categoria", CATEGORIAS)
-        forma_pagamento = st.selectbox("Forma de pagamento", FORMAS_PAGAMENTO_NOVO)
-        tipo = st.selectbox("Tipo", [TIPO_DESPESA, TIPO_RECEITA])
-        data_transacao = st.date_input(
-            "Data da transação",
-            value=date.today(),
-            format="DD/MM/YYYY",
+    with st.container(border=True):
+        st.markdown("### Nova transação")
+        st.caption("Registre uma movimentação financeira.")
+
+        desc = st.text_input(
+            "Descrição",
+            placeholder="Ex.: Compra no mercado",
+            key="nova_desc",
         )
 
-        if forma_pagamento == "Crédito":
-            st.info("Compra no Crédito será criada como Pendente e ficará no ciclo da fatura.")
-            status = STATUS_PENDENTE
-        else:
-            status = st.selectbox("Status", [STATUS_PENDENTE, STATUS_PAGO])
-
-        with st.expander("Opções adicionais"):
-            possui_vencimento = st.checkbox("Possui vencimento", value=False)
-            dia_vencimento = st.number_input(
-                "Dia do vencimento", min_value=1, max_value=31, value=10, step=1
+        col_valor, col_tipo = st.columns(2, gap="small")
+        with col_valor:
+            valor = st.number_input(
+                "Valor (R$)",
+                min_value=0.0,
+                value=0.0,
+                step=0.01,
+                format="%.2f",
+                key="nova_valor",
             )
-            vencimento = int(dia_vencimento) if possui_vencimento else None
+        with col_tipo:
+            tipo = st.selectbox(
+                "Tipo",
+                [TIPO_DESPESA, TIPO_RECEITA],
+                key="nova_tipo",
+            )
+
+        col_categoria, col_pagamento, col_status = st.columns(3, gap="small")
+        with col_categoria:
+            categoria = st.selectbox(
+                "Categoria",
+                CATEGORIAS,
+                key="nova_categoria",
+            )
+        with col_pagamento:
+            forma_pagamento = st.selectbox(
+                "Forma de pagamento",
+                FORMAS_PAGAMENTO_NOVO,
+                key="nova_forma_pagamento",
+            )
+        with col_status:
+            if forma_pagamento == "Crédito":
+                status = STATUS_PENDENTE
+                st.selectbox(
+                    "Status",
+                    [STATUS_PENDENTE],
+                    disabled=True,
+                    key="nova_status_credito",
+                    help="Compras no crédito entram como pendentes até a baixa da fatura.",
+                )
+            else:
+                status = st.selectbox(
+                    "Status",
+                    [STATUS_PENDENTE, STATUS_PAGO],
+                    key="nova_status",
+                )
+
+        st.markdown("**Datas**")
+        col_data, col_vencimento = st.columns([1.35, 1], gap="small")
+        with col_data:
+            data_transacao = st.date_input(
+                "Data da transação",
+                value=date.today(),
+                format="DD/MM/YYYY",
+                key="nova_data_transacao",
+            )
+        with col_vencimento:
+            possui_vencimento = st.checkbox(
+                "Possui vencimento",
+                value=False,
+                key="nova_possui_vencimento",
+            )
+            if possui_vencimento:
+                dia_vencimento = st.number_input(
+                    "Dia do vencimento",
+                    min_value=1,
+                    max_value=31,
+                    value=10,
+                    step=1,
+                    key="nova_dia_vencimento",
+                )
+                vencimento = int(dia_vencimento)
+            else:
+                vencimento = None
+
+        st.markdown("**Parcelamento**")
+        col_parcelas, col_info = st.columns([1, 2], gap="small")
+        with col_parcelas:
             total_parcelas = st.number_input(
-                "Quantidade de parcelas", min_value=1, max_value=60, value=1, step=1
+                "Quantidade de parcelas",
+                min_value=1,
+                max_value=60,
+                value=1,
+                step=1,
+                key="nova_total_parcelas",
             )
-        st.caption("O mês selecionado continua sendo o ciclo financeiro do lançamento. A regra automática de ciclo por data será aplicada em etapa própria.")
+        with col_info:
+            st.caption("De 1 a 60 parcelas. A prévia não grava dados.")
 
-        salvar = st.form_submit_button("💾 Salvar", use_container_width=True)
+        previsao = []
+        erro_previa = None
+        if valor > 0 and int(total_parcelas) > 1 and mes not in ["Selecione", "TODOS"]:
+            try:
+                previsao = prever_parcelas(
+                    ano=ano,
+                    mes=mes,
+                    valor_total=valor,
+                    total_parcelas=int(total_parcelas),
+                    forma_pagamento=forma_pagamento,
+                    data_transacao=data_transacao,
+                )
+            except ValueError as exc:
+                erro_previa = str(exc)
 
-        if not salvar:
-            return
+        if int(total_parcelas) > 1:
+            if erro_previa:
+                st.warning(erro_previa)
+            elif previsao:
+                st.markdown("**Prévia das parcelas**")
+                with st.container(height=220, border=True):
+                    _render_preview_parcelas(previsao)
+                total_previsto = round(sum(item["valor"] for item in previsao), 2)
+                st.caption(
+                    f"Total: {formatar_valor_exibicao(total_previsto)} · "
+                    f"{previsao[0]['mes'].title()}/{previsao[0]['ano']} até "
+                    f"{previsao[-1]['mes'].title()}/{previsao[-1]['ano']}"
+                )
 
-        if mes in ["Selecione", "TODOS"]:
-            st.error("Selecione um mês específico para salvar.")
-        elif not desc.strip():
-            st.error("Informe uma descrição.")
-        elif valor <= 0:
-            st.error("O valor deve ser maior que zero.")
-        elif categoria == "Selecione":
-            st.error("Selecione uma categoria.")
-        else:
-            inserir_parcelado(
-                ano=ano,
-                mes=mes,
-                descricao=desc.strip(),
-                valor_total=valor,
-                tipo=tipo,
-                status=status,
-                categoria=categoria,
-                total_parcelas=int(total_parcelas),
-                vencimento=vencimento,
-                forma_pagamento=forma_pagamento,
-                data_transacao=data_transacao,
+        if forma_pagamento == "Crédito":
+            st.caption(
+                "A competência do crédito é calculada pela data da transação, "
+                "conforme a regra atual de fechamento."
             )
-            st.success(f"{int(total_parcelas)} registros enviados 🚀")
-            st.session_state.show_form = False
-            st.rerun()
+
+        salvar = st.button(
+            "💾 Salvar transação",
+            type="primary",
+            use_container_width=True,
+            key="salvar_nova_transacao",
+        )
+
+        if salvar:
+            if mes in ["Selecione", "TODOS"]:
+                st.error("Selecione um mês específico para salvar.")
+            elif not desc.strip():
+                st.error("Informe uma descrição.")
+            elif valor <= 0:
+                st.error("O valor deve ser maior que zero.")
+            elif categoria == "Selecione":
+                st.error("Selecione uma categoria.")
+            elif erro_previa:
+                st.error(erro_previa)
+            else:
+                inserir_parcelado(
+                    ano=ano,
+                    mes=mes,
+                    descricao=desc.strip(),
+                    valor_total=valor,
+                    tipo=tipo,
+                    status=status,
+                    categoria=categoria,
+                    total_parcelas=int(total_parcelas),
+                    vencimento=vencimento,
+                    forma_pagamento=forma_pagamento,
+                    data_transacao=data_transacao,
+                )
+                st.success(f"{int(total_parcelas)} registro(s) enviado(s) 🚀")
+                st.session_state.show_form = False
+                st.rerun()
 
 
 def _limpar_estado_registro(registro_id):
@@ -571,11 +711,7 @@ def render_mobile_transaction_list(
     df_lista = filtrar_forma_pagamento(df_lista, forma_pagamento_view)
 
     if busca:
-        df_lista = df_lista[
-            df_lista["descricao"].astype(str).str.lower().str.contains(
-                busca.lower(), na=False
-            )
-        ]
+        df_lista = filtrar_busca(df_lista, busca)
 
     if df_lista.empty:
         st.info("Nenhum registro encontrado para esse filtro.")

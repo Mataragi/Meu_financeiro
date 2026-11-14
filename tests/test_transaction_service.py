@@ -664,3 +664,118 @@ def test_exclusao_manual_continua_funcionando(transaction_service):
     service.excluir_registro(7)
 
     assert repository.exclusoes == [("individual", 7)]
+
+
+def test_prever_parcelas_distribui_residuo_de_centavos_na_ultima(transaction_service):
+    service, _ = transaction_service
+
+    previsao = service.prever_parcelas(
+        ano=2030,
+        mes="JANEIRO",
+        valor_total=250.00,
+        total_parcelas=3,
+        forma_pagamento="PIX",
+        data_transacao="2026-11-14",
+    )
+
+    assert [item["valor"] for item in previsao] == [83.33, 83.33, 83.34]
+    assert round(sum(item["valor"] for item in previsao), 2) == 250.00
+    assert [(item["mes"], item["ano"]) for item in previsao] == [
+        ("JANEIRO", 2030),
+        ("FEVEREIRO", 2030),
+        ("MARÇO", 2030),
+    ]
+
+
+def test_prever_parcelas_credito_usa_competencia_calculada_pela_data(transaction_service):
+    service, _ = transaction_service
+
+    previsao = service.prever_parcelas(
+        ano=2030,
+        mes="JANEIRO",
+        valor_total=100.00,
+        total_parcelas=3,
+        forma_pagamento="Crédito",
+        data_transacao="2030-01-14",
+    )
+
+    assert [(item["mes"], item["ano"]) for item in previsao] == [
+        ("FEVEREIRO", 2030),
+        ("MARÇO", 2030),
+        ("ABRIL", 2030),
+    ]
+
+
+def test_inserir_parcelado_persiste_os_mesmos_valores_da_previa(transaction_service):
+    service, repository = transaction_service
+
+    previsao = service.prever_parcelas(
+        ano=2030,
+        mes="JANEIRO",
+        valor_total=250.00,
+        total_parcelas=3,
+        forma_pagamento="PIX",
+        data_transacao="2030-01-10",
+    )
+    service.inserir_parcelado(
+        ano=2030,
+        mes="JANEIRO",
+        descricao="Compra parcelada",
+        valor_total=250.00,
+        tipo="Despesa",
+        status=STATUS_PENDENTE,
+        categoria="Mercado",
+        total_parcelas=3,
+        forma_pagamento="PIX",
+        data_transacao="2030-01-10",
+    )
+
+    registros = repository.inseridos[0]
+    assert [item["valor"] for item in registros] == [
+        item["valor"] for item in previsao
+    ]
+    assert [(item["mes"], item["ano"]) for item in registros] == [
+        (item["mes"], item["ano"]) for item in previsao
+    ]
+    assert round(sum(item["valor"] for item in registros), 2) == 250.00
+
+
+@pytest.mark.parametrize(
+    ("valor", "parcelas", "mensagem"),
+    [
+        (0, 2, "maior que zero"),
+        (0.01, 2, "parcelas mínimas"),
+        (100, 0, "inteiro entre 1 e 60"),
+        (100, 61, "inteiro entre 1 e 60"),
+    ],
+)
+def test_prever_parcelas_rejeita_valores_ou_quantidades_invalidos(
+    transaction_service, valor, parcelas, mensagem
+):
+    service, _ = transaction_service
+
+    with pytest.raises(ValueError, match=mensagem):
+        service.prever_parcelas(
+            ano=2030,
+            mes="JANEIRO",
+            valor_total=valor,
+            total_parcelas=parcelas,
+            forma_pagamento="PIX",
+        )
+
+
+def test_prever_parcelas_distribui_residuo_sem_concentrar_centavos_na_ultima(
+    transaction_service,
+):
+    service, _ = transaction_service
+
+    previsao = service.prever_parcelas(
+        ano=2030,
+        mes="JANEIRO",
+        valor_total=5.00,
+        total_parcelas=3,
+        forma_pagamento="PIX",
+    )
+
+    assert [item["valor"] for item in previsao] == [1.66, 1.67, 1.67]
+    assert round(sum(item["valor"] for item in previsao), 2) == 5.00

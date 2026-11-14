@@ -1,6 +1,6 @@
 import pandas as pd
 
-from components.mobile_helpers import filtrar_categoria, filtrar_forma_pagamento
+from components.mobile_helpers import filtrar_busca, filtrar_categoria, filtrar_forma_pagamento
 
 
 def test_filtrar_categoria_retorna_apenas_categoria_selecionada():
@@ -45,3 +45,33 @@ def test_sem_categoria_inclui_valores_nulos_e_rotulo_explicito():
     resultado = filtrar_categoria(df, "Sem categoria")
 
     assert resultado["descricao"].tolist() == ["Antigo", "Sem classificação"]
+
+
+def test_busca_nao_falha_quando_dataframe_vazio_sem_colunas():
+    df = pd.DataFrame()
+
+    resultado = filtrar_busca(df, "TESTE")
+
+    assert resultado.empty
+    assert resultado.columns.tolist() == []
+
+
+def test_busca_retorna_vazio_quando_descricao_nao_existe():
+    df = pd.DataFrame([{"categoria": "Mercado"}])
+
+    resultado = filtrar_busca(df, "TESTE")
+
+    assert resultado.empty
+    assert "categoria" in resultado.columns
+
+
+def test_busca_nao_diferencia_maiusculas_e_nao_interpreta_regex():
+    df = pd.DataFrame([
+        {"descricao": "Teste de compra"},
+        {"descricao": "Outro lançamento"},
+        {"descricao": "Teste. especial"},
+    ])
+
+    resultado = filtrar_busca(df, "TESTE.")
+
+    assert resultado["descricao"].tolist() == ["Teste. especial"]

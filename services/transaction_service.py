@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 import math
 from uuid import uuid4
 
@@ -273,6 +274,78 @@ def calcular_mes_ano_parcela(mes_inicial, ano_inicial, incremento):
     return novo_mes, novo_ano
 
 
+def _calcular_valores_parcelas(valor_total, total_parcelas):
+    """Divide em centavos, distribuindo os resíduos nas últimas parcelas."""
+    if isinstance(total_parcelas, bool):
+        raise ValueError("Quantidade de parcelas inválida.")
+
+    try:
+        quantidade = int(total_parcelas)
+        valor_decimal = Decimal(str(valor_total)).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+    except (TypeError, ValueError, InvalidOperation) as exc:
+        raise ValueError("Valor ou quantidade de parcelas inválidos.") from exc
+
+    if quantidade < 1 or quantidade != total_parcelas:
+        raise ValueError("Quantidade de parcelas deve ser um inteiro entre 1 e 60.")
+    if quantidade > 60:
+        raise ValueError("Quantidade de parcelas deve ser um inteiro entre 1 e 60.")
+    if not valor_decimal.is_finite() or valor_decimal <= 0:
+        raise ValueError("O valor total deve ser maior que zero.")
+
+    total_centavos = int(valor_decimal * 100)
+    if total_centavos < quantidade:
+        raise ValueError("O valor não permite parcelas mínimas de R$ 0,01.")
+
+    centavos_base, residuo = divmod(total_centavos, quantidade)
+    valores_centavos = (
+        [centavos_base] * (quantidade - residuo)
+        + [centavos_base + 1] * residuo
+    )
+    return [centavos / 100 for centavos in valores_centavos]
+
+
+def prever_parcelas(
+    ano,
+    mes,
+    valor_total,
+    total_parcelas,
+    forma_pagamento=None,
+    data_transacao=None,
+):
+    """Retorna a prévia exata que será usada pelo cadastro de parcelamentos."""
+    valores = _calcular_valores_parcelas(valor_total, total_parcelas)
+    forma_normalizada = (
+        normalizar_forma_pagamento(forma_pagamento)
+        if forma_pagamento is not None
+        else None
+    )
+    data_normalizada = normalizar_data_transacao(data_transacao)
+
+    if forma_normalizada == "Crédito" and data_normalizada is not None:
+        mes_inicial, ano_inicial = calcular_competencia_credito(data_normalizada)
+    else:
+        mes_inicial = str(mes).strip().upper()
+        ano_inicial = int(ano)
+        if mes_inicial not in MESES_ORDEM:
+            raise ValueError("Mês inválido para a competência do lançamento.")
+
+    previsao = []
+    for indice, valor in enumerate(valores):
+        mes_parcela, ano_parcela = calcular_mes_ano_parcela(
+            mes_inicial, ano_inicial, indice
+        )
+        previsao.append({
+            "parcela_atual": indice + 1,
+            "total_parcelas": len(valores),
+            "mes": mes_parcela,
+            "ano": ano_parcela,
+            "valor": valor,
+        })
+    return previsao
+
+
 def inserir_parcelado(
     ano,
     mes,
@@ -293,19 +366,25 @@ def inserir_parcelado(
     )
     data_normalizada = normalizar_data_transacao(data_transacao)
     status_inicial = normalizar_status_para_persistencia(status)
-
-    if forma_normalizada == "Crédito" and data_normalizada is not None:
-        mes, ano = calcular_competencia_credito(data_normalizada)
+    previsao = prever_parcelas(
+        ano=ano,
+        mes=mes,
+        valor_total=valor_total,
+        total_parcelas=total_parcelas,
+        forma_pagamento=forma_normalizada,
+        data_transacao=data_normalizada,
+    )
 
     if forma_normalizada == "Crédito":
         status_inicial = STATUS_PENDENTE
 
-    if total_parcelas <= 1:
+    if len(previsao) == 1:
+        parcela = previsao[0]
         return inserir_dados([{
-            "ano": ano,
-            "mes": mes,
+            "ano": parcela["ano"],
+            "mes": parcela["mes"],
             "descricao": descricao,
-            "valor": valor_total,
+            "valor": parcela["valor"],
             "tipo": tipo,
             "status": status_inicial,
             "categoria": categoria,
@@ -318,21 +397,18 @@ def inserir_parcelado(
         }])
 
     grupo = str(uuid4())
-    valor_parcela = round(valor_total / total_parcelas, 2)
     registros = []
-
-    for i in range(total_parcelas):
-        mes_parcela, ano_parcela = calcular_mes_ano_parcela(mes, ano, i)
+    for parcela in previsao:
         registros.append({
-            "ano": ano_parcela,
-            "mes": mes_parcela,
-            "descricao": f"{descricao} {i + 1}/{total_parcelas}",
-            "valor": valor_parcela,
+            "ano": parcela["ano"],
+            "mes": parcela["mes"],
+            "descricao": f"{descricao} {parcela['parcela_atual']}/{parcela['total_parcelas']}",
+            "valor": parcela["valor"],
             "tipo": tipo,
             "status": status_inicial,
             "categoria": categoria,
-            "parcela_atual": i + 1,
-            "total_parcelas": total_parcelas,
+            "parcela_atual": parcela["parcela_atual"],
+            "total_parcelas": parcela["total_parcelas"],
             "grupo_parcelamento": grupo,
             "vencimento": vencimento,
             "forma_pagamento": forma_normalizada,

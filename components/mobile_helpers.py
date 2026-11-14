@@ -89,6 +89,21 @@ def filtrar_forma_pagamento(df, forma_pagamento_view):
     return df[df["forma_pagamento"] == forma_pagamento_view]
 
 
+def filtrar_busca(df, termo):
+    """Filtra descrições sem falhar quando a consulta não retorna colunas."""
+    if df.empty or not termo:
+        return df
+
+    if "descricao" not in df.columns:
+        return df.iloc[0:0]
+
+    return df[
+        df["descricao"].astype(str).str.contains(
+            str(termo).strip(), case=False, na=False, regex=False
+        )
+    ]
+
+
 def filtrar_categoria(df, categoria_view):
     if df.empty or categoria_view == "Todas":
         return df
