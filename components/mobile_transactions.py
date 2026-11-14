@@ -412,13 +412,27 @@ def _render_edicao_inline(registro):
         "Forma de pagamento",
         FORMAS_PAGAMENTO_EDICAO,
         index=forma_index,
+        disabled=registro.get("status") == STATUS_PAGO,
+        help=(
+            "A forma de pagamento de uma transação liquidada não pode ser alterada aqui."
+            if registro.get("status") == STATUS_PAGO
+            else None
+        ),
         key=f"edit_forma_pagamento_inline_{registro_id}",
     )
 
+    status_atual = registro.get("status")
+    status_ja_pago = status_atual == STATUS_PAGO
     novo_status = st.selectbox(
         "Status",
-        [STATUS_PENDENTE, STATUS_PAGO],
-        index=0 if registro.get("status") == STATUS_PENDENTE else 1,
+        [STATUS_PAGO] if status_ja_pago else [STATUS_PENDENTE, STATUS_PAGO],
+        index=0 if status_ja_pago or status_atual == STATUS_PENDENTE else 0,
+        disabled=status_ja_pago,
+        help=(
+            "Uma transação liquidada não pode voltar a pendente por esta tela."
+            if status_ja_pago
+            else None
+        ),
         key=f"edit_status_inline_{registro_id}",
     )
     data_liquidacao_edicao = None
@@ -511,13 +525,17 @@ def _render_edicao_inline(registro):
                     dados_atualizacao["data_liquidacao"] = data_liquidacao_edicao
                     dados_atualizacao.pop("valor", None)
 
-                atualizar_registro(
-                    registro_id,
-                    dados_atualizacao,
-                )
-                st.success("Registro atualizado ✅")
-                _limpar_estado_registro(registro_id)
-                st.rerun()
+                try:
+                    atualizar_registro(
+                        registro_id,
+                        dados_atualizacao,
+                    )
+                except ValueError as exc:
+                    st.error(f"Não foi possível atualizar o registro: {exc}")
+                else:
+                    st.success("Registro atualizado ✅")
+                    _limpar_estado_registro(registro_id)
+                    st.rerun()
 
     with col_cancelar:
         if st.button(

@@ -94,7 +94,7 @@ def postgres_container():
         """
         _psql(nome, estrutura)
         raiz = Path(__file__).resolve().parents[1]
-        migration = (raiz / "supabase/migrations/20261114000000_atomic_batch_liquidation.sql").read_text()
+        migration = (raiz / "supabase/migrations/20261114182518_atomic_batch_liquidation.sql").read_text()
         _psql(nome, migration)
         yield nome
     finally:

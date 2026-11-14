@@ -1,3 +1,4 @@
+import logging
 from datetime import date
 
 import pandas as pd
@@ -17,6 +18,10 @@ from components.mobile_transactions import (
     render_mobile_transaction_list,
 )
 from services import recurrence_service
+from services.disponibilidade_service import (
+    carregar_saldo_inicial,
+    salvar_saldo_inicial,
+)
 from services.financial_service import (
     calcular_posicao_configurada,
     referencia_da_competencia,
@@ -129,6 +134,14 @@ def _render_mobile_styles():
             font-size: 1.45rem;
             font-weight: 750;
             line-height: 1.15;
+        }
+
+        .financeiro-pro-metric-heading {
+            color: #9aa7a0;
+            font-size: 0.68rem;
+            font-weight: 750;
+            letter-spacing: 0.09em;
+            margin: 0 0 7px;
         }
 
         .financeiro-pro-metrics {
@@ -377,30 +390,8 @@ def _render_filters():
     return ano, mes, status
 
 
-def _render_metrics(df_base):
-    """Exibe os três indicadores a partir do serviço consolidado, não do filtro."""
-    ano = st.session_state.get("ano_mobile")
-    mes = st.session_state.get("mes_mobile")
-    posicao = None
-    if _competencia_mobile_valida(ano, mes) or mes == "TODOS":
-        posicao = calcular_posicao_configurada(referencia_da_competencia(ano, mes))
-
-    if posicao is None:
-        cards = (
-            ("Saldo disponível", "—", "saldo"),
-            ("Resultado acumulado", "—", "saldo"),
-            ("Saldo projetado", "—", "saldo"),
-        )
-        st.info("Configure o saldo inicial e a data-base para calcular os indicadores.")
-    else:
-        saldo_class = "positivo" if posicao.saldo_disponivel >= 0 else "negativo"
-        projetado_class = "positivo" if posicao.saldo_projetado >= 0 else "negativo"
-        resultado_class = "positivo" if posicao.resultado_acumulado >= 0 else "negativo"
-        cards = (
-            ("Saldo disponível", formatar_real(posicao.saldo_disponivel), f"saldo {saldo_class}"),
-            ("Resultado acumulado", formatar_real(posicao.resultado_acumulado), f"saldo {resultado_class}"),
-            ("Saldo projetado", formatar_real(posicao.saldo_projetado), f"saldo {projetado_class}"),
-        )
+def _render_metric_cards(titulo, cards):
+    """Renderiza um grupo de três indicadores no padrão visual mobile."""
     cards_html = "".join(
         f'<div class="financeiro-pro-card financeiro-pro-card-{card_class}">'
         f'<div class="financeiro-pro-card-label">{label}</div>'
@@ -409,9 +400,133 @@ def _render_metrics(df_base):
         for label, value, card_class in cards
     )
     st.markdown(
+        f'<div class="financeiro-pro-metric-heading">{titulo}</div>'
         f'<div class="financeiro-pro-metrics">{cards_html}</div>',
         unsafe_allow_html=True,
     )
+
+
+def _render_saldo_inicial_config(saldo_inicial):
+    """Permite configurar a abertura sem inventar ou assumir um valor."""
+    configurado = saldo_inicial is not None
+    titulo = "⚙️ Ajustar saldo inicial" if configurado else "⚙️ Configurar saldo inicial"
+    valor_atual = float(saldo_inicial.valor) if configurado else None
+    data_atual = saldo_inicial.data_base if configurado else date.today()
+
+    with st.expander(titulo, expanded=not configurado):
+        if configurado:
+            st.warning(
+                "Alterar o saldo inicial ou a data-base recalcula os indicadores "
+                "financeiros. Os lançamentos não são modificados."
+            )
+        st.caption(
+            "Informe o total disponível nas contas e carteiras que entram no "
+            "controle atual do Financeiro Pro. O valor é consolidado, não separado "
+            "por conta; não some investimentos/corretora que ainda não fazem parte "
+            "do módulo patrimonial. Use o saldo existente no início da data-base, "
+            "antes das movimentações daquele dia. O fechamento do dia anterior "
+            "corresponde à abertura de hoje."
+        )
+        with st.form("saldo_inicial_mobile_form"):
+            valor = st.number_input(
+                "Saldo inicial (R$)",
+                value=valor_atual,
+                step=100.0,
+                format="%.2f",
+                placeholder="Digite o saldo real",
+                help="Pode ser negativo. Não use uma estimativa nem a soma dos lançamentos.",
+            )
+            data_base = st.date_input(
+                "Data-base",
+                value=data_atual,
+                help="A data-base representa o início do dia selecionado.",
+                format="DD/MM/YYYY",
+            )
+            salvar = st.form_submit_button(
+                "Salvar saldo inicial",
+                use_container_width=True,
+                type="primary",
+            )
+
+        if salvar:
+            if valor is None:
+                st.error("Informe o saldo real antes de salvar.")
+                return
+            try:
+                salvar_saldo_inicial(valor, data_base)
+            except ValueError as exc:
+                st.error(f"Não foi possível salvar o saldo inicial: {exc}")
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "Falha ao salvar saldo inicial no Financeiro Pro."
+                )
+                st.error(
+                    "Não foi possível salvar a configuração. Verifique a conexão e tente novamente."
+                )
+            else:
+                st.success("Saldo inicial salvo com sucesso.")
+                st.rerun()
+
+
+def _render_metrics(df_base):
+    """Mostra resumo da competência e posição financeira consolidada."""
+    # Indicadores operacionais antigos: permanecem associados ao mês selecionado.
+    pagos, pendentes, saldo_mensal = calcular_metricas(df_base)
+    saldo_mensal_class = "positivo" if saldo_mensal >= 0 else "negativo"
+    _render_metric_cards(
+        "RESUMO DO MÊS",
+        (
+            ("Pago", formatar_real(pagos), "pago"),
+            ("Pendente", formatar_real(pendentes), "pendente"),
+            ("Saldo calculado", formatar_real(saldo_mensal), f"saldo {saldo_mensal_class}"),
+        ),
+    )
+
+    # Indicadores consolidados: usam o histórico completo, nunca o DataFrame filtrado.
+    saldo_inicial = carregar_saldo_inicial()
+    ano = st.session_state.get("ano_mobile")
+    mes = st.session_state.get("mes_mobile")
+    posicao = None
+    erro_referencia = None
+    if saldo_inicial is not None and (_competencia_mobile_valida(ano, mes) or mes == "TODOS"):
+        try:
+            posicao = calcular_posicao_configurada(
+                referencia_da_competencia(ano, mes)
+            )
+        except ValueError as exc:
+            erro_referencia = str(exc)
+
+    if erro_referencia:
+        cards_posicao = (
+            ("Saldo disponível", "—", "saldo"),
+            ("Resultado acumulado", "—", "saldo"),
+            ("Saldo projetado", "—", "saldo"),
+        )
+        _render_metric_cards("POSIÇÃO FINANCEIRA", cards_posicao)
+        st.warning(
+            f"Não é possível calcular a posição nesta referência: {erro_referencia} "
+            "Selecione uma competência igual ou posterior à data-base."
+        )
+    elif posicao is None:
+        cards_posicao = (
+            ("Saldo disponível", "—", "saldo"),
+            ("Resultado acumulado", "—", "saldo"),
+            ("Saldo projetado", "—", "saldo"),
+        )
+        _render_metric_cards("POSIÇÃO FINANCEIRA", cards_posicao)
+        st.info("A posição financeira depende do cadastro do saldo inicial.")
+    else:
+        saldo_class = "positivo" if posicao.saldo_disponivel >= 0 else "negativo"
+        projetado_class = "positivo" if posicao.saldo_projetado >= 0 else "negativo"
+        resultado_class = "positivo" if posicao.resultado_acumulado >= 0 else "negativo"
+        cards_posicao = (
+            ("Saldo disponível", formatar_real(posicao.saldo_disponivel), f"saldo {saldo_class}"),
+            ("Resultado acumulado", formatar_real(posicao.resultado_acumulado), f"saldo {resultado_class}"),
+            ("Saldo projetado", formatar_real(posicao.saldo_projetado), f"saldo {projetado_class}"),
+        )
+        _render_metric_cards("POSIÇÃO FINANCEIRA", cards_posicao)
+
+    _render_saldo_inicial_config(saldo_inicial)
 
 
 def _competencia_mobile_valida(ano, mes):

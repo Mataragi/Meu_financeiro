@@ -36,9 +36,25 @@ def render_dashboard():
 
     df = carregar_dados(mes, ano)
 
-    posicao = calcular_posicao_configurada(referencia_da_competencia(ano, mes))
+    erro_referencia = None
+    try:
+        posicao = calcular_posicao_configurada(
+            referencia_da_competencia(ano, mes)
+        )
+    except ValueError as exc:
+        posicao = None
+        erro_referencia = str(exc)
+
     c1,c2,c3 = st.columns(3)
-    if posicao is None:
+    if erro_referencia:
+        c1.metric("Saldo disponível", "—")
+        c2.metric("Resultado acumulado", "—")
+        c3.metric("Saldo projetado", "—")
+        st.warning(
+            f"Não é possível calcular os indicadores nesta referência: {erro_referencia} "
+            "Selecione uma competência igual ou posterior à data-base do saldo inicial."
+        )
+    elif posicao is None:
         c1.metric("Saldo disponível", "—")
         c2.metric("Resultado acumulado", "—")
         c3.metric("Saldo projetado", "—")

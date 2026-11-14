@@ -124,7 +124,7 @@ Nenhum deles acessa ou altera o banco de produção.
 
 ## Atomicidade da liquidação
 
-A persistência da baixa usa a RPC public.liquidar_transacoes(bigint[], date, jsonb), criada pela migração 20261114000000_atomic_batch_liquidation.sql. A chamada ocorre em uma única transação PostgreSQL: os registros são bloqueados com FOR UPDATE em ordem crescente de ID, todos são validados e somente então o lote é atualizado. Uma falha em qualquer linha aborta a instrução e reverte o lote inteiro. O mesmo contrato atende à baixa individual, à baixa em lote e à liquidação das compras de cartão selecionadas.
+A persistência da baixa usa a RPC public.liquidar_transacoes(bigint[], date, jsonb), criada pela migração 20261114182518_atomic_batch_liquidation.sql. A chamada ocorre em uma única transação PostgreSQL: os registros são bloqueados com FOR UPDATE em ordem crescente de ID, todos são validados e somente então o lote é atualizado. Uma falha em qualquer linha aborta a instrução e reverte o lote inteiro. O mesmo contrato atende à baixa individual, à baixa em lote e à liquidação das compras de cartão selecionadas.
 
 A função usa SECURITY INVOKER, search_path vazio e nomes de objetos qualificados. A execução é revogada de PUBLIC, anon e authenticated, sendo concedida somente a service_role. Essa função não concede privilégios adicionais sobre a tabela; o backend continua responsável por usar a chave secreta no servidor.
 
@@ -140,26 +140,62 @@ A suíte normal mantém esses testes opcionais (skip) quando a variável de ambi
 
 ## Integração da interface de liquidação
 
-A interface mobile e o dashboard legado capturam a data efetiva antes de solicitar uma baixa. As baixas individuais pelo editor também solicitam essa data ao mudar uma transação pendente para paga. Para evitar misturar alteração de valor e liquidação em uma mesma operação, o editor exige salvar a mudança de valor separadamente antes da baixa.
+A interface Mobile captura a data efetiva antes de solicitar uma baixa. As baixas individuais pelo editor também solicitam essa data ao mudar uma transação pendente para paga. Para evitar misturar alteração de valor e liquidação em uma mesma operação, o editor exige salvar a mudança de valor separadamente antes da baixa.
 
-Compras de despesa com forma de pagamento Crédito são separadas da baixa genérica. A ação Pagar fatura apresenta quantidade e total das compras pendentes da competência atualmente selecionada e chama o serviço centralizado de liquidação de fatura; não cria um lançamento adicional. No dashboard legado, é obrigatório selecionar um mês específico para pagar a fatura, evitando agrupar competências diferentes.
+Compras de despesa com forma de pagamento Crédito são separadas da baixa genérica. A ação Pagar fatura apresenta quantidade e total das compras pendentes da competência atualmente selecionada e chama o serviço centralizado de liquidação de fatura; não cria um lançamento adicional. Na interface Mobile, é obrigatório selecionar um mês específico para pagar a fatura, evitando agrupar competências diferentes.
 
 A data inicial sugerida pela interface é a data local atual, mas pode ser alterada antes da confirmação. O serviço continua sendo a autoridade de validação e preservação da competência.
 
-A interface depende da migração RPC 20261114000000_atomic_batch_liquidation.sql estar aplicada no ambiente Supabase. A migração permanece pendente de homologação e aplicação; não executar a nova interface contra um ambiente que ainda não possua essa função.
+A interface depende da migração RPC 20261114182518_atomic_batch_liquidation.sql estar aplicada no ambiente Supabase. No ambiente de produção atualmente conectado, essa migração já foi aplicada e verificada.
 
-## Indicadores nas interfaces
+## Indicadores na interface Mobile
 
-Desktop e mobile exibem, nos mesmos cartões já usados pela identidade visual,
-**Saldo disponível**, **Resultado acumulado** e **Saldo projetado**. Ambos
-chamam `calcular_posicao_configurada()` com o fim da competência selecionada
-(ou a data atual em `TODOS`), que carrega o histórico completo; o DataFrame
-visível do mês não participa do cálculo. Se não houver configuração de saldo
-inicial, os cartões exibem `—` e explicam a configuração pendente. Isso é
-intencionalmente diferente de um saldo inicial configurado em `R$ 0,00`.
+A interface única Mobile apresenta dois grupos de três cartões, ambos
+independentes do filtro de status da lista de transações:
 
-As ações desktop e mobile apresentam sucesso somente após a confirmação do
+**Resumo do mês**, calculado somente sobre a competência selecionada:
+
+- Pago: total de despesas pagas na competência.
+- Pendente: total de despesas pendentes na competência.
+- Saldo calculado: receitas pagas menos despesas pagas na competência.
+
+**Posição financeira**, calculada pelo histórico completo:
+
+- Saldo disponível: saldo inicial mais receitas e despesas efetivamente
+  liquidadas desde a data-base.
+- Resultado acumulado: receitas menos despesas por competência até a
+  referência selecionada.
+- Saldo projetado: saldo disponível acrescido das receitas pendentes e
+  reduzido pelas despesas pendentes até a referência.
+
+Os grupos não se substituem. O resumo mensal preserva a leitura operacional
+utilizada anteriormente; a posição financeira acrescenta a visão consolidada
+de caixa, resultado e projeção.
+
+A configuração do saldo inicial é feita na própria interface Mobile, no
+expander **Configurar saldo inicial**. O usuário informa o valor real e a
+data-base. A data-base representa o início do dia; o saldo informado deve ser
+o valor disponível antes das movimentações daquele dia. A ausência de
+configuração nunca é convertida automaticamente em saldo zero.
+
+Quando a configuração já existe, a interface permite ajustá-la, avisando que
+a alteração recalcula os indicadores sem modificar os lançamentos. A
+referência anterior à data-base não é calculada.
+
+A interface Mobile captura a data efetiva antes de solicitar uma baixa. As
+baixas individuais pelo editor também solicitam essa data ao mudar uma
+transação pendente para paga. Para evitar misturar alteração de valor e
+liquidação em uma mesma operação, o editor exige salvar a mudança de valor
+separadamente antes da baixa.
+
+Compras de despesa com forma de pagamento Crédito são separadas da baixa
+genérica. A ação Pagar fatura apresenta quantidade e total das compras
+pendentes da competência atualmente selecionada e chama o serviço
+centralizado de liquidação de fatura; não cria um lançamento adicional. Na
+interface Mobile, é obrigatório selecionar um mês específico para pagar a
+fatura, evitando agrupar competências diferentes.
+
+As ações de liquidação apresentam sucesso somente após a confirmação do
 serviço. Falhas esperadas de validação, concorrência ou comunicação da RPC
 recebem mensagem segura e registram o tipo técnico da falha no log; exceções
 inesperadas continuam visíveis para diagnóstico.
-

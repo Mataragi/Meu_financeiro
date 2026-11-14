@@ -26,6 +26,13 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 
 ## Changed
 
+- A interface Mobile voltou a apresentar os indicadores operacionais Pago,
+  Pendente e Saldo calculado por competência, preservando-os junto aos
+  indicadores consolidados Saldo disponível, Resultado acumulado e
+  Saldo projetado.
+- A configuração do saldo inicial passou a ter formulário próprio na
+  interface Mobile, sem assumir saldo zero ou estimar valores históricos.
+
 - Aplicação principal passou a iniciar exclusivamente a interface Mobile.
 - A lista de transações do Mobile deixou de usar tabela para apresentar registros em cartões expansíveis, mantendo as ações individuais ocultas até a interação do usuário.
 - `database.py` foi consolidado como Repository de persistência, sem acoplamento com Streamlit.

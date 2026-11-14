@@ -116,15 +116,15 @@ Separar responsabilidades.
 
 ---
 
-### Interface Responsiva
+### Interface Mobile
 
 Status
 
-🟡
+🟢
 
 Objetivo
 
-Eliminar duplicações entre Desktop e Mobile.
+Manter uma interface única, mobile-first, com fluxos consistentes e sem dependência de uma experiência Desktop paralela.
 
 ---
 
