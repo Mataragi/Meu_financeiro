@@ -12,6 +12,10 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 
 ## Added
 
+- Filtro de tipo de transação no Mobile para visualizar Todos, Receitas ou
+  Despesas, combinável com os filtros de status, categoria e forma de
+  pagamento. Os indicadores financeiros permanecem independentes desse filtro.
+
 - Central de Ferramentas no Mobile com backup e restauração de backup.
 - Ações contextuais por transação no Mobile com edição, exclusão e duplicação.
 - Registrador de transações externas em `services/external_transaction_service.py`, com validação, normalização e proteção determinística contra duplicidade.

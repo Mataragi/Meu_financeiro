@@ -8,6 +8,7 @@ MESES = [
 ]
 
 STATUS_VIEW = ["Todos", "Pendentes", "Pagos"]
+TIPO_VIEW = ["Todos", "Receitas", "Despesas"]
 
 CATEGORIAS = [
     "Selecione",

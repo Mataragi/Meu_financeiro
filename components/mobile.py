@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from components.mobile_actions import render_mobile_transaction_actions
-from components.mobile_constants import ANOS, MESES, STATUS_VIEW
+from components.mobile_constants import ANOS, MESES, STATUS_VIEW, TIPO_VIEW
 from components.mobile_debts import render_mobile_debts
 from components.mobile_helpers import calcular_metricas
 from components.mobile_recurrences import (
@@ -387,7 +387,14 @@ def _render_filters():
         )
     with col_status:
         status = st.selectbox("Status", STATUS_VIEW, key="status_view_mobile")
-    return ano, mes, status
+
+    tipo = st.selectbox(
+        "Tipo de transação",
+        TIPO_VIEW,
+        key="tipo_view_mobile",
+        help="Mostra somente receitas ou somente despesas na lista de transações.",
+    )
+    return ano, mes, status, tipo
 
 
 def _render_metric_cards(titulo, cards):
@@ -561,7 +568,7 @@ def render_mobile():
     metrics_placeholder = st.empty()
 
     _render_mobile_header()
-    ano, mes, status_view = _render_filters()
+    ano, mes, status_view, tipo_view = _render_filters()
     df_base = _carregar_dados_da_competencia(ano, mes)
 
     with metrics_placeholder.container():
@@ -607,7 +614,9 @@ def render_mobile():
     if fluxo_ativo == "Transações":
         render_mobile_transaction_form(ano, mes)
         st.divider()
-        render_mobile_transaction_list(df_base, mes, status_view=status_view)
+        render_mobile_transaction_list(
+            df_base, mes, status_view=status_view, tipo_view=tipo_view
+        )
     else:
         render_mobile_recurrence_form()
         render_mobile_recurrence_list()

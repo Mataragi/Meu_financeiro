@@ -127,3 +127,18 @@ mobile._render_saldo_inicial_config(None)
     assert len(saved) == 1
     assert saved[0][0] == 1234.56
     assert saved[0][1] == date(2026, 11, 13)
+
+
+
+def test_mobile_filters_expose_type_selector_with_all_as_default():
+    app = AppTest.from_string(
+        """
+from components import mobile
+mobile._render_filters()
+"""
+    ).run()
+
+    assert not app.exception
+    filtro = next(item for item in app.selectbox if item.label == "Tipo de transação")
+    assert filtro.value == "Todos"
+    assert filtro.options == ["Todos", "Receitas", "Despesas"]

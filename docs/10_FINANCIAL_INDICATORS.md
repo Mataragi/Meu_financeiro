@@ -150,8 +150,13 @@ A interface depende da migração RPC 20261114182518_atomic_batch_liquidation.sq
 
 ## Indicadores na interface Mobile
 
+A lista de transações oferece filtros independentes de tipo (Todos,
+Receitas ou Despesas), status, categoria e forma de pagamento. O filtro de
+tipo normaliza os rótulos históricos Entrada/Saída para Receita/Despesa.
+Esses filtros afetam somente a lista e seus detalhes, nunca os indicadores.
+
 A interface única Mobile apresenta dois grupos de três cartões, ambos
-independentes do filtro de status da lista de transações:
+independentes dos filtros da lista de transações:
 
 **Resumo do mês**, calculado somente sobre a competência selecionada:
 

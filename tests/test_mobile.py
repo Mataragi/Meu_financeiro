@@ -17,7 +17,7 @@ def test_mobile_compose_recorrencias_uma_vez_na_ordem_aprovada(monkeypatch):
     monkeypatch.setattr(
         mobile,
         "_render_filters",
-        lambda: eventos.append("filtros") or (2026, "OUTUBRO", "Todos"),
+        lambda: eventos.append("filtros") or (2026, "OUTUBRO", "Todos", "Todos"),
     )
     monkeypatch.setattr(
         mobile.recurrence_service,
@@ -48,8 +48,8 @@ def test_mobile_compose_recorrencias_uma_vez_na_ordem_aprovada(monkeypatch):
     monkeypatch.setattr(
         mobile,
         "render_mobile_transaction_list",
-        lambda df, mes, status_view: eventos.append(
-            ("transacoes", mes, status_view)
+        lambda df, mes, status_view, tipo_view: eventos.append(
+            ("transacoes", mes, status_view, tipo_view)
         ),
     )
     monkeypatch.setattr(
@@ -89,7 +89,7 @@ def test_mobile_compose_recorrencias_uma_vez_na_ordem_aprovada(monkeypatch):
         ("carregar", "OUTUBRO", 2026),
         "metricas",
         ("nova_transacao", 2026, "OUTUBRO"),
-        ("transacoes", "OUTUBRO", "Todos"),
+        ("transacoes", "OUTUBRO", "Todos", "Todos"),
         ("acoes", "OUTUBRO"),
         "ferramentas",
         "dividas",
@@ -108,7 +108,7 @@ def test_fluxo_recorrencias_exibe_apenas_gestao_de_regras(monkeypatch):
     monkeypatch.setattr(
         mobile,
         "_render_filters",
-        lambda: (2026, "OUTUBRO", "Todos"),
+        lambda: (2026, "OUTUBRO", "Todos", "Todos"),
     )
     monkeypatch.setattr(
         mobile,

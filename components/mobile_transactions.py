@@ -17,6 +17,7 @@ from components.mobile_helpers import (
     filtrar_categoria,
     filtrar_forma_pagamento,
     filtrar_status,
+    filtrar_tipo,
     preparar_dados_grafico_categorias,
     formatar_data,
     valor_seguro,
@@ -729,6 +730,7 @@ def render_mobile_transaction_list(
     mes,
     status_view="Todos",
     forma_pagamento_view=None,
+    tipo_view="Todos",
 ):
     st.markdown(
         '<div class="financeiro-pro-transactions-title">Transações</div>',
@@ -761,6 +763,7 @@ def render_mobile_transaction_list(
         return
 
     df_lista = filtrar_status(df_base.copy(), status_view)
+    df_lista = filtrar_tipo(df_lista, tipo_view)
     df_lista = filtrar_categoria(df_lista, categoria_view)
     df_lista = filtrar_forma_pagamento(df_lista, forma_pagamento_view)
 
@@ -771,7 +774,8 @@ def render_mobile_transaction_list(
         st.info("Nenhum registro encontrado para esse filtro.")
         return
 
-    _render_category_expense_chart(df_lista, categoria_view)
+    if tipo_view != "Receitas":
+        _render_category_expense_chart(df_lista, categoria_view)
 
     if "categoria" not in df_lista.columns:
         df_lista["categoria"] = "Sem categoria"

@@ -5,7 +5,11 @@ import pandas as pd
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
 from utils.financeiro import calcular_saldo_real
 from utils.categoria import CATEGORIAS_OFICIAIS
-from utils.tipo_transacao import TIPO_DESPESA, TIPO_RECEITA, normalizar_tipos_dataframe
+from utils.tipo_transacao import (
+    TIPO_DESPESA,
+    TIPO_RECEITA,
+    normalizar_tipos_dataframe,
+)
 
 
 def formatar_data(valor):
@@ -72,6 +76,23 @@ def filtrar_status(df, status_view):
         return df[df["status"] == STATUS_PAGO]
 
     return df
+
+
+def filtrar_tipo(df, tipo_view):
+    """Filtra receitas ou despesas, aceitando nomenclaturas históricas."""
+    if df.empty or tipo_view == "Todos":
+        return df
+
+    tipos_aceitos = {
+        "Receitas": TIPO_RECEITA,
+        "Despesas": TIPO_DESPESA,
+    }
+    tipo_alvo = tipos_aceitos.get(tipo_view)
+    if tipo_alvo is None or "tipo" not in df.columns:
+        return df.iloc[0:0]
+
+    dados = normalizar_tipos_dataframe(df.copy())
+    return dados[dados["tipo"] == tipo_alvo]
 
 
 def filtrar_forma_pagamento(df, forma_pagamento_view):

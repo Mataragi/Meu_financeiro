@@ -1,6 +1,11 @@
 import pandas as pd
 
-from components.mobile_helpers import filtrar_busca, filtrar_categoria, filtrar_forma_pagamento
+from components.mobile_helpers import (
+    filtrar_busca,
+    filtrar_categoria,
+    filtrar_forma_pagamento,
+    filtrar_tipo,
+)
 
 
 def test_filtrar_categoria_retorna_apenas_categoria_selecionada():
@@ -75,3 +80,71 @@ def test_busca_nao_diferencia_maiusculas_e_nao_interpreta_regex():
     resultado = filtrar_busca(df, "TESTE.")
 
     assert resultado["descricao"].tolist() == ["Teste. especial"]
+
+
+
+def test_filtrar_tipo_retorna_somente_receitas_e_normaliza_entrada_historica():
+    df = pd.DataFrame([
+        {"descricao": "Salário", "tipo": "Entrada"},
+        {"descricao": "Reembolso", "tipo": "Receita"},
+        {"descricao": "Mercado", "tipo": "Saída"},
+        {"descricao": "Conta", "tipo": "Despesa"},
+    ])
+
+    resultado = filtrar_tipo(df, "Receitas")
+
+    assert resultado["descricao"].tolist() == ["Salário", "Reembolso"]
+    assert resultado["tipo"].tolist() == ["Receita", "Receita"]
+
+
+def test_filtrar_tipo_retorna_somente_despesas_e_normaliza_saida_historica():
+    df = pd.DataFrame([
+        {"descricao": "Salário", "tipo": "Entrada"},
+        {"descricao": "Mercado", "tipo": "Saída"},
+        {"descricao": "Conta", "tipo": "Despesa"},
+    ])
+
+    resultado = filtrar_tipo(df, "Despesas")
+
+    assert resultado["descricao"].tolist() == ["Mercado", "Conta"]
+    assert resultado["tipo"].tolist() == ["Despesa", "Despesa"]
+
+
+def test_tipo_todos_preserva_dataframe_e_tipo_ausente_retorna_vazio():
+    df = pd.DataFrame([{"descricao": "Sem tipo"}])
+
+    assert filtrar_tipo(df, "Todos").equals(df)
+    assert filtrar_tipo(df, "Receitas").empty
+
+
+
+def test_filtro_de_tipo_pode_ser_combinado_com_status_categoria_e_pagamento():
+    df = pd.DataFrame([
+        {
+            "descricao": "Salário",
+            "tipo": "Entrada",
+            "status": "Pago",
+            "categoria": "Outros",
+            "forma_pagamento": "PIX",
+        },
+        {
+            "descricao": "Mercado",
+            "tipo": "Saída",
+            "status": "Pendente",
+            "categoria": "Mercado",
+            "forma_pagamento": "Crédito",
+        },
+        {
+            "descricao": "Reembolso",
+            "tipo": "Receita",
+            "status": "Pendente",
+            "categoria": "Outros",
+            "forma_pagamento": "PIX",
+        },
+    ])
+
+    resultado = filtrar_tipo(df, "Despesas")
+    resultado = filtrar_categoria(resultado, "Mercado")
+    resultado = filtrar_forma_pagamento(resultado, "Crédito")
+
+    assert resultado["descricao"].tolist() == ["Mercado"]
