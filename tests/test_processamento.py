@@ -32,17 +32,23 @@ def test_processar_extrato_identifica_entradas_saidas_e_ignora_linhas_vazias():
     assert registros == [
         {
             "mes": "ABRIL",
+            "ano": 2026,
             "descricao": "Mercado",
             "valor": 1234.56,
             "tipo": "Despesa",
             "status": STATUS_PAGO,
+            "data_transacao": "2026-04-01",
+            "data_liquidacao": "2026-04-01",
         },
         {
             "mes": "ABRIL",
+            "ano": 2026,
             "descricao": "Salário",
             "valor": 100.0,
             "tipo": "Receita",
             "status": STATUS_PAGO,
+            "data_transacao": "2026-04-02",
+            "data_liquidacao": "2026-04-02",
         },
     ]
 
@@ -58,10 +64,13 @@ def test_processar_extrato_ignora_linha_invalida_sem_interromper_processamento()
     assert registros == [
         {
             "mes": "ABRIL",
+            "ano": 2026,
             "descricao": "Receita",
             "valor": 50.0,
             "tipo": "Receita",
             "status": STATUS_PAGO,
+            "data_transacao": "2026-04-02",
+            "data_liquidacao": "2026-04-02",
         }
     ]
 

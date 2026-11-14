@@ -3,6 +3,9 @@ import pandas as pd
 from services.supabase_client import supabase
 
 
+TAMANHO_PAGINA_TRANSACOES = 500
+
+
 # =========================
 # DÍVIDAS INFORMAIS
 # =========================
@@ -92,12 +95,10 @@ def atualizar_recorrencia(id_recorrencia, dados):
 
 
 def gerar_backup_transacoes():
-    res = supabase.table("transacoes").select("*").execute()
-
-    if not res.data:
+    dados = carregar_historico_completo()
+    if dados.empty:
         return None
-
-    return pd.DataFrame(res.data).to_csv(index=False).encode("utf-8")
+    return dados.to_csv(index=False).encode("utf-8")
 
 
 def carregar_dados(mes, ano=None):
@@ -113,6 +114,36 @@ def carregar_dados(mes, ano=None):
     return pd.DataFrame(res.data)
 
 
+def carregar_historico_completo(tamanho_pagina=TAMANHO_PAGINA_TRANSACOES):
+    """Lê todas as transações em páginas estáveis, sem depender do limite REST.
+
+    O Data API do Supabase pode limitar cada resposta. A paginação por chave
+    (``id > ultimo_id``), ordenada por ``id``, evita perdas por deslocamento
+    quando linhas são removidas durante a leitura. A leitura só termina após
+    uma página vazia; por isso continua correta mesmo se o limite configurado
+    no projeto for menor que ``tamanho_pagina``.
+    """
+    if isinstance(tamanho_pagina, bool) or not isinstance(tamanho_pagina, int):
+        raise ValueError("Tamanho de página inválido.")
+    if tamanho_pagina < 1:
+        raise ValueError("Tamanho de página deve ser maior que zero.")
+
+    registros = []
+    ultimo_id = None
+    while True:
+        consulta = supabase.table("transacoes").select("*").order("id")
+        if ultimo_id is not None:
+            consulta = consulta.gt("id", ultimo_id)
+        resposta = consulta.range(0, tamanho_pagina - 1).execute()
+        pagina = resposta.data or []
+        if not pagina:
+            break
+        registros.extend(pagina)
+        ultimo_id = pagina[-1]["id"]
+
+    return pd.DataFrame(registros)
+
+
 def carregar_transacoes_por_ids(ids):
     if not ids:
         return []
@@ -120,7 +151,10 @@ def carregar_transacoes_por_ids(ids):
     res = (
         supabase
         .table("transacoes")
-        .select("id, valor, status, recorrencia_id, competencia_ocorrencia")
+        .select(
+            "id, valor, status, mes, ano, tipo, forma_pagamento, "
+            "data_liquidacao, recorrencia_id, competencia_ocorrencia"
+        )
         .in_("id", ids)
         .execute()
     )
@@ -146,11 +180,64 @@ def atualizar_registro(id_registro, dados):
 
 
 def atualizar_status_registro(id_registro, status):
+    if status == "Pago":
+        raise ValueError(
+            "Use liquidar_transacoes para registrar uma baixa com data efetiva."
+        )
     supabase.table("transacoes").update({"status": status}).eq("id", id_registro).execute()
 
 
 def atualizar_status_multiplos(ids, status):
+    if status == "Pago":
+        raise ValueError(
+            "Use liquidar_transacoes para registrar uma baixa com data efetiva."
+        )
     supabase.table("transacoes").update({"status": status}).in_("id", ids).execute()
+
+
+def liquidar_transacoes(ids, data_liquidacao, dados_adicionais=None):
+    """Liquida o lote em uma única transação PostgreSQL via RPC.
+
+    A função SQL bloqueia e valida todos os registros antes da atualização.
+    Qualquer divergência gera exceção dentro do banco e reverte a operação
+    inteira, inclusive quando uma falha ocorre durante o UPDATE.
+    """
+    resposta = supabase.rpc(
+        "liquidar_transacoes",
+        {
+            "p_ids": list(ids),
+            "p_data_liquidacao": data_liquidacao,
+            "p_atualizacoes": dados_adicionais or {},
+        },
+    ).execute()
+    return resposta.data or []
+
+
+# =========================
+# CONFIGURAÇÃO DE DISPONIBILIDADE
+# =========================
+
+def carregar_configuracao_disponibilidade():
+    res = (
+        supabase
+        .table("configuracao_disponibilidade")
+        .select("id, saldo_inicial, data_base")
+        .eq("id", 1)
+        .limit(1)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def salvar_configuracao_disponibilidade(dados):
+    """Cria ou atualiza a única configuração consolidada (id=1)."""
+    res = (
+        supabase
+        .table("configuracao_disponibilidade")
+        .upsert(dados, on_conflict="id")
+        .execute()
+    )
+    return res.data[0] if res.data else None
 
 
 def excluir_registro(id_registro):

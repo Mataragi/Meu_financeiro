@@ -5,6 +5,7 @@ from services.transaction_service import (
     clonar_mes,
     gerar_backup_transacoes,
     inserir_dados,
+    restaurar_backup_historico,
 )
 from utils.processamento import ler_extrato, processar_extrato
 from utils.tipo_transacao import TIPO_DESPESA, TIPO_RECEITA
@@ -82,13 +83,13 @@ def render_sidebar():
 
             if st.button("Processar CSV"):
                 dados = processar_extrato(df)
-
-                for item in dados:
-                    item["ano"] = ano
-                    item["mes"] = mes
-
-                inserir_dados(dados)
-                st.success(f"{len(dados)} registros enviados 🚀")
+                if not dados:
+                    st.warning("Nenhuma linha válida com data e valor foi encontrada.")
+                else:
+                    # A competência vem da data real do extrato; o filtro da
+                    # tela não pode reclassificar um histórico importado.
+                    inserir_dados(dados)
+                    st.success(f"{len(dados)} registros enviados 🚀")
 
         st.divider()
 
@@ -102,10 +103,14 @@ def render_sidebar():
 
             if st.button("Restaurar Backup"):
                 dados = tratar_backup(df)
-                inserir_dados(dados)
-                st.success(f"{len(dados)} registros enviados 🚀")
-                st.success("Backup restaurado com sucesso 🚀")
-                st.rerun()
+                try:
+                    restaurar_backup_historico(dados)
+                except ValueError as exc:
+                    st.error(f"Backup não restaurado: {exc}")
+                else:
+                    st.success(f"{len(dados)} registros enviados 🚀")
+                    st.success("Backup restaurado com sucesso 🚀")
+                    st.rerun()
 
         st.divider()
 

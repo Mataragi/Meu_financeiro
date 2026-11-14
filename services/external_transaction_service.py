@@ -10,6 +10,7 @@ from collections.abc import Mapping
 
 from services import transaction_service
 from utils.forma_pagamento import normalizar_forma_pagamento
+from utils.liquidacao import validar_nova_liquidacao
 from utils.status import normalizar_status_para_persistencia, STATUS_PENDENTE
 from utils.tipo_transacao import normalizar_tipo
 
@@ -40,6 +41,7 @@ CAMPOS_DEDUPLICACAO = (
     "vencimento",
     "forma_pagamento",
     "data_transacao",
+    "data_liquidacao",
 )
 
 
@@ -101,10 +103,18 @@ def _normalizar_payload(dados):
     )
     status = normalizar_status_para_persistencia(dados["status"])
 
+    data_liquidacao = dados.get("data_liquidacao")
+    if data_liquidacao is not None:
+        data_liquidacao = transaction_service.normalizar_data_transacao(
+            data_liquidacao
+        )
+
     if forma_pagamento == "Crédito":
         status = STATUS_PENDENTE
 
-    return {
+    data_liquidacao = validar_nova_liquidacao(status, data_liquidacao)
+
+    payload_normalizado = {
         **dados,
         "descricao": descricao,
         "valor": valor,
@@ -117,6 +127,11 @@ def _normalizar_payload(dados):
         "forma_pagamento": forma_pagamento,
         "data_transacao": data_transacao,
     }
+    if data_liquidacao is not None:
+        payload_normalizado["data_liquidacao"] = data_liquidacao
+    else:
+        payload_normalizado.pop("data_liquidacao", None)
+    return payload_normalizado
 
 
 def _valor_comparavel(valor):
@@ -143,6 +158,8 @@ def _chave_deduplicacao(dados):
         elif campo == "forma_pagamento":
             valor = normalizar_forma_pagamento(valor) if valor is not None else None
         elif campo == "data_transacao":
+            valor = transaction_service.normalizar_data_transacao(valor)
+        elif campo == "data_liquidacao":
             valor = transaction_service.normalizar_data_transacao(valor)
         elif campo in {"ano", "vencimento"}:
             valor = int(valor) if valor is not None else None

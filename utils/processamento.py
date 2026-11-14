@@ -1,7 +1,15 @@
+from datetime import datetime
+
 import pandas as pd
 
 from utils.status import STATUS_PAGO
 from utils.tipo_transacao import TIPO_DESPESA, TIPO_RECEITA
+
+
+MESES = (
+    "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
+    "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO",
+)
 
 
 def tratar_valor(v):
@@ -36,6 +44,8 @@ def processar_extrato(df):
 
     for _, row in df.iterrows():
         try:
+            valor_data = row["Data"] if "Data" in row.index else row.iloc[0]
+            data_origem = datetime.strptime(str(valor_data).strip(), "%d/%m/%Y").date()
             hist = str(row.iloc[1])
             entrada = str(row.iloc[3])
             saida = str(row.iloc[4])
@@ -53,15 +63,18 @@ def processar_extrato(df):
 
             registros.append(
                 {
-                    "mes": "ABRIL",
+                    "mes": MESES[data_origem.month - 1],
+                    "ano": data_origem.year,
                     "descricao": hist,
                     "valor": valor,
                     "tipo": tipo,
                     "status": STATUS_PAGO,
+                    "data_transacao": data_origem.isoformat(),
+                    "data_liquidacao": data_origem.isoformat(),
                 }
             )
 
-        except (IndexError, ValueError, AttributeError):
+        except (IndexError, KeyError, ValueError, AttributeError):
             continue
 
     return registros

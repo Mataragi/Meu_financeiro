@@ -6,19 +6,36 @@ from uuid import uuid4
 from services import database
 from services.cache import cache_data, invalidar_cache
 from utils.forma_pagamento import normalizar_forma_pagamento
+from utils.liquidacao import (
+    normalizar_data_liquidacao,
+    validar_nova_liquidacao,
+    validar_status_liquidacao,
+)
 from utils.status import (
     STATUS_PAGO,
     STATUS_PENDENTE,
     normalizar_status,
     normalizar_status_para_persistencia,
 )
-from utils.tipo_transacao import normalizar_tipo, normalizar_tipos_dataframe
+from utils.tipo_transacao import (
+    TIPO_DESPESA,
+    normalizar_tipo,
+    normalizar_tipos_dataframe,
+)
 
 
 MESES_ORDEM = [
     "JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO",
     "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO",
 ]
+
+CAMPOS_PERMITIDOS_DURANTE_LIQUIDACAO = frozenset({
+    "descricao",
+    "categoria",
+    "forma_pagamento",
+    "vencimento",
+    "data_transacao",
+})
 
 
 def normalizar_data_transacao(valor):
@@ -76,6 +93,16 @@ def normalizar_dados_transacao(dados):
             normalizados["data_transacao"]
         )
 
+    if "data_liquidacao" in normalizados:
+        normalizados["data_liquidacao"] = normalizar_data_liquidacao(
+            normalizados["data_liquidacao"]
+        )
+
+    if "status" in normalizados and "data_liquidacao" in normalizados:
+        validar_status_liquidacao(
+            normalizados["status"], normalizados["data_liquidacao"]
+        )
+
     return normalizados
 
 
@@ -92,13 +119,98 @@ def carregar_dados(mes, ano=None):
     return normalizar_transacoes_dataframe(database.carregar_dados(mes, ano))
 
 
+@cache_data(ttl=30)
+def carregar_historico_completo():
+    """Retorna todo o histórico, paginado no repositório Supabase."""
+    return normalizar_transacoes_dataframe(database.carregar_historico_completo())
+
+
+def _invalidar_caches_transacoes():
+    invalidar_cache(carregar_dados)
+    invalidar_cache(carregar_historico_completo)
+
+
 def inserir_dados(dados):
     if dados:
         dados_normalizados = [
             normalizar_dados_transacao(dado) for dado in dados
         ]
+        for dado in dados_normalizados:
+            if "status" in dado:
+                data_liquidacao = validar_nova_liquidacao(
+                    dado["status"],
+                    dado.get("data_liquidacao"),
+                )
+                if data_liquidacao is not None:
+                    dado["data_liquidacao"] = data_liquidacao
+                else:
+                    dado.pop("data_liquidacao", None)
         database.inserir_dados(dados_normalizados)
-        invalidar_cache(carregar_dados)
+        _invalidar_caches_transacoes()
+
+
+def restaurar_backup_historico(dados):
+    """Restaura um backup validado sem transformar pagamentos legados.
+
+    Este é deliberadamente um fluxo separado de ``inserir_dados``: registros
+    pagos de backups anteriores à coluna ``data_liquidacao`` continuam pagos
+    e sem uma data inventada. Novos lançamentos permanecem sujeitos ao
+    contrato estrito de liquidação.
+    """
+    if not isinstance(dados, list) or not dados:
+        raise ValueError("O backup deve conter ao menos um registro.")
+
+    restaurados = [_normalizar_registro_backup(registro) for registro in dados]
+    # A validação de toda a lista ocorre antes do único INSERT em lote. Assim,
+    # um erro estrutural nunca persiste uma parte do backup.
+    database.inserir_dados(restaurados)
+    _invalidar_caches_transacoes()
+
+
+def _normalizar_registro_backup(registro):
+    if not isinstance(registro, dict):
+        raise ValueError("Registro de backup inválido.")
+
+    obrigatorios = {"ano", "mes", "descricao", "valor", "tipo", "status"}
+    ausentes = obrigatorios - set(registro)
+    if ausentes:
+        raise ValueError("Backup sem campos obrigatórios: " + ", ".join(sorted(ausentes)))
+
+    dados_origem = dict(registro)
+    # CSVs antigos representam campos opcionais vazios como NaN. Eles não são
+    # datas: convertemos apenas a ausência da origem para None, sem inventar
+    # qualquer valor de liquidação.
+    for campo in ("data_liquidacao", "data_transacao", "forma_pagamento"):
+        if campo in dados_origem and _valor_ausente(dados_origem[campo]):
+            dados_origem[campo] = None
+
+    dados = normalizar_dados_transacao(dados_origem)
+    if isinstance(dados["ano"], bool):
+        raise ValueError("Ano do backup inválido.")
+    try:
+        dados["ano"] = int(dados["ano"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Ano do backup inválido.") from exc
+    dados["mes"] = str(dados["mes"]).strip().upper()
+    if dados["mes"] not in MESES_ORDEM:
+        raise ValueError("Mês do backup inválido.")
+    if not isinstance(dados["descricao"], str) or not dados["descricao"].strip():
+        raise ValueError("Descrição do backup inválida.")
+    dados["descricao"] = dados["descricao"].strip()
+    if isinstance(dados["valor"], bool):
+        raise ValueError("Valor do backup inválido.")
+    try:
+        valor = Decimal(str(dados["valor"]))
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise ValueError("Valor do backup inválido.") from exc
+    if not valor.is_finite() or valor < 0:
+        raise ValueError("Valor do backup inválido.")
+
+    # ``validar_status_liquidacao`` já rejeita pendente com data. Para Pago
+    # sem data, somente este fluxo controlado preserva o estado legado.
+    if dados["status"] == STATUS_PAGO and not dados.get("data_liquidacao"):
+        dados.pop("data_liquidacao", None)
+    return dados
 
 
 def inserir_ocorrencia_recorrencia(dados):
@@ -130,7 +242,7 @@ def inserir_ocorrencia_recorrencia(dados):
     dados_normalizados["competencia_ocorrencia"] = competencia_normalizada
 
     resposta = database.inserir_transacao_recorrencia(dados_normalizados)
-    invalidar_cache(carregar_dados)
+    _invalidar_caches_transacoes()
     return resposta
 
 
@@ -165,6 +277,95 @@ def _validar_baixa(valor, status):
 def _validar_baixa_em_registros(registros):
     for registro in registros:
         _validar_baixa(registro.get("valor"), STATUS_PAGO)
+
+
+def _normalizar_ids_liquidacao(ids):
+    if not isinstance(ids, (list, tuple, set)):
+        raise ValueError("Informe ao menos uma transação para liquidação.")
+
+    ids_normalizados = []
+    for id_registro in ids:
+        if id_registro is None or isinstance(id_registro, bool):
+            raise ValueError("Identificador de transação inválido.")
+        if id_registro in ids_normalizados:
+            raise ValueError("A lista de liquidação contém identificadores duplicados.")
+        ids_normalizados.append(id_registro)
+    if not ids_normalizados:
+        raise ValueError("Informe ao menos uma transação para liquidação.")
+    return ids_normalizados
+
+
+def _validar_registros_para_liquidacao(registros, ids):
+    encontrados = {registro.get("id") for registro in registros}
+    ausentes = [id_registro for id_registro in ids if id_registro not in encontrados]
+    if ausentes:
+        raise ValueError("Transação não encontrada para liquidação.")
+
+    _validar_baixa_em_registros(registros)
+    for registro in registros:
+        status = normalizar_status(registro.get("status"))
+        data_liquidacao = registro.get("data_liquidacao")
+        validar_status_liquidacao(status, data_liquidacao)
+        if status == STATUS_PAGO or data_liquidacao is not None:
+            raise ValueError("A transação já foi liquidada.")
+
+
+def liquidar_transacoes(ids, data_liquidacao, dados_adicionais=None):
+    """Liquida pendências existentes sem alterar sua competência.
+
+    Esta é a única porta de escrita para uma nova baixa. A atualização no
+    repositório possui pré-condições de estado para impedir que concorrência
+    transforme uma segunda baixa em sucesso silencioso.
+    """
+    ids_normalizados = _normalizar_ids_liquidacao(ids)
+    data_normalizada = validar_nova_liquidacao(STATUS_PAGO, data_liquidacao)
+    adicionais = normalizar_dados_transacao(dados_adicionais or {})
+    campos_nao_permitidos = set(adicionais) - CAMPOS_PERMITIDOS_DURANTE_LIQUIDACAO
+    if campos_nao_permitidos:
+        raise ValueError(
+            "A liquidação contém campos não permitidos: "
+            + ", ".join(sorted(campos_nao_permitidos))
+        )
+
+    registros = _carregar_transacoes_por_ids(ids_normalizados)
+    _validar_registros_para_liquidacao(registros, ids_normalizados)
+    atualizados = database.liquidar_transacoes(
+        ids_normalizados,
+        data_normalizada,
+        adicionais,
+    )
+    if len(atualizados) != len(ids_normalizados):
+        raise ValueError(
+            "A liquidação não foi concluída: o estado da transação foi alterado."
+        )
+    _invalidar_caches_transacoes()
+    return atualizados
+
+
+def liquidar_fatura_cartao(ids, data_liquidacao):
+    """Liquida integralmente as compras de cartão informadas, sem novo lançamento."""
+    ids_normalizados = _normalizar_ids_liquidacao(ids)
+    registros = _carregar_transacoes_por_ids(ids_normalizados)
+    if len(registros) != len(ids_normalizados):
+        raise ValueError("Transação não encontrada para liquidação.")
+    if any(
+        _forma_pagamento_para_duplicacao(registro) != "Crédito"
+        for registro in registros
+    ):
+        raise ValueError("A fatura só pode conter compras realizadas no Crédito.")
+    try:
+        somente_despesas = all(
+            normalizar_tipo(registro.get("tipo")) == TIPO_DESPESA
+            for registro in registros
+        )
+    except ValueError:
+        somente_despesas = False
+    if not somente_despesas:
+        raise ValueError("A fatura só pode conter despesas.")
+    competencias = {(registro.get("ano"), registro.get("mes")) for registro in registros}
+    if len(competencias) != 1:
+        raise ValueError("A fatura deve conter compras de uma única competência.")
+    return liquidar_transacoes(ids_normalizados, data_liquidacao)
 
 
 def _validar_exclusao(registros):
@@ -358,6 +559,7 @@ def inserir_parcelado(
     vencimento=None,
     forma_pagamento=None,
     data_transacao=None,
+    data_liquidacao=None,
 ):
     forma_normalizada = (
         normalizar_forma_pagamento(forma_pagamento)
@@ -378,9 +580,14 @@ def inserir_parcelado(
     if forma_normalizada == "Crédito":
         status_inicial = STATUS_PENDENTE
 
+    data_liquidacao_normalizada = validar_nova_liquidacao(
+        status_inicial,
+        data_liquidacao,
+    )
+
     if len(previsao) == 1:
         parcela = previsao[0]
-        return inserir_dados([{
+        registro = {
             "ano": parcela["ano"],
             "mes": parcela["mes"],
             "descricao": descricao,
@@ -394,12 +601,15 @@ def inserir_parcelado(
             "vencimento": vencimento,
             "forma_pagamento": forma_normalizada,
             "data_transacao": data_normalizada,
-        }])
+        }
+        if data_liquidacao_normalizada is not None:
+            registro["data_liquidacao"] = data_liquidacao_normalizada
+        return inserir_dados([registro])
 
     grupo = str(uuid4())
     registros = []
     for parcela in previsao:
-        registros.append({
+        registro = {
             "ano": parcela["ano"],
             "mes": parcela["mes"],
             "descricao": f"{descricao} {parcela['parcela_atual']}/{parcela['total_parcelas']}",
@@ -413,7 +623,10 @@ def inserir_parcelado(
             "vencimento": vencimento,
             "forma_pagamento": forma_normalizada,
             "data_transacao": data_normalizada,
-        })
+        }
+        if data_liquidacao_normalizada is not None:
+            registro["data_liquidacao"] = data_liquidacao_normalizada
+        registros.append(registro)
 
     return inserir_dados(registros)
 
@@ -432,6 +645,11 @@ def atualizar_registro(id_registro, dados):
         status_final = dados_normalizados.get("status", atual.get("status"))
         valor_final = dados_normalizados.get("valor", atual.get("valor"))
         status_final = normalizar_status(status_final)
+        data_liquidacao_final = dados_normalizados.get(
+            "data_liquidacao",
+            atual.get("data_liquidacao"),
+        )
+        validar_status_liquidacao(status_final, data_liquidacao_final)
         _validar_baixa(valor_final, status_final)
 
         if (
@@ -444,58 +662,84 @@ def atualizar_registro(id_registro, dados):
                 "Ocorrências recorrentes devem permanecer pendentes após informar o valor."
             )
 
+        if "status" in dados_normalizados and status_final == STATUS_PAGO:
+            if normalizar_status(atual.get("status")) != STATUS_PAGO:
+                data_liquidacao = dados_normalizados.pop("data_liquidacao", None)
+                dados_normalizados.pop("status", None)
+                return liquidar_transacoes(
+                    [id_registro],
+                    data_liquidacao,
+                    dados_normalizados,
+                )
+            if "data_liquidacao" in dados_normalizados:
+                validar_status_liquidacao(
+                    STATUS_PAGO, dados_normalizados["data_liquidacao"]
+                )
+            else:
+                # Não reaplica o status em um registro histórico pago sem
+                # data: ele continua legível/editável sem criar uma nova baixa.
+                dados_normalizados.pop("status", None)
+
+        if (
+            "status" in dados_normalizados
+            and status_final == STATUS_PENDENTE
+            and normalizar_status(atual.get("status")) == STATUS_PAGO
+        ):
+            raise ValueError(
+                "Uma transação liquidada não pode voltar a pendente por esta operação."
+            )
+
         database.atualizar_registro(
             id_registro,
             dados_normalizados,
         )
-        invalidar_cache(carregar_dados)
+        _invalidar_caches_transacoes()
 
 
-def dar_baixa_registro(id_registro):
-    if id_registro:
-        _validar_baixa_em_registros(_carregar_transacoes_por_ids([id_registro]))
-        database.atualizar_status_registro(id_registro, STATUS_PAGO)
-        invalidar_cache(carregar_dados)
+def dar_baixa_registro(id_registro, data_liquidacao=None):
+    return liquidar_transacoes([id_registro], data_liquidacao)
 
 
-def dar_baixa_multiplos(ids):
-    if ids:
-        _validar_baixa_em_registros(_carregar_transacoes_por_ids(ids))
-        database.atualizar_status_multiplos(ids, STATUS_PAGO)
-        invalidar_cache(carregar_dados)
+def dar_baixa_multiplos(ids, data_liquidacao=None):
+    return liquidar_transacoes(ids, data_liquidacao)
 
 
-def atualizar_status_multiplos(ids, status):
-    if ids:
-        status_normalizado = normalizar_status_para_persistencia(status)
-        if status_normalizado == STATUS_PAGO:
-            _validar_baixa_em_registros(_carregar_transacoes_por_ids(ids))
-        database.atualizar_status_multiplos(
-            ids,
-            status_normalizado,
+def atualizar_status_multiplos(ids, status, data_liquidacao=None):
+    if not ids:
+        return None
+    status_normalizado = normalizar_status_para_persistencia(status)
+    if status_normalizado == STATUS_PAGO:
+        return liquidar_transacoes(ids, data_liquidacao)
+    if data_liquidacao is not None:
+        raise ValueError("Uma transação pendente não pode possuir data de liquidação.")
+    registros = _carregar_transacoes_por_ids(ids)
+    if any(normalizar_status(registro.get("status")) == STATUS_PAGO for registro in registros):
+        raise ValueError(
+            "Uma transação liquidada não pode voltar a pendente por esta operação."
         )
-        invalidar_cache(carregar_dados)
+    database.atualizar_status_multiplos(ids, status_normalizado)
+    _invalidar_caches_transacoes()
 
 
 def excluir_registro(id_registro):
     if id_registro:
         _validar_exclusao(_carregar_transacoes_por_ids([id_registro]))
         database.excluir_registro(id_registro)
-        invalidar_cache(carregar_dados)
+        _invalidar_caches_transacoes()
 
 
 def excluir_multiplos(ids):
     if ids:
         _validar_exclusao(_carregar_transacoes_por_ids(ids))
         database.excluir_multiplos(ids)
-        invalidar_cache(carregar_dados)
+        _invalidar_caches_transacoes()
 
 
 def excluir_multiplos_do_mes(ids, mes):
     if ids:
         _validar_exclusao(_carregar_transacoes_por_ids(ids))
         database.excluir_multiplos_do_mes(ids, mes)
-        invalidar_cache(carregar_dados)
+        _invalidar_caches_transacoes()
 
 
 def excluir_grupo_parcelamento(grupo_id):
@@ -504,7 +748,7 @@ def excluir_grupo_parcelamento(grupo_id):
             database.carregar_transacoes_por_grupo_parcelamento(grupo_id)
         )
         database.excluir_grupo_parcelamento(grupo_id)
-        invalidar_cache(carregar_dados)
+        _invalidar_caches_transacoes()
 
 
 def excluir_mes(mes, ano):
@@ -512,7 +756,7 @@ def excluir_mes(mes, ano):
         database.carregar_dados(mes, ano).to_dict(orient="records")
     )
     database.excluir_mes(mes, ano)
-    invalidar_cache(carregar_dados)
+    _invalidar_caches_transacoes()
 
 
 def clonar_mes(origem_mes, origem_ano, destino_mes, destino_ano):

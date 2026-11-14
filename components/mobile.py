@@ -17,6 +17,10 @@ from components.mobile_transactions import (
     render_mobile_transaction_list,
 )
 from services import recurrence_service
+from services.financial_service import (
+    calcular_posicao_configurada,
+    referencia_da_competencia,
+)
 from services.transaction_service import MESES_ORDEM, carregar_dados
 from utils.formatacao import formatar_real
 
@@ -374,13 +378,29 @@ def _render_filters():
 
 
 def _render_metrics(df_base):
-    pagos, pendentes, saldo = calcular_metricas(df_base)
-    saldo_class = "positivo" if saldo >= 0 else "negativo"
-    cards = (
-        ("Pago", formatar_real(pagos), "pago"),
-        ("Pendente", formatar_real(pendentes), "pendente"),
-        ("Saldo calculado", formatar_real(saldo), f"saldo {saldo_class}"),
-    )
+    """Exibe os três indicadores a partir do serviço consolidado, não do filtro."""
+    ano = st.session_state.get("ano_mobile")
+    mes = st.session_state.get("mes_mobile")
+    posicao = None
+    if _competencia_mobile_valida(ano, mes) or mes == "TODOS":
+        posicao = calcular_posicao_configurada(referencia_da_competencia(ano, mes))
+
+    if posicao is None:
+        cards = (
+            ("Saldo disponível", "—", "saldo"),
+            ("Resultado acumulado", "—", "saldo"),
+            ("Saldo projetado", "—", "saldo"),
+        )
+        st.info("Configure o saldo inicial e a data-base para calcular os indicadores.")
+    else:
+        saldo_class = "positivo" if posicao.saldo_disponivel >= 0 else "negativo"
+        projetado_class = "positivo" if posicao.saldo_projetado >= 0 else "negativo"
+        resultado_class = "positivo" if posicao.resultado_acumulado >= 0 else "negativo"
+        cards = (
+            ("Saldo disponível", formatar_real(posicao.saldo_disponivel), f"saldo {saldo_class}"),
+            ("Resultado acumulado", formatar_real(posicao.resultado_acumulado), f"saldo {resultado_class}"),
+            ("Saldo projetado", formatar_real(posicao.saldo_projetado), f"saldo {projetado_class}"),
+        )
     cards_html = "".join(
         f'<div class="financeiro-pro-card financeiro-pro-card-{card_class}">'
         f'<div class="financeiro-pro-card-label">{label}</div>'

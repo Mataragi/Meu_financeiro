@@ -15,6 +15,7 @@ PAYLOAD = {
     "vencimento": 1,
     "forma_pagamento": "PIX",
     "data_transacao": "2026-08-31",
+    "data_liquidacao": "2026-08-31",
 }
 
 

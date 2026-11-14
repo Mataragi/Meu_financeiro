@@ -65,7 +65,18 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 
 ## Fixed
 
-- Nenhuma correção registrada.
+- A criação mobile de transações pagas agora captura e envia a data efetiva de
+  liquidação, inclusive em parcelamentos.
+- Restaurações de backup passaram a usar fluxo histórico controlado, preservando
+  pagamentos legados sem data sem enfraquecer a criação nova.
+- A importação de extratos utiliza a data presente no arquivo como data da
+  transação e liquidação, sem criar datas artificiais.
+- Desktop e mobile passaram a exibir os três indicadores financeiros pela
+  mesma camada consolidada e pelo histórico completo.
+- A liquidação de fatura passou a rejeitar competências diferentes e itens que
+  não sejam despesas de Crédito pendentes.
+- Falhas esperadas de liquidação recebem feedback na interface sem anúncio de
+  sucesso prematuro.
 
 ---
 
@@ -94,3 +105,4 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 
 - Interface Mobile.
 - Interface Desktop.
+- Integração da data efetiva de liquidação nas ações mobile e dashboard; pagamento de fatura de Crédito separado da baixa genérica, com total e quantidade de compras e sem criar despesa duplicada.

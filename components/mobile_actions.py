@@ -1,13 +1,18 @@
+from datetime import date
+
 import pandas as pd
 import streamlit as st
 
+from components.liquidacao_feedback import executar_liquidacao
 from services.transaction_service import (
     dar_baixa_multiplos,
+    liquidar_fatura_cartao,
     excluir_grupo_parcelamento,
     excluir_multiplos,
 )
 from utils.formatacao import formatar_valor_exibicao
 from utils.status import STATUS_PENDENTE
+from utils.tipo_transacao import TIPO_DESPESA
 
 
 def _opcoes_registros(df, incluir_status=False):
@@ -27,36 +32,108 @@ def _render_baixa(df_base, mes):
     with st.expander("✅ Dar baixa"):
         if mes == "Selecione":
             st.info("Selecione um mês para dar baixa.")
-        elif df_base.empty:
+            return
+        if df_base.empty:
             st.info("Nenhuma pendência encontrada.")
-        else:
-            df_pendentes = df_base[df_base["status"] == STATUS_PENDENTE]
-            df_pendentes_com_valor = (
-                df_pendentes[df_pendentes["valor"].notna()]
-                if "valor" in df_pendentes.columns
-                else df_pendentes
-            )
-            if len(df_pendentes_com_valor) < len(df_pendentes):
-                st.info("Transações sem valor não podem ser marcadas como pagas.")
-            if df_pendentes_com_valor.empty:
-                st.info("Nenhuma pendência encontrada.")
-                return
+            return
 
-            opcoes = _opcoes_registros(df_pendentes_com_valor)
+        df_pendentes = df_base[df_base["status"] == STATUS_PENDENTE].copy()
+        if df_pendentes.empty:
+            st.info("Nenhuma pendência encontrada.")
+            return
+
+        formas = (
+            df_pendentes["forma_pagamento"].fillna("")
+            if "forma_pagamento" in df_pendentes.columns
+            else pd.Series("", index=df_pendentes.index)
+        )
+        credito = formas.astype(str).str.strip().str.casefold().isin(
+            {"crédito", "credito"}
+        )
+        tipos = (
+            df_pendentes["tipo"]
+            if "tipo" in df_pendentes.columns
+            else pd.Series(TIPO_DESPESA, index=df_pendentes.index)
+        )
+        despesas_credito = df_pendentes[credito & (tipos == TIPO_DESPESA)].copy()
+        demais_pendencias = df_pendentes[~credito].copy()
+
+        if "valor" in demais_pendencias.columns:
+            sem_valor = demais_pendencias["valor"].isna().sum()
+            demais_pendencias = demais_pendencias[demais_pendencias["valor"].notna()]
+            if sem_valor:
+                st.info("Transações sem valor não podem ser marcadas como pagas.")
+
+        if not demais_pendencias.empty:
+            st.markdown("**Baixa individual ou em lote**")
+            opcoes = _opcoes_registros(demais_pendencias)
             selecionados = st.multiselect(
                 "Selecionar pendentes",
                 list(opcoes.keys()),
                 key="selecionados_baixa_mobile",
             )
             ids = [opcoes[item].get("id") for item in selecionados]
-
+            data_liquidacao = st.date_input(
+                "Data efetiva do pagamento",
+                value=date.today(),
+                format="DD/MM/YYYY",
+                key="data_liquidacao_mobile",
+            )
             if st.button("✅ Confirmar baixa", use_container_width=True):
                 if ids:
-                    dar_baixa_multiplos(ids)
-                    st.success(f"{len(ids)} registros marcados como pagos ✅")
-                    st.rerun()
+                    if executar_liquidacao(
+                        lambda: dar_baixa_multiplos(ids, data_liquidacao),
+                        f"{len(ids)} registro(s) liquidado(s).",
+                    ):
+                        st.rerun()
                 else:
                     st.warning("Selecione pelo menos um registro.")
+
+        if not despesas_credito.empty:
+            st.divider()
+            st.markdown("**💳 Pagar fatura de Crédito**")
+            valores = pd.to_numeric(despesas_credito["valor"], errors="coerce")
+            sem_valor = valores.isna().sum()
+            despesas_credito = despesas_credito[valores.notna()].copy()
+            despesas_credito["valor"] = valores[valores.notna()]
+            if sem_valor:
+                st.warning(
+                    "Não é possível pagar a fatura enquanto houver compra de Crédito "
+                    "sem valor informado. Corrija os lançamentos primeiro."
+                )
+
+            if despesas_credito.empty:
+                st.info("Não há compras de Crédito com valor para liquidar.")
+            elif sem_valor:
+                st.metric("Compras pendentes", len(despesas_credito) + int(sem_valor))
+                st.metric(
+                    "Subtotal identificado",
+                    formatar_valor_exibicao(float(despesas_credito["valor"].sum())),
+                )
+            else:
+                total_fatura = float(despesas_credito["valor"].sum())
+                st.metric("Compras pendentes", len(despesas_credito))
+                st.metric("Total da fatura", formatar_valor_exibicao(total_fatura))
+                st.caption(
+                    "A baixa atualiza as compras existentes. Nenhuma nova despesa será criada."
+                )
+                data_fatura = st.date_input(
+                    "Data efetiva do pagamento da fatura",
+                    value=date.today(),
+                    format="DD/MM/YYYY",
+                    key="data_liquidacao_fatura_mobile",
+                )
+                if st.button(
+                    "💳 Confirmar pagamento da fatura",
+                    use_container_width=True,
+                ):
+                    ids_fatura = despesas_credito["id"].tolist()
+                    if ids_fatura:
+                        if executar_liquidacao(
+                            lambda: liquidar_fatura_cartao(ids_fatura, data_fatura),
+                            f"Fatura liquidada: {len(ids_fatura)} compra(s).",
+                        ):
+                            st.rerun()
 
 
 def _render_exclusao(df_base, mes):

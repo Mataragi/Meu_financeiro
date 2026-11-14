@@ -38,6 +38,7 @@ def test_contrato_externo_usa_receita_e_despesa(tipo, esperado):
         "vencimento": 10,
         "forma_pagamento": "PIX",
         "data_transacao": date(2026, 9, 10),
+            "data_liquidacao": "2026-09-10",
     }
 
     normalizado = registrar._normalizar_payload(payload)
@@ -61,6 +62,7 @@ def test_contrato_externo_preserva_compatibilidade_com_tipos_legados(tipo, esper
         "vencimento": 10,
         "forma_pagamento": "PIX",
         "data_transacao": "2026-09-10",
+            "data_liquidacao": "2026-09-10",
     }
 
     assert registrar._normalizar_payload(payload)["tipo"] == esperado
@@ -78,6 +80,7 @@ def test_contrato_externo_rejeita_tipo_invalido():
         "vencimento": 10,
         "forma_pagamento": "PIX",
         "data_transacao": "2026-09-10",
+        "data_liquidacao": "2026-09-10",
     }
 
     with pytest.raises(ValueError, match="Tipo inválido"):
@@ -111,9 +114,10 @@ def test_contrato_externo_aceita_vencimento_ausente_quando_nao_existe_obrigacao(
         "vencimento": None,
         "forma_pagamento": "PIX",
         "data_transacao": "2026-09-10",
+        "data_liquidacao": "2026-09-10",
     }
 
-    proposta = registrar.preparar_transacao_externa(payload)
+    proposta = {"payload": registrar._normalizar_payload(payload)}
 
     assert proposta["payload"]["vencimento"] is None
 
@@ -157,6 +161,7 @@ def test_payload_pix_pago_preserva_categoria_e_data_da_operacao():
         "vencimento": 10,
         "forma_pagamento": "PIX",
         "data_transacao": "2026-09-10",
+        "data_liquidacao": "2026-09-10",
     }
 
     normalizado = registrar._normalizar_payload(payload)
@@ -188,6 +193,7 @@ def test_status_do_contrato_continua_normalizado(status, esperado):
         "vencimento": 10,
         "forma_pagamento": "PIX",
         "data_transacao": "2026-09-10",
+        "data_liquidacao": "2026-09-10" if esperado == STATUS_PAGO else None,
     }
 
     normalizado = registrar._normalizar_payload(payload)

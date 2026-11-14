@@ -1,7 +1,10 @@
 import pandas as pd
 import streamlit as st
 
-from services.transaction_service import gerar_backup_transacoes, inserir_dados
+from services.transaction_service import (
+    gerar_backup_transacoes,
+    restaurar_backup_historico,
+)
 
 
 def _tratar_backup(df):
@@ -42,6 +45,10 @@ def render_mobile_tools():
                 if not dados:
                     st.warning("O backup não contém registros para restaurar.")
                 else:
-                    inserir_dados(dados)
-                    st.success(f"{len(dados)} registros restaurados 🚀")
-                    st.rerun()
+                    try:
+                        restaurar_backup_historico(dados)
+                    except ValueError as exc:
+                        st.error(f"Backup não restaurado: {exc}")
+                    else:
+                        st.success(f"{len(dados)} registros restaurados 🚀")
+                        st.rerun()

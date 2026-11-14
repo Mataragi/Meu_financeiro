@@ -8,7 +8,10 @@ def test_ambiente_production_usa_credenciais_padrao(monkeypatch):
     monkeypatch.setattr(
         supabase_client.st,
         "secrets",
-        {"SUPABASE_URL": "https://prod.example", "SUPABASE_KEY": "prod-key"},
+        {
+            "SUPABASE_URL": "https://prod.example",
+            "SUPABASE_SERVICE_ROLE_KEY": "prod-key",
+        },
     )
 
     assert supabase_client._configuracao_supabase() == (
@@ -24,10 +27,10 @@ def test_ambiente_demo_usa_apenas_credenciais_demo(monkeypatch):
         "secrets",
         {
             "SUPABASE_URL": "https://prod.example",
-            "SUPABASE_KEY": "prod-key",
+            "SUPABASE_SERVICE_ROLE_KEY": "prod-key",
             "demo": {
                 "SUPABASE_URL": "https://demo.example",
-                "SUPABASE_KEY": "demo-key",
+                "SUPABASE_SERVICE_ROLE_KEY": "demo-key",
             },
         },
     )
@@ -43,7 +46,10 @@ def test_ambiente_demo_sem_credenciais_nao_cai_em_producao(monkeypatch):
     monkeypatch.setattr(
         supabase_client.st,
         "secrets",
-        {"SUPABASE_URL": "https://prod.example", "SUPABASE_KEY": "prod-key"},
+        {
+            "SUPABASE_URL": "https://prod.example",
+            "SUPABASE_SERVICE_ROLE_KEY": "prod-key",
+        },
     )
 
     with pytest.raises(RuntimeError, match="Configure um projeto Supabase exclusivo"):
@@ -54,4 +60,16 @@ def test_ambiente_desconhecido_falha_com_seguranca(monkeypatch):
     monkeypatch.setenv("FINANCEIRO_PRO_ENV", "demoo")
 
     with pytest.raises(RuntimeError, match="FINANCEIRO_PRO_ENV inválido"):
+        supabase_client._configuracao_supabase()
+
+
+def test_production_rejeita_chave_anon_por_nome(monkeypatch):
+    monkeypatch.setenv("FINANCEIRO_PRO_ENV", "production")
+    monkeypatch.setattr(
+        supabase_client.st,
+        "secrets",
+        {"SUPABASE_URL": "https://prod.example", "SUPABASE_KEY": "anon-key"},
+    )
+
+    with pytest.raises(RuntimeError, match="SUPABASE_SERVICE_ROLE_KEY"):
         supabase_client._configuracao_supabase()

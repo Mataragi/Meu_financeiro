@@ -17,12 +17,18 @@ def transaction_service(monkeypatch):
         atualizacoes=[],
         baixas=[],
         status_multiplos=[],
+        liquidacoes=[],
+        cache_invalidations=[],
         exclusoes=[],
         transacoes=[
             {
                 "id": 42,
                 "valor": 100.0,
                 "status": STATUS_PENDENTE,
+                "mes": "SETEMBRO",
+                "ano": 2026,
+                "forma_pagamento": "PIX",
+                "data_liquidacao": None,
                 "recorrencia_id": None,
                 "competencia_ocorrencia": None,
             }
@@ -38,6 +44,23 @@ def transaction_service(monkeypatch):
     repository.atualizar_status_multiplos = lambda ids, status: repository.status_multiplos.append(
         (ids, status)
     )
+    def liquidar_transacoes(ids, data_liquidacao, dados_adicionais=None):
+        atualizados = []
+        for registro in repository.transacoes:
+            if (
+                registro["id"] in ids
+                and registro.get("status") == STATUS_PENDENTE
+                and registro.get("data_liquidacao") is None
+            ):
+                registro.update({
+                    "status": STATUS_PAGO,
+                    "data_liquidacao": data_liquidacao,
+                    **(dados_adicionais or {}),
+                })
+                atualizados.append(dict(registro))
+        repository.liquidacoes.append((list(ids), data_liquidacao, dados_adicionais))
+        return atualizados
+    repository.liquidar_transacoes = liquidar_transacoes
     repository.excluir_registro = lambda registro_id: repository.exclusoes.append(
         ("individual", registro_id)
     )
@@ -63,7 +86,7 @@ def transaction_service(monkeypatch):
 
     cache = types.ModuleType("services.cache")
     cache.cache_data = lambda **_kwargs: lambda func: func
-    cache.invalidar_cache = lambda *_args: None
+    cache.invalidar_cache = lambda *_args: repository.cache_invalidations.append(_args)
 
     import services
 
@@ -121,6 +144,15 @@ def test_competencia_rejeita_mes_invalido(transaction_service):
 
     with pytest.raises(ValueError, match="Mês inválido"):
         service.calcular_mes_ano_parcela("MES_INVALIDO", 2026, 1)
+
+
+def test_normalizacao_rejeita_pendente_com_data_de_liquidacao(transaction_service):
+    service, _ = transaction_service
+
+    with pytest.raises(ValueError, match="pendente não pode possuir"):
+        service.normalizar_dados_transacao(
+            {"status": STATUS_PENDENTE, "data_liquidacao": "2026-10-10"}
+        )
 
 
 def test_duplicar_registro_cria_copia_pendente(transaction_service):
@@ -445,10 +477,12 @@ def test_parcelamento_nao_credito_preserva_mes_e_ano_informados(transaction_serv
         total_parcelas=1,
         forma_pagamento="PIX",
         data_transacao="2026-09-09",
+        data_liquidacao="2026-09-09",
     )
 
     registro = repository.inseridos[0][0]
     assert (registro["mes"], registro["ano"]) == ("SETEMBRO", 2026)
+    assert registro["data_liquidacao"] == "2026-09-09"
     assert registro["status"] == STATUS_PAGO
 
 
@@ -474,17 +508,294 @@ def test_normaliza_status_legado(valor, esperado):
 def test_persistencia_recebe_status_padronizado(transaction_service):
     service, repository = transaction_service
 
-    service.inserir_dados([{"descricao": "Teste", "status": "pago"}])
+    service.inserir_dados([{
+        "descricao": "Teste",
+        "status": "pago",
+        "data_liquidacao": "2026-09-10",
+    }])
 
-    assert repository.inseridos == [[{"descricao": "Teste", "status": STATUS_PAGO}]]
+    assert repository.inseridos == [[{
+        "descricao": "Teste",
+        "status": STATUS_PAGO,
+        "data_liquidacao": "2026-09-10",
+    }]]
 
 
 def test_baixa_persiste_status_pago(transaction_service):
     service, repository = transaction_service
 
-    service.dar_baixa_registro(42)
+    service.dar_baixa_registro(42, "2026-10-12")
 
-    assert repository.baixas == [(42, STATUS_PAGO)]
+    assert repository.liquidacoes == [([42], "2026-10-12", {})]
+    assert repository.transacoes[0]["status"] == STATUS_PAGO
+    assert repository.transacoes[0]["data_liquidacao"] == "2026-10-12"
+
+
+def test_baixa_exige_data_efetiva_de_liquidacao(transaction_service):
+    service, repository = transaction_service
+
+    with pytest.raises(ValueError, match="exige data efetiva"):
+        service.dar_baixa_registro(42)
+
+    assert repository.liquidacoes == []
+
+
+def test_baixa_rejeita_data_efetiva_invalida(transaction_service):
+    service, repository = transaction_service
+
+    with pytest.raises(ValueError, match="Data de liquidação inválida"):
+        service.dar_baixa_registro(42, "12/10/2026")
+
+    assert repository.liquidacoes == []
+
+
+def test_baixa_em_lote_preserva_competencia_e_invalida_caches(transaction_service):
+    service, repository = transaction_service
+    repository.transacoes = [
+        {
+            "id": 7,
+            "valor": 100.0,
+            "status": STATUS_PENDENTE,
+            "mes": "SETEMBRO",
+            "ano": 2026,
+            "forma_pagamento": "PIX",
+            "data_liquidacao": None,
+        },
+        {
+            "id": 8,
+            "valor": 200.0,
+            "status": STATUS_PENDENTE,
+            "mes": "OUTUBRO",
+            "ano": 2026,
+            "forma_pagamento": "PIX",
+            "data_liquidacao": None,
+        },
+    ]
+
+    service.dar_baixa_multiplos([7, 8], "2026-11-10")
+
+    assert [(item["mes"], item["ano"]) for item in repository.transacoes] == [
+        ("SETEMBRO", 2026),
+        ("OUTUBRO", 2026),
+    ]
+    assert {item["data_liquidacao"] for item in repository.transacoes} == {
+        "2026-11-10"
+    }
+    assert len(repository.cache_invalidations) == 2
+
+
+def test_baixa_multipla_rejeita_identificadores_duplicados(transaction_service):
+    service, repository = transaction_service
+
+    with pytest.raises(ValueError, match="identificadores duplicados"):
+        service.dar_baixa_multiplos([42, 42], "2026-10-12")
+
+    assert repository.liquidacoes == []
+    assert repository.cache_invalidations == []
+
+
+def test_liquidacao_rejeita_alteracao_de_valor_ou_campos_arbitrarios(
+    transaction_service,
+):
+    service, repository = transaction_service
+
+    with pytest.raises(ValueError, match="campos não permitidos"):
+        service.liquidar_transacoes(
+            [42],
+            "2026-10-12",
+            {"valor": 999.0},
+        )
+
+    with pytest.raises(ValueError, match="campos não permitidos"):
+        service.liquidar_transacoes(
+            [42],
+            "2026-10-12",
+            {"campo_inventado": "valor"},
+        )
+
+    assert repository.liquidacoes == []
+    assert repository.cache_invalidations == []
+
+
+def test_falha_na_persistencia_nao_invalida_caches(transaction_service):
+    service, repository = transaction_service
+
+    def falhar_persistencia(*_args, **_kwargs):
+        raise RuntimeError("falha simulada no banco")
+
+    repository.liquidar_transacoes = falhar_persistencia
+
+    with pytest.raises(RuntimeError, match="falha simulada"):
+        service.dar_baixa_registro(42, "2026-10-12")
+
+    assert repository.cache_invalidations == []
+
+
+def test_baixa_duplicada_e_rejeitada_sem_nova_escrita(transaction_service):
+    service, repository = transaction_service
+
+    service.dar_baixa_registro(42, "2026-10-12")
+    with pytest.raises(ValueError, match="já foi liquidada"):
+        service.dar_baixa_registro(42, "2026-10-12")
+
+    assert len(repository.liquidacoes) == 1
+
+
+def test_edicao_de_status_para_pago_delega_para_liquidacao_centralizada(
+    transaction_service,
+):
+    service, repository = transaction_service
+
+    service.atualizar_registro(
+        42,
+        {
+            "descricao": "Registro liquidado",
+            "status": STATUS_PAGO,
+            "data_liquidacao": "2026-10-12",
+        },
+    )
+
+    assert repository.liquidacoes == [(
+        [42],
+        "2026-10-12",
+        {"descricao": "Registro liquidado"},
+    )]
+    assert repository.atualizacoes == []
+
+
+def test_pagamento_de_fatura_liquida_compras_sem_criar_outra_despesa(
+    transaction_service,
+):
+    service, repository = transaction_service
+    repository.transacoes = [
+        {
+            "id": 10,
+            "valor": 90.0,
+            "status": STATUS_PENDENTE,
+            "mes": "NOVEMBRO",
+            "ano": 2026,
+            "tipo": "Despesa",
+            "forma_pagamento": "Crédito",
+            "data_liquidacao": None,
+            "grupo_parcelamento": "fatura-2026-11",
+            "parcela_atual": 1,
+            "total_parcelas": 2,
+        },
+        {
+            "id": 11,
+            "valor": 60.0,
+            "status": STATUS_PENDENTE,
+            "mes": "NOVEMBRO",
+            "ano": 2026,
+            "tipo": "Despesa",
+            "forma_pagamento": "Crédito",
+            "data_liquidacao": None,
+            "grupo_parcelamento": "fatura-2026-11",
+            "parcela_atual": 2,
+            "total_parcelas": 2,
+        },
+    ]
+
+    service.liquidar_fatura_cartao([10, 11], "2026-11-15")
+
+    assert repository.inseridos == []
+    assert [(item["mes"], item["ano"]) for item in repository.transacoes] == [
+        ("NOVEMBRO", 2026),
+        ("NOVEMBRO", 2026),
+    ]
+    assert all(item["status"] == STATUS_PAGO for item in repository.transacoes)
+    assert {item["data_liquidacao"] for item in repository.transacoes} == {
+        "2026-11-15"
+    }
+    assert [item["grupo_parcelamento"] for item in repository.transacoes] == [
+        "fatura-2026-11",
+        "fatura-2026-11",
+    ]
+
+
+def test_pagamento_de_fatura_rejeita_item_que_nao_e_cartao(transaction_service):
+    service, repository = transaction_service
+
+    with pytest.raises(ValueError, match="Crédito"):
+        service.liquidar_fatura_cartao([42], "2026-10-12")
+
+    assert repository.liquidacoes == []
+
+
+def test_pagamento_de_fatura_rejeita_competencias_diferentes(transaction_service):
+    service, repository = transaction_service
+    repository.transacoes = [
+        {"id": 10, "valor": 90, "status": STATUS_PENDENTE, "mes": "OUTUBRO", "ano": 2026,
+         "tipo": "Despesa", "forma_pagamento": "Crédito", "data_liquidacao": None},
+        {"id": 11, "valor": 60, "status": STATUS_PENDENTE, "mes": "NOVEMBRO", "ano": 2026,
+         "tipo": "Despesa", "forma_pagamento": "Crédito", "data_liquidacao": None},
+    ]
+
+    with pytest.raises(ValueError, match="única competência"):
+        service.liquidar_fatura_cartao([10, 11], "2026-11-15")
+
+    assert repository.liquidacoes == []
+
+
+def test_pagamento_de_fatura_rejeita_transacao_que_nao_e_despesa(transaction_service):
+    service, repository = transaction_service
+    repository.transacoes = [{
+        "id": 10, "valor": 90, "status": STATUS_PENDENTE, "mes": "NOVEMBRO", "ano": 2026,
+        "tipo": "Receita", "forma_pagamento": "Crédito", "data_liquidacao": None,
+    }]
+
+    with pytest.raises(ValueError, match="despesas"):
+        service.liquidar_fatura_cartao([10], "2026-11-15")
+
+    assert repository.liquidacoes == []
+
+
+def test_criacao_direta_de_pago_sem_data_e_rejeitada(transaction_service):
+    service, repository = transaction_service
+
+    with pytest.raises(ValueError, match="exige data efetiva"):
+        service.inserir_dados([{"descricao": "Novo pago", "status": STATUS_PAGO}])
+
+    assert repository.inseridos == []
+
+
+def test_restauracao_controlada_preserva_pago_legado_sem_data(transaction_service):
+    service, repository = transaction_service
+    service.restaurar_backup_historico([{
+        "ano": 2025, "mes": "OUTUBRO", "descricao": "Compra antiga",
+        "valor": 50, "tipo": "Despesa", "status": STATUS_PAGO,
+    }])
+
+    assert repository.inseridos == [[{
+        "ano": 2025, "mes": "OUTUBRO", "descricao": "Compra antiga",
+        "valor": 50, "tipo": "Despesa", "status": STATUS_PAGO,
+    }]]
+
+
+def test_restauracao_csv_preserva_nan_de_data_como_ausencia_legada(transaction_service):
+    service, repository = transaction_service
+    service.restaurar_backup_historico([{
+        "ano": 2025, "mes": "OUTUBRO", "descricao": "Compra antiga",
+        "valor": 50, "tipo": "Despesa", "status": STATUS_PAGO,
+        "data_liquidacao": float("nan"), "data_transacao": float("nan"),
+    }])
+
+    restaurado = repository.inseridos[0][0]
+    assert restaurado["status"] == STATUS_PAGO
+    assert "data_liquidacao" not in restaurado
+
+
+def test_restauracao_valida_todo_lote_antes_de_inserir(transaction_service):
+    service, repository = transaction_service
+    with pytest.raises(ValueError, match="Mês do backup inválido"):
+        service.restaurar_backup_historico([
+            {"ano": 2025, "mes": "OUTUBRO", "descricao": "Válido", "valor": 50,
+             "tipo": "Despesa", "status": STATUS_PAGO},
+            {"ano": 2025, "mes": "INVÁLIDO", "descricao": "Inválido", "valor": 10,
+             "tipo": "Despesa", "status": STATUS_PENDENTE},
+        ])
+
+    assert repository.inseridos == []
 
 
 def test_baixa_rejeita_transacao_sem_valor(transaction_service):
@@ -499,34 +810,34 @@ def test_baixa_rejeita_transacao_sem_valor(transaction_service):
     ]
 
     with pytest.raises(ValueError, match="sem valor"):
-        service.dar_baixa_registro(7)
+        service.dar_baixa_registro(7, "2026-10-12")
 
-    assert repository.baixas == []
+    assert repository.liquidacoes == []
 
 
 def test_baixa_multipla_rejeita_lote_com_valor_nulo(transaction_service):
     service, repository = transaction_service
     repository.transacoes = [
-        {"id": 7, "valor": 100.0, "recorrencia_id": None},
-        {"id": 8, "valor": None, "recorrencia_id": 11},
+        {"id": 7, "valor": 100.0, "status": STATUS_PENDENTE, "data_liquidacao": None, "recorrencia_id": None},
+        {"id": 8, "valor": None, "status": STATUS_PENDENTE, "data_liquidacao": None, "recorrencia_id": 11},
     ]
 
     with pytest.raises(ValueError, match="sem valor"):
-        service.dar_baixa_multiplos([7, 8])
+        service.dar_baixa_multiplos([7, 8], "2026-10-12")
 
-    assert repository.status_multiplos == []
+    assert repository.liquidacoes == []
 
 
 def test_atualizacao_status_multipla_rejeita_valor_nulo(transaction_service):
     service, repository = transaction_service
     repository.transacoes = [
-        {"id": 8, "valor": None, "recorrencia_id": 11}
+        {"id": 8, "valor": None, "status": STATUS_PENDENTE, "data_liquidacao": None, "recorrencia_id": 11}
     ]
 
     with pytest.raises(ValueError, match="sem valor"):
-        service.atualizar_status_multiplos([8], STATUS_PAGO)
+        service.atualizar_status_multiplos([8], STATUS_PAGO, "2026-10-12")
 
-    assert repository.status_multiplos == []
+    assert repository.liquidacoes == []
 
 
 def test_baixa_multipla_continua_funcionando_com_valor_conhecido(
@@ -534,12 +845,12 @@ def test_baixa_multipla_continua_funcionando_com_valor_conhecido(
 ):
     service, repository = transaction_service
     repository.transacoes = [
-        {"id": 8, "valor": 100.0, "recorrencia_id": None}
+        {"id": 8, "valor": 100.0, "status": STATUS_PENDENTE, "data_liquidacao": None, "recorrencia_id": None}
     ]
 
-    service.atualizar_status_multiplos([8], STATUS_PAGO)
+    service.atualizar_status_multiplos([8], STATUS_PAGO, "2026-10-12")
 
-    assert repository.status_multiplos == [([8], STATUS_PAGO)]
+    assert repository.liquidacoes == [([8], "2026-10-12", {})]
 
 
 def test_atualizacao_direta_rejeita_pago_com_valor_nulo(transaction_service):
@@ -610,7 +921,11 @@ def test_edicao_de_ocorrencia_nula_nao_permite_pagar_ao_preencher_valor(
     with pytest.raises(ValueError, match="permanecer pendentes"):
         service.atualizar_registro(
             7,
-            {"valor": 125.0, "status": STATUS_PAGO},
+            {
+                "valor": 125.0,
+                "status": STATUS_PAGO,
+                "data_liquidacao": "2026-10-12",
+            },
         )
 
     assert repository.atualizacoes == []

@@ -17,6 +17,7 @@ PAYLOAD = {
     "vencimento": 1,
     "forma_pagamento": "PIX",
     "data_transacao": "2026-08-31",
+    "data_liquidacao": "2026-08-31",
 }
 
 
@@ -51,7 +52,11 @@ def test_status_e_normalizado(monkeypatch):
     fake = FakeTransactionService()
     monkeypatch.setattr(registrar, "transaction_service", fake)
 
-    registrar.registrar_transacao_externa({**PAYLOAD, "status": " PENDENTE "})
+    registrar.registrar_transacao_externa({
+        **PAYLOAD,
+        "status": " PENDENTE ",
+        "data_liquidacao": None,
+    })
 
     assert fake.inseridos[0][0]["status"] == "Pendente"
 
@@ -61,10 +66,28 @@ def test_credito_forca_status_pendente(monkeypatch):
     monkeypatch.setattr(registrar, "transaction_service", fake)
 
     registrar.registrar_transacao_externa(
-        {**PAYLOAD, "forma_pagamento": "Crédito", "status": "Pago"}
+        {
+            **PAYLOAD,
+            "forma_pagamento": "Crédito",
+            "status": "Pago",
+            "data_liquidacao": None,
+        }
     )
 
     assert fake.inseridos[0][0]["status"] == "Pendente"
+
+
+def test_importacao_externa_rejeita_novo_pago_sem_data(monkeypatch):
+    fake = FakeTransactionService()
+    monkeypatch.setattr(registrar, "transaction_service", fake)
+
+    with pytest.raises(ValueError, match="exige data efetiva"):
+        registrar.registrar_transacao_externa({
+            **PAYLOAD,
+            "data_liquidacao": None,
+        })
+
+    assert fake.inseridos == []
 
 
 def test_vencimento_ausente_e_preservado_no_payload_e_na_persistencia(monkeypatch):

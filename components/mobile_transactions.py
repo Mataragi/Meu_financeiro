@@ -272,6 +272,16 @@ def render_mobile_transaction_form(ano, mes):
             else:
                 vencimento = None
 
+        data_liquidacao = None
+        if status == STATUS_PAGO:
+            data_liquidacao = st.date_input(
+                "Data efetiva do pagamento",
+                value=date.today(),
+                format="DD/MM/YYYY",
+                key="nova_data_liquidacao",
+                help="Obrigatória para registrar uma transação já paga.",
+            )
+
         st.markdown("**Parcelamento**")
         col_parcelas, col_info = st.columns([1, 2], gap="small")
         with col_parcelas:
@@ -352,6 +362,7 @@ def render_mobile_transaction_form(ano, mes):
                     vencimento=vencimento,
                     forma_pagamento=forma_pagamento,
                     data_transacao=data_transacao,
+                    data_liquidacao=data_liquidacao,
                 )
                 st.success(f"{int(total_parcelas)} registro(s) enviado(s) 🚀")
                 st.session_state.show_form = False
@@ -410,6 +421,18 @@ def _render_edicao_inline(registro):
         index=0 if registro.get("status") == STATUS_PENDENTE else 1,
         key=f"edit_status_inline_{registro_id}",
     )
+    data_liquidacao_edicao = None
+    if (
+        novo_status == STATUS_PAGO
+        and registro.get("status") == STATUS_PENDENTE
+    ):
+        st.caption("Informe quando o dinheiro efetivamente saiu ou entrou.")
+        data_liquidacao_edicao = st.date_input(
+            "Data efetiva da liquidação",
+            value=date.today(),
+            format="DD/MM/YYYY",
+            key=f"edit_data_liquidacao_inline_{registro_id}",
+        )
     if valor_atual is None:
         st.info("Valor não informado. Preencha o valor; a ocorrência continuará pendente.")
         novo_status = STATUS_PENDENTE
@@ -446,6 +469,7 @@ def _render_edicao_inline(registro):
     if nova_forma_pagamento == "Crédito" and registro.get("forma_pagamento") != "Crédito":
         st.info("Ao alterar para Crédito, o status será salvo como Pendente.")
         novo_status = STATUS_PENDENTE
+        data_liquidacao_edicao = None
 
     col_salvar, col_cancelar = st.columns(2)
     with col_salvar:
@@ -460,6 +484,15 @@ def _render_edicao_inline(registro):
                 st.error("Informe um valor maior que zero.")
             elif novo_valor is not None and novo_valor <= 0:
                 st.error("O valor deve ser maior que zero.")
+            elif (
+                novo_status == STATUS_PAGO
+                and registro.get("status") == STATUS_PENDENTE
+                and novo_valor != valor_atual
+            ):
+                st.error(
+                    "Salve a alteração de valor primeiro. Depois, registre a baixa "
+                    "com a data efetiva."
+                )
             else:
                 dados_atualizacao = {
                     "descricao": nova_descricao.strip(),
@@ -474,6 +507,9 @@ def _render_edicao_inline(registro):
                     dados_atualizacao["forma_pagamento"] = nova_forma_pagamento
                 if nova_data_transacao is not None:
                     dados_atualizacao["data_transacao"] = nova_data_transacao
+                if data_liquidacao_edicao is not None:
+                    dados_atualizacao["data_liquidacao"] = data_liquidacao_edicao
+                    dados_atualizacao.pop("valor", None)
 
                 atualizar_registro(
                     registro_id,
