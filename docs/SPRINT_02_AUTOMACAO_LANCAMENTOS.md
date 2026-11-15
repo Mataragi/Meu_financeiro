@@ -189,19 +189,13 @@ Cada parcela é uma transação independente e compartilha um identificador de g
 
 ## 7. Regra financeira do ciclo
 
-O usuário confirmou que o ciclo financeiro pessoal utilizado pelo Financeiro Pro considera o recebimento no dia 30.
+**Regra histórica, substituída pela DEC-017 revisada.**
 
-Por isso, movimentações realizadas nos dias 30 e 31 podem pertencer ao ciclo financeiro do mês seguinte.
+Na etapa da Sprint 02, o modelo considerado utilizava o recebimento no dia 30 como referência para o ciclo seguinte. Essa interpretação foi posteriormente simplificada: o Financeiro Pro passa a utilizar um ciclo por competência mensal, do primeiro ao último dia do mês-calendário.
 
-Exemplo confirmado:
+A competência continua podendo ser diferente da data real da operação. Por exemplo, um salário recebido em 30/10 pode ser atribuído à competência NOVEMBRO/2026, sem alterar sua data real de liquidação.
 
-```text
-31/08/2026
-    ↓
-Ciclo financeiro de SETEMBRO/2026
-```
-
-Essa regra ainda não foi implementada automaticamente no código.
+A regra vigente é a DEC-017 em `docs/06_DECISIONS.md`.
 
 ---
 
@@ -209,7 +203,7 @@ Essa regra ainda não foi implementada automaticamente no código.
 
 Compras realizadas no Crédito não devem ser tratadas como saída de caixa já paga no momento da compra, porque o dinheiro será comprometido quando a fatura for paga.
 
-Para pagamentos imediatos, como PIX, Débito e Dinheiro, o ciclo financeiro será determinado pela data da movimentação segundo a regra de fechamento do ciclo.
+Para pagamentos imediatos, como PIX, Débito e Dinheiro, a competência mensal será definida conforme o mês financeiro ao qual a movimentação pertence. A data real da operação permanece registrada separadamente em `data_transacao` e, quando paga, em `data_liquidacao`.
 
 Para Crédito, o lançamento financeiro deverá pertencer ao ciclo em que a fatura será paga, mantendo separado o fato de que a compra ocorreu anteriormente.
 
