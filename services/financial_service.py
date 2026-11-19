@@ -205,6 +205,15 @@ def _normalizar_registros(transacoes: pd.DataFrame | None) -> pd.DataFrame:
     for coluna in colunas:
         if coluna not in dados.columns:
             dados[coluna] = None
+
+    # O pandas converte None/NaT em NaN quando uma coluna mistura datas e
+    # valores ausentes. O contrato de liquidação aceita None, não float NaN.
+    # Normalizamos aqui para que registros pagos legados continuem legíveis.
+    dados["data_liquidacao"] = (
+        dados["data_liquidacao"]
+        .astype(object)
+        .where(dados["data_liquidacao"].notna(), None)
+    )
     dados["status"] = dados["status"].map(normalizar_status)
     return dados
 

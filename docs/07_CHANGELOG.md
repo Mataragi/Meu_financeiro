@@ -30,6 +30,8 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 
 ## Changed
 
+- DEC-017 revisada: o ciclo financeiro passa a acompanhar a competência mensal (`mes` + `ano`), do primeiro ao último dia do mês. Parcelas de salário e receitas extras na mesma competência não criam ciclos adicionais. A data real de transação e liquidação permanece preservada.
+
 - A interface Mobile voltou a apresentar os indicadores operacionais Pago,
   Pendente e Saldo calculado por competência, preservando-os junto aos
   indicadores consolidados Saldo disponível, Resultado acumulado e
@@ -53,9 +55,9 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - A ponte ChatGPT passou a separar preparação e confirmação, evitando persistência automática durante a recepção do payload.
 - Sprint 02 — Automação de Lançamentos — foi concluída após validação ponta a ponta do fluxo externo.
 - Sprint 03 — Item 1 — formalizou a semântica de `data_transacao`, `mes` + `ano`, `vencimento` e `criado_em`, mantendo esses conceitos separados.
-- Sprint 03 — Item 2 — formalizou o ciclo financeiro entre o recebimento principal atual e o dia anterior ao próximo recebimento principal.
+- Sprint 03 — Item 2 — originalmente formalizou ciclos entre recebimentos principais. Essa regra foi substituída pela DEC-017 revisada: um ciclo por competência mensal, do primeiro ao último dia do mês.
 - Sprint 03 — Item 3 — formalizou saldo de abertura, saldo real, pendências, saldo projetado, saldo de encerramento e saldo transportado entre ciclos.
-- O saldo transportado passou a ser definido como relação entre ciclos, sem criação de transação artificial de `Fechamento`.
+- O saldo transportado passou a ser definido como relação entre ciclos mensais, sem criação de transação artificial de `Fechamento`.
 - O saldo inicial do primeiro ciclo passou a ser tratado conceitualmente como posição de abertura confirmada pelo usuário, separada das transações financeiras.
 - Sprint 03 — Item 4 — formalizou a competência das compras no Crédito, o fechamento no dia 05, o parcelamento por competências e o fluxo de pagamento da fatura.
 - Compras no Crédito feitas do dia 01 ao 04 pertencem à fatura do próprio mês; compras feitas do dia 05 em diante pertencem à fatura do mês seguinte.

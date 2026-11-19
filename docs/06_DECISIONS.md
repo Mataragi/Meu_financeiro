@@ -213,21 +213,29 @@ SETEMBRO/2026 → mes + ano
 ---
 
 ## DEC-017
-### O ciclo financeiro é determinado pelos recebimentos principais reais.
+### O ciclo financeiro acompanha a competência mensal do orçamento.
 
-Um ciclo começa no dia em que o recebimento principal ocorre e termina no dia anterior ao próximo recebimento principal.
-
-Exemplo:
+O Financeiro Pro utiliza um ciclo por mês-calendário. O ciclo começa no primeiro dia do mês e termina no último dia do mesmo mês.
 
 ```text
-Recebimento: 30/08/2026
-Próximo:     30/09/2026
-
-Ciclo de SETEMBRO/2026:
-30/08/2026 → 29/09/2026
+NOVEMBRO/2026: 01/11/2026 → 30/11/2026
+DEZEMBRO/2026: 01/12/2026 → 31/12/2026
+JANEIRO/2027:  01/01/2027 → 31/01/2027
 ```
 
-O dia do recebimento inicia o novo ciclo. A regra acompanha as datas reais dos recebimentos e não depende de o mês ter 28, 29, 30 ou 31 dias.
+A competência é definida por `mes` + `ano`, não pela data em que o salário caiu na conta. Assim, um salário recebido no fim de outubro pode ser atribuído à competência NOVEMBRO para financiar as contas de novembro.
+
+As datas reais não serão alteradas para simular essa competência:
+
+- `data_transacao` continua registrando quando a operação aconteceu;
+- `data_liquidacao` continua registrando quando o dinheiro entrou ou saiu efetivamente;
+- `mes` + `ano` identificam o mês financeiro ao qual a movimentação foi atribuída.
+
+Todas as parcelas do salário recebidas no mesmo mês de planejamento pertencem à mesma competência. Receitas extras, como dividendos semestrais, também são lançadas na competência escolhida e não criam ciclos adicionais.
+
+O recebimento principal deixa de determinar a abertura ou o encerramento do ciclo. Não existe ciclo intramensal nem criação de um novo ciclo por recebimento adicional.
+
+A regra mantém um ciclo simples por competência mensal, independentemente de o mês possuir 28, 29, 30 ou 31 dias.
 
 ---
 

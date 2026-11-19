@@ -97,65 +97,52 @@ Este item não implementa o cálculo automático da competência nem altera o ba
 
 ### 5.1 Regra oficial
 
-Um ciclo financeiro começa no dia em que o recebimento principal ocorre e termina no dia anterior ao próximo recebimento principal.
+O ciclo financeiro corresponde ao mês-calendário da competência selecionada:
 
-```text
-Recebimento principal A
-        ↓
-INÍCIO DO CICLO
-        │
-        │ operações do período
-        │
-        ↓
-Dia anterior ao recebimento B
-        ↓
-FIM DO CICLO
+- início: primeiro dia do mês;
+- término: último dia do mês;
+- identificação: combinação de `mes` + `ano` da transação.
 
-Recebimento principal B
-        ↓
-INÍCIO DO PRÓXIMO CICLO
-```
-
-O ciclo não depende de o mês possuir 28, 29, 30 ou 31 dias.
+Existe somente um ciclo por competência mensal. Recebimentos adicionais, parcelas de salário ou receitas extraordinárias não criam ciclos novos.
 
 ### 5.2 Exemplo
 
-```text
-Recebimento: 30/08/2026
-Próximo:     30/09/2026
-
-Ciclo de SETEMBRO/2026:
-30/08/2026 → 29/09/2026
-
-Próximo ciclo:
-30/09/2026 → 29/10/2026
-```
-
-O dia do recebimento inicia o novo ciclo. O dia anterior ao próximo recebimento encerra o ciclo atual.
-
-### 5.3 Recebimento antecipado ou atrasado
-
-O ciclo acompanha as datas reais. Se o próximo recebimento ocorrer em 29/09 em vez de 30/09, o ciclo anterior termina em 28/09 e o novo começa em 29/09.
-
-### 5.4 Dia 1 e virada de ano
-
-O dia 1 não reinicia o ciclo. Uma virada de ano também não interrompe artificialmente o período.
+O salário pode cair no fim do mês anterior e ser atribuído ao orçamento do mês seguinte:
 
 ```text
-Recebimento: 30/12/2026
-Próximo:     30/01/2027
+Salário recebido: 30/10/2026
+Competência:     NOVEMBRO/2026
 
-Ciclo:
-30/12/2026 → 29/01/2027
+Ciclo de NOVEMBRO/2026:
+01/11/2026 → 30/11/2026
+
+Contas de novembro:
+competência NOVEMBRO/2026
 ```
+
+Se o salário for recebido em duas parcelas, ambas podem ser atribuídas à competência NOVEMBRO/2026. Elas continuam sendo receitas independentes, mas pertencem ao mesmo ciclo.
+
+### 5.3 Receitas extras
+
+Dividendos, bônus e outras receitas extraordinárias pertencem à competência mensal escolhida para o planejamento. Um dividendo recebido a cada seis meses não cria um ciclo semestral nem altera o calendário dos ciclos mensais.
+
+### 5.4 Datas reais e competência
+
+A mudança de competência não altera as datas reais:
+
+- `data_transacao`: data em que a operação aconteceu;
+- `data_liquidacao`: data em que o dinheiro foi efetivamente recebido ou pago;
+- `mes` + `ano`: competência mensal à qual a movimentação pertence.
+
+Uma receita atribuída a novembro, mas recebida em 30/10, continua tendo liquidação em outubro. O saldo disponível reconhece o dinheiro na data real; o resultado por competência reconhece a receita em novembro. O transporte do saldo impede que o valor seja contado novamente como uma nova entrada de caixa em novembro.
 
 ### 5.5 Parcelamentos
 
-Parcelamentos continuam sendo transações independentes. Cada parcela deverá possuir a competência/ciclo correspondente ao período financeiro ao qual pertence.
+Parcelamentos continuam sendo transações independentes. Cada parcela deverá possuir a competência mensal correspondente ao período financeiro ao qual pertence.
 
 ### 5.6 Limites
 
-Este item define o período do ciclo. Não define saldo de abertura, transporte, projeção ou liquidação de Crédito. Esses comportamentos pertencem aos Itens 3 e 4.
+Este item define o período mensal e a competência do ciclo. O cálculo do saldo de abertura, transporte, projeção e liquidação de Crédito permanece definido nos Itens 3 e 4.
 
 ---
 
@@ -654,7 +641,7 @@ O Item 6 é considerado concluído quando o contrato externo estiver definido de
 
 **Status: Concluído.**
 
-A suíte dedicada às regras formalizadas na Sprint 03 foi consolidada e validada. Ela cobre contrato externo, nomenclatura oficial e compatibilidade legada, vencimento opcional, data da operação, comportamento inicial do Crédito, saldo real e projetado, pagamento lógico de fatura, movimentações patrimoniais e competência do Crédito.
+A suíte dedicada às regras formalizadas na Sprint 03 foi consolidada e validada para o escopo então vigente. A regra de ciclo mensal desta revisão substitui a regra anterior baseada em datas de recebimentos; sua cobertura automatizada deverá ser acrescentada junto à implementação do cálculo mensal e do transporte de saldo. A revisão documental, por si só, não representa implementação funcional.
 
 ### 10.1 Validação
 

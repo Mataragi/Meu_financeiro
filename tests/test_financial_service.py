@@ -237,3 +237,30 @@ def test_posicao_consolidada_usa_historico_paginado(monkeypatch):
     posicao = calcular_posicao_consolidada(date(2026, 10, 31), _saldo_inicial())
 
     assert posicao.saldo_disponivel == Decimal("1050.00")
+
+
+def test_historico_com_datas_e_nulos_mistos_nao_rejeita_nan_do_pandas():
+    transacoes = _transacoes(
+        {
+            "tipo": "Despesa", "status": "Pago", "valor": 100,
+            "ano": 2026, "mes": "NOVEMBRO", "data_liquidacao": "2026-11-17",
+        },
+        {
+            "tipo": "Despesa", "status": "Pago", "valor": 50,
+            "ano": 2026, "mes": "NOVEMBRO", "data_liquidacao": None,
+        },
+        {
+            "tipo": "Despesa", "status": "Pendente", "valor": 25,
+            "ano": 2026, "mes": "NOVEMBRO", "data_liquidacao": None,
+        },
+    )
+
+    posicao = calcular_posicao_financeira(
+        transacoes,
+        date(2026, 11, 30),
+        _saldo_inicial(711.26, date(2026, 11, 14)),
+    )
+
+    assert posicao.saldo_disponivel == Decimal("611.26")
+    assert posicao.pagamentos_legados_sem_data == 1
+    assert posicao.despesas_previstas == Decimal("25.00")
