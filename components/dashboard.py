@@ -235,5 +235,3 @@ def render_dashboard():
                         st.rerun()
 
  
-
-[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]

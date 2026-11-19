@@ -333,5 +333,3 @@ def _formatar_competencia(competencia: tuple[int, int]) -> str:
 
 def _arredondar(valor: Decimal) -> Decimal:
     return valor.quantize(_CENTAVOS, rounding=ROUND_HALF_UP)
-
-[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]

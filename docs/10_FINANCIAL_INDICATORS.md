@@ -239,5 +239,3 @@ As ações de liquidação apresentam sucesso somente após a confirmação do
 serviço. Falhas esperadas de validação, concorrência ou comunicação da RPC
 recebem mensagem segura e registram o tipo técnico da falha no log; exceções
 inesperadas continuam visíveis para diagnóstico.
-
-[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]

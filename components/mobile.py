@@ -636,5 +636,3 @@ def render_mobile():
         render_mobile_recurrence_list()
 
     _render_mobile_sidebar_actions(df_base, mes)
-
-[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]

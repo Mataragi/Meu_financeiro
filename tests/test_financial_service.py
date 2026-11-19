@@ -382,5 +382,3 @@ def test_fevereiro_bissexto_recebe_abertura_do_fechamento_de_janeiro():
     assert janeiro.saldo_disponivel == Decimal("375.00")
     assert fevereiro.saldo_abertura_competencia == Decimal("375.00")
     assert fevereiro.saldo_disponivel == Decimal("375.00")
-
-[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]

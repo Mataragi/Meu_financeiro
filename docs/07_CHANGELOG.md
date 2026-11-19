@@ -121,5 +121,3 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Interface Mobile.
 - Interface Desktop.
 - Integração da data efetiva de liquidação nas ações mobile e dashboard; pagamento de fatura de Crédito separado da baixa genérica, com total e quantidade de compras e sem criar despesa duplicada.
-
-[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]

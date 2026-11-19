@@ -667,5 +667,3 @@ As decisões do Financeiro Pro devem seguir:
 # 9. Considerações Finais
 
 O objetivo deste documento não é impedir mudanças. É garantir que toda mudança importante seja consciente, registrada e compreendida.
-
-[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]
