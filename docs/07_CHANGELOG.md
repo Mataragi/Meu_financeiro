@@ -30,6 +30,8 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 
 ## Changed
 
+- Saldo transportado implementado de forma automática: a abertura de cada competência mensal é derivada do fechamento real do mês anterior, com base nas datas efetivas de liquidação. Não são criados lançamentos artificiais ou saldos mensais persistidos.
+
 - DEC-017 revisada: o ciclo financeiro passa a acompanhar a competência mensal (`mes` + `ano`), do primeiro ao último dia do mês. Parcelas de salário e receitas extras na mesma competência não criam ciclos adicionais. A data real de transação e liquidação permanece preservada.
 
 - A interface Mobile voltou a apresentar os indicadores operacionais Pago,
@@ -119,3 +121,5 @@ O formato deste documento é inspirado no padrão **Keep a Changelog**.
 - Interface Mobile.
 - Interface Desktop.
 - Integração da data efetiva de liquidação nas ações mobile e dashboard; pagamento de fatura de Crédito separado da baixa genérica, com total e quantidade de compras e sem criar despesa duplicada.
+
+[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]

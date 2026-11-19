@@ -51,6 +51,11 @@ class PosicaoFinanceira:
     despesas_previstas: Decimal
     pendencias: pd.DataFrame
     pagamentos_legados_sem_data: int
+    saldo_abertura_competencia: Decimal
+    movimentacao_liquidada_competencia: Decimal
+    saldo_fechamento_competencia: Decimal
+    data_inicio_periodo_competencia: date
+    primeira_competencia_controlada: bool
 
 
 def criar_saldo_inicial(valor: Any, data_base: Any) -> SaldoInicialDisponibilidade:
@@ -83,6 +88,12 @@ def calcular_posicao_financeira(
         raise ValueError("A data de referência não pode ser anterior à data-base.")
 
     registros = _normalizar_registros(transacoes)
+    inicio_mes = date(data_referencia.year, data_referencia.month, 1)
+    # No primeiro mês monitorado, o período começa na data-base; nos
+    # meses seguintes, começa no primeiro dia e herda o fechamento anterior.
+    inicio_periodo_competencia = max(inicio_mes, saldo_inicial.data_base)
+    saldo_abertura_competencia = saldo_inicial.valor
+    movimentacao_liquidada_competencia = _ZERO
     disponivel = saldo_inicial.valor
     resultado = _ZERO
     receitas_previstas = _ZERO
@@ -116,7 +127,14 @@ def calcular_posicao_financeira(
             liquidacao is not None
             and saldo_inicial.data_base <= liquidacao <= data_referencia
         ):
-            disponivel += valor if tipo == TIPO_RECEITA else -valor
+            variacao_caixa = valor if tipo == TIPO_RECEITA else -valor
+            disponivel += variacao_caixa
+            if liquidacao < inicio_periodo_competencia:
+                # Caixa liquidado antes do mês atual forma sua abertura.
+                saldo_abertura_competencia += variacao_caixa
+            else:
+                # Só liquidações do período alteram o fechamento do mês.
+                movimentacao_liquidada_competencia += variacao_caixa
 
         pendente_na_referencia = (
             competencia <= (data_referencia.year, data_referencia.month)
@@ -138,6 +156,14 @@ def calcular_posicao_financeira(
             }
         )
 
+    saldo_fechamento_competencia = (
+        saldo_abertura_competencia + movimentacao_liquidada_competencia
+    )
+    if saldo_fechamento_competencia != disponivel:
+        raise RuntimeError(
+            "Inconsistência no transporte do saldo entre competências."
+        )
+
     saldo_projetado = disponivel + receitas_previstas - despesas_previstas
     return PosicaoFinanceira(
         referencia=data_referencia,
@@ -148,6 +174,16 @@ def calcular_posicao_financeira(
         despesas_previstas=_arredondar(despesas_previstas),
         pendencias=pd.DataFrame(pendencias),
         pagamentos_legados_sem_data=pagamentos_legados_sem_data,
+        saldo_abertura_competencia=_arredondar(saldo_abertura_competencia),
+        movimentacao_liquidada_competencia=_arredondar(
+            movimentacao_liquidada_competencia
+        ),
+        saldo_fechamento_competencia=_arredondar(saldo_fechamento_competencia),
+        data_inicio_periodo_competencia=inicio_periodo_competencia,
+        primeira_competencia_controlada=(
+            data_referencia.year == saldo_inicial.data_base.year
+            and data_referencia.month == saldo_inicial.data_base.month
+        ),
     )
 
 
@@ -297,3 +333,5 @@ def _formatar_competencia(competencia: tuple[int, int]) -> str:
 
 def _arredondar(valor: Decimal) -> Decimal:
     return valor.quantize(_CENTAVOS, rounding=ROUND_HALF_UP)
+
+[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]

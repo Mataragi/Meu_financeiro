@@ -276,7 +276,26 @@ Ciclo N+1
 saldo de abertura
 ```
 
-O transporte é uma relação entre ciclos e **não uma nova movimentação financeira**.
+O transporte é uma relação entre competências mensais e **não uma nova movimentação financeira**.
+
+### Transporte automático mensal
+
+A abertura de cada competência posterior à primeira é derivada do fechamento
+real da competência imediatamente anterior. O primeiro período controlado
+usa o saldo confirmado na data_base; se ela estiver no meio do mês, o
+período controlado começa nessa data.
+
+O fechamento considera somente receitas e despesas efetivamente liquidadas,
+classificadas pela data real de data_liquidacao. Pendências não alteram o
+fechamento real e entram somente no saldo projetado. mes + ano continuam
+representando a competência orçamentária, podendo ser diferentes da data de
+liquidação.
+
+A abertura e o fechamento dos meses são calculados dinamicamente a partir do
+histórico completo. Não são persistidos em tabela própria nem representados
+por lançamentos de fechamento. Alterações retroativas recalculam os meses
+posteriores automaticamente. Nenhuma migração de dados é necessária para
+ativar o cálculo.
 
 ### Saldo inicial
 
@@ -304,7 +323,7 @@ Separar fatos financeiros de posições de abertura e resultados de ciclo evita 
 
 ### Impacto
 
-A implementação futura poderá exigir uma representação própria para saldo inicial, identificação formal dos ciclos e recálculo de ciclos dependentes. O cálculo atual permanecerá compatível até que a nova regra seja implementada e coberta por testes.
+A implementação mantém o saldo inicial na configuração consolidada e deriva a abertura e o fechamento de cada competência mensal a partir do histórico completo. Não exige tabela de ciclos nem persistência de saldos derivados. O recálculo de competências posteriores ocorre automaticamente quando o histórico é alterado.
 
 ---
 
@@ -648,3 +667,5 @@ As decisões do Financeiro Pro devem seguir:
 # 9. Considerações Finais
 
 O objetivo deste documento não é impedir mudanças. É garantir que toda mudança importante seja consciente, registrada e compreendida.
+
+[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]
