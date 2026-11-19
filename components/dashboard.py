@@ -14,7 +14,11 @@ from services.financial_service import (
     calcular_posicao_configurada,
     referencia_da_competencia,
 )
-from utils.formatacao import colorir_status, formatar_valor_exibicao
+from utils.formatacao import (
+    colorir_status,
+    formatar_real,
+    formatar_valor_exibicao,
+)
 from utils.status import STATUS_PAGO, STATUS_PENDENTE
 from utils.tipo_transacao import TIPO_DESPESA
 
@@ -63,6 +67,20 @@ def render_dashboard():
         c1.metric("Saldo disponível", f"R$ {posicao.saldo_disponivel:,.2f}")
         c2.metric("Resultado acumulado", f"R$ {posicao.resultado_acumulado:,.2f}")
         c3.metric("Saldo projetado", f"R$ {posicao.saldo_projetado:,.2f}")
+        saldo_abertura = getattr(posicao, "saldo_abertura_competencia", None)
+        movimentacao_mes = getattr(posicao, "movimentacao_liquidada_competencia", None)
+        inicio_periodo = getattr(posicao, "data_inicio_periodo_competencia", None)
+        primeira_competencia = getattr(posicao, "primeira_competencia_controlada", False)
+        if saldo_abertura is not None and movimentacao_mes is not None:
+            origem = (
+                f"Saldo inicial do controle ({inicio_periodo:%d/%m/%Y})"
+                if primeira_competencia and inicio_periodo
+                else "Saldo transportado do mês anterior"
+            )
+            st.caption(
+                f"{origem}: {formatar_real(saldo_abertura)} · "
+                f"Movimentação liquidada no período: {formatar_real(movimentacao_mes)}"
+            )
 
     if df.empty:
         st.info("Nada ainda")
@@ -217,3 +235,5 @@ def render_dashboard():
                         st.rerun()
 
  
+
+[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]

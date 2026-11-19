@@ -264,3 +264,123 @@ def test_historico_com_datas_e_nulos_mistos_nao_rejeita_nan_do_pandas():
     assert posicao.saldo_disponivel == Decimal("611.26")
     assert posicao.pagamentos_legados_sem_data == 1
     assert posicao.despesas_previstas == Decimal("25.00")
+
+
+def test_fechamento_de_novembro_e_transportado_automaticamente_para_dezembro():
+    saldo_inicial = _saldo_inicial(711.26, date(2026, 11, 14))
+    transacoes = _transacoes(
+        {"tipo": "Despesa", "status": "Pago", "valor": 38.15, "ano": 2026, "mes": "NOVEMBRO", "data_liquidacao": "2026-11-17"},
+        {"tipo": "Saída", "status": "Pago", "valor": 58.90, "ano": 2026, "mes": "NOVEMBRO", "data_liquidacao": "2026-11-18"},
+        {"tipo": "Receita", "status": "Pago", "valor": 300, "ano": 2026, "mes": "DEZEMBRO", "data_liquidacao": "2026-12-05"},
+        {"tipo": "Despesa", "status": "Pago", "valor": 50, "ano": 2026, "mes": "DEZEMBRO", "data_liquidacao": "2026-12-10"},
+        {"tipo": "Despesa", "status": "Pendente", "valor": 400, "ano": 2026, "mes": "DEZEMBRO", "data_liquidacao": None},
+    )
+    novembro = calcular_posicao_financeira(transacoes, date(2026, 11, 30), saldo_inicial)
+    dezembro = calcular_posicao_financeira(transacoes, date(2026, 12, 31), saldo_inicial)
+
+    assert novembro.saldo_abertura_competencia == Decimal("711.26")
+    assert novembro.data_inicio_periodo_competencia == date(2026, 11, 14)
+    assert novembro.movimentacao_liquidada_competencia == Decimal("-97.05")
+    assert novembro.saldo_disponivel == Decimal("614.21")
+    assert dezembro.saldo_abertura_competencia == novembro.saldo_disponivel
+    assert dezembro.data_inicio_periodo_competencia == date(2026, 12, 1)
+    assert dezembro.movimentacao_liquidada_competencia == Decimal("250.00")
+    assert dezembro.saldo_fechamento_competencia == Decimal("864.21")
+    assert dezembro.saldo_disponivel == Decimal("864.21")
+    assert dezembro.saldo_projetado == Decimal("464.21")
+
+
+def test_receita_recebida_no_mes_anterior_pode_financiar_a_competencia_seguinte():
+    saldo_inicial = _saldo_inicial(1000, date(2026, 10, 1))
+    transacoes = _transacoes(
+        {"tipo": "Receita", "status": "Pago", "valor": 4000, "ano": 2026, "mes": "NOVEMBRO", "data_liquidacao": "2026-10-30"},
+        {"tipo": "Despesa", "status": "Pago", "valor": 200, "ano": 2026, "mes": "NOVEMBRO", "data_liquidacao": "2026-11-10"},
+    )
+    novembro = calcular_posicao_financeira(transacoes, date(2026, 11, 30), saldo_inicial)
+    assert novembro.saldo_abertura_competencia == Decimal("5000.00")
+    assert novembro.movimentacao_liquidada_competencia == Decimal("-200.00")
+    assert novembro.saldo_fechamento_competencia == Decimal("4800.00")
+    assert novembro.resultado_acumulado == Decimal("3800.00")
+
+
+def test_mes_vazio_herda_fechamento_anterior_sem_criar_transacao():
+    saldo_inicial = _saldo_inicial(250, date(2026, 1, 1))
+    transacoes = _transacoes(
+        {"tipo": "Despesa", "status": "Pago", "valor": 75, "ano": 2026, "mes": "JANEIRO", "data_liquidacao": "2026-01-20"},
+    )
+    janeiro = calcular_posicao_financeira(transacoes, date(2026, 1, 31), saldo_inicial)
+    fevereiro = calcular_posicao_financeira(transacoes, date(2026, 2, 28), saldo_inicial)
+    assert janeiro.saldo_disponivel == Decimal("175.00")
+    assert fevereiro.saldo_abertura_competencia == Decimal("175.00")
+    assert fevereiro.movimentacao_liquidada_competencia == Decimal("0.00")
+    assert fevereiro.saldo_disponivel == Decimal("175.00")
+
+
+def test_saldo_negativo_e_transportado_para_o_mes_seguinte():
+    saldo_inicial = _saldo_inicial(100, date(2026, 1, 1))
+    transacoes = _transacoes(
+        {"tipo": "Despesa", "status": "Pago", "valor": 150, "ano": 2026, "mes": "JANEIRO", "data_liquidacao": "2026-01-15"},
+        {"tipo": "Receita", "status": "Pago", "valor": 200, "ano": 2026, "mes": "FEVEREIRO", "data_liquidacao": "2026-02-10"},
+    )
+    janeiro = calcular_posicao_financeira(transacoes, date(2026, 1, 31), saldo_inicial)
+    fevereiro = calcular_posicao_financeira(transacoes, date(2026, 2, 28), saldo_inicial)
+    assert janeiro.saldo_disponivel == Decimal("-50.00")
+    assert fevereiro.saldo_abertura_competencia == Decimal("-50.00")
+    assert fevereiro.saldo_disponivel == Decimal("150.00")
+
+
+def test_edicao_retroativa_recalcula_abertura_dos_meses_posteriores():
+    saldo_inicial = _saldo_inicial(1000, date(2026, 1, 1))
+    janeiro_original = _transacoes(
+        {"tipo": "Despesa", "status": "Pago", "valor": 100, "ano": 2026, "mes": "JANEIRO", "data_liquidacao": "2026-01-15"},
+    )
+    janeiro_corrigido = _transacoes(
+        {"tipo": "Despesa", "status": "Pago", "valor": 250, "ano": 2026, "mes": "JANEIRO", "data_liquidacao": "2026-01-15"},
+    )
+    fevereiro_original = calcular_posicao_financeira(janeiro_original, date(2026, 2, 28), saldo_inicial)
+    fevereiro_corrigido = calcular_posicao_financeira(janeiro_corrigido, date(2026, 2, 28), saldo_inicial)
+    assert fevereiro_original.saldo_abertura_competencia == Decimal("900.00")
+    assert fevereiro_corrigido.saldo_abertura_competencia == Decimal("750.00")
+    assert fevereiro_original.saldo_disponivel - fevereiro_corrigido.saldo_disponivel == Decimal("150.00")
+
+
+def test_movimentacoes_do_primeiro_dia_pertencem_ao_movimento_do_mes():
+    saldo_inicial = _saldo_inicial(500, date(2026, 12, 1))
+    transacoes = _transacoes(
+        {"tipo": "Receita", "status": "Pago", "valor": 100, "ano": 2026, "mes": "DEZEMBRO", "data_liquidacao": "2026-12-01"},
+    )
+    dezembro = calcular_posicao_financeira(transacoes, date(2026, 12, 31), saldo_inicial)
+    assert dezembro.saldo_abertura_competencia == Decimal("500.00")
+    assert dezembro.movimentacao_liquidada_competencia == Decimal("100.00")
+    assert dezembro.saldo_disponivel == Decimal("600.00")
+
+
+def test_transporte_automatico_preserva_saldo_na_virada_do_ano():
+    saldo_inicial = _saldo_inicial(2000, date(2026, 12, 1))
+    transacoes = _transacoes(
+        {"tipo": "Despesa", "status": "Pago", "valor": 300, "ano": 2026, "mes": "DEZEMBRO", "data_liquidacao": "2026-12-31"},
+        {"tipo": "Receita", "status": "Pago", "valor": 100, "ano": 2027, "mes": "JANEIRO", "data_liquidacao": "2027-01-02"},
+    )
+    dezembro = calcular_posicao_financeira(transacoes, date(2026, 12, 31), saldo_inicial)
+    janeiro = calcular_posicao_financeira(transacoes, date(2027, 1, 31), saldo_inicial)
+
+    assert dezembro.saldo_disponivel == Decimal("1700.00")
+    assert janeiro.saldo_abertura_competencia == Decimal("1700.00")
+    assert janeiro.movimentacao_liquidada_competencia == Decimal("100.00")
+    assert janeiro.saldo_disponivel == Decimal("1800.00")
+
+
+def test_fevereiro_bissexto_recebe_abertura_do_fechamento_de_janeiro():
+    saldo_inicial = _saldo_inicial(500, date(2028, 1, 1))
+    transacoes = _transacoes(
+        {"tipo": "Despesa", "status": "Pago", "valor": 125, "ano": 2028, "mes": "JANEIRO", "data_liquidacao": "2028-01-31"},
+    )
+    janeiro = calcular_posicao_financeira(transacoes, date(2028, 1, 31), saldo_inicial)
+    fevereiro = calcular_posicao_financeira(transacoes, date(2028, 2, 29), saldo_inicial)
+
+    assert referencia_da_competencia(2028, "FEVEREIRO") == date(2028, 2, 29)
+    assert janeiro.saldo_disponivel == Decimal("375.00")
+    assert fevereiro.saldo_abertura_competencia == Decimal("375.00")
+    assert fevereiro.saldo_disponivel == Decimal("375.00")
+
+[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]

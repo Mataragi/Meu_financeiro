@@ -532,6 +532,20 @@ def _render_metrics(df_base):
             ("Saldo projetado", formatar_real(posicao.saldo_projetado), f"saldo {projetado_class}"),
         )
         _render_metric_cards("POSIÇÃO FINANCEIRA", cards_posicao)
+        saldo_abertura = getattr(posicao, "saldo_abertura_competencia", None)
+        movimentacao_mes = getattr(posicao, "movimentacao_liquidada_competencia", None)
+        inicio_periodo = getattr(posicao, "data_inicio_periodo_competencia", None)
+        primeira_competencia = getattr(posicao, "primeira_competencia_controlada", False)
+        if saldo_abertura is not None and movimentacao_mes is not None:
+            origem = (
+                f"Saldo inicial do controle ({inicio_periodo:%d/%m/%Y})"
+                if primeira_competencia and inicio_periodo
+                else "Saldo transportado do mês anterior"
+            )
+            st.caption(
+                f"{origem}: {formatar_real(saldo_abertura)} · "
+                f"Movimentação liquidada no período: {formatar_real(movimentacao_mes)}"
+            )
 
     _render_saldo_inicial_config(saldo_inicial)
 
@@ -622,3 +636,5 @@ def render_mobile():
         render_mobile_recurrence_list()
 
     _render_mobile_sidebar_actions(df_base, mes)
+
+[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]

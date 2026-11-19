@@ -16,6 +16,41 @@ referência, normalmente o último dia do mês selecionado:
 cálculo normalmente. O saldo inicial é configuração consolidada de
 disponibilidades controladas, não uma transação artificial.
 
+## Transporte automático entre competências mensais
+
+O saldo de abertura de cada competência é derivado automaticamente do
+fechamento real da competência anterior. Não existe cadastro manual de
+saldo para cada mês, tabela de ciclos ou lançamento artificial de
+Fechamento.
+
+A primeira competência monitorada utiliza o valor confirmado em
+configuracao_disponibilidade na data_base. Se a data-base cair no meio
+do mês, esse primeiro período controlado começa na própria data-base; o
+sistema não inventa o saldo que existia antes dela.
+
+Para as competências seguintes:
+
+    abertura do mês atual = fechamento real do mês anterior
+    fechamento real = abertura + receitas liquidadas - despesas liquidadas
+
+O caixa é movimentado pela data_liquidacao efetiva, não pela competência
+do lançamento. Assim, um salário recebido em 30/10 e atribuído à
+competência NOVEMBRO compõe o caixa de outubro e é transportado para a
+abertura de novembro, sem ser contado novamente como nova entrada de caixa.
+mes + ano continuam determinando o resultado por competência e o
+agrupamento das pendências.
+
+Somente receitas e despesas efetivamente liquidadas alteram o fechamento
+real. Pendências afetam exclusivamente o saldo projetado. Transferências
+e classificações que não sejam receita ou despesa não alteram o caixa
+agregado.
+
+A abertura, a movimentação liquidada e o fechamento mensal são calculados
+em memória a partir do histórico completo. Edições, exclusões e baixas
+retroativas recalculam automaticamente as competências posteriores. Não
+há gravação de saldos derivados no banco, evitando divergência entre um
+saldo persistido e as transações que o explicam.
+
 ## Cartões de crédito
 
 Uma compra no cartão é uma despesa única pela competência da fatura. A baixa
@@ -204,3 +239,5 @@ As ações de liquidação apresentam sucesso somente após a confirmação do
 serviço. Falhas esperadas de validação, concorrência ou comunicação da RPC
 recebem mensagem segura e registram o tipo técnico da falha no log; exceções
 inesperadas continuam visíveis para diagnóstico.
+
+[executed on device: desktop (83b4c1e0-9573-42e8-8b13-e3ed1e247eb4)]
